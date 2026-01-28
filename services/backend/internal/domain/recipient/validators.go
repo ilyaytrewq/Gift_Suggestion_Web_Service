@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/services/backend/internal/domain/shared"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
 )
 
 func (id RecipientProfileID) IsValid() bool {

@@ -3,8 +3,8 @@ package session
 import (
 	"time"
 
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/services/backend/internal/domain/snapshot"
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/services/backend/internal/domain/user"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/snapshot"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/user"
 )
 
 type SessionID string

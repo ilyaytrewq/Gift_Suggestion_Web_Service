@@ -1,8 +1,8 @@
 package recipient
 
 import (
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/services/backend/internal/domain/shared"
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/services/backend/internal/domain/user"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/user"
 )
 
 type RecipientProfileID string
