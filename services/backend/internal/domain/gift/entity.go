@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
+	shared "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/shared"
 )
 
 type GiftID string

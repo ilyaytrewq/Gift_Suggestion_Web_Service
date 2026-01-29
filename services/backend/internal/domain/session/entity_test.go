@@ -3,9 +3,9 @@ package session
 import (
 	"testing"
 
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/snapshot"
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/user"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/shared"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/snapshot"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/user"
 )
 
 const validUUID = "550e8400-e29b-41d4-a716-446655440000"

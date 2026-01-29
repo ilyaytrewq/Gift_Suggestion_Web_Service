@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
+	shared2 "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/shared"
 )
 
 const (
@@ -19,9 +19,9 @@ func TestNewGiftValid(t *testing.T) {
 		"https://example.com/path",
 		"http://example.com:80/path",
 	}
-	tags := []shared.TagID{"t2", "t1", "t1"}
+	tags := []shared2.TagID{"t2", "t1", "t1"}
 
-	gift, err := NewGift(GiftID(validUUID), "Gift", shared.CategoryID("category"), shared.Money(100), urls, tags, shared.Age12)
+	gift, err := NewGift(GiftID(validUUID), "Gift", shared2.CategoryID("category"), shared2.Money(100), urls, tags, shared2.Age12)
 	if err != nil {
 		t.Fatalf("NewGift() error=%v", err)
 	}
@@ -34,7 +34,7 @@ func TestNewGiftValid(t *testing.T) {
 		t.Fatalf("shopURLs=%v, want %v", gift.shopURLs, wantURLs)
 	}
 
-	wantTags := []shared.TagID{"t1", "t2"}
+	wantTags := []shared2.TagID{"t1", "t2"}
 	if !reflect.DeepEqual(gift.tags, wantTags) {
 		t.Fatalf("tags=%v, want %v", gift.tags, wantTags)
 	}
@@ -43,7 +43,7 @@ func TestNewGiftValid(t *testing.T) {
 func TestNewGiftInvalidID(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewGift(GiftID("bad-id"), "Gift", shared.CategoryID("category"), shared.Money(100), []string{"https://example.com"}, nil, shared.Age12)
+	_, err := NewGift(GiftID("bad-id"), "Gift", shared2.CategoryID("category"), shared2.Money(100), []string{"https://example.com"}, nil, shared2.Age12)
 	if err != ErrInvalidGiftID {
 		t.Fatalf("expected ErrInvalidGiftID, got %v", err)
 	}
@@ -52,7 +52,7 @@ func TestNewGiftInvalidID(t *testing.T) {
 func TestNewGiftInvalidTitle(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewGift(GiftID(validUUID), "", shared.CategoryID("category"), shared.Money(100), []string{"https://example.com"}, nil, shared.Age12)
+	_, err := NewGift(GiftID(validUUID), "", shared2.CategoryID("category"), shared2.Money(100), []string{"https://example.com"}, nil, shared2.Age12)
 	if err != ErrInvalidTitle {
 		t.Fatalf("expected ErrInvalidTitle, got %v", err)
 	}
@@ -61,7 +61,7 @@ func TestNewGiftInvalidTitle(t *testing.T) {
 func TestNewGiftInvalidCategory(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewGift(GiftID(validUUID), "Gift", shared.CategoryID(""), shared.Money(100), []string{"https://example.com"}, nil, shared.Age12)
+	_, err := NewGift(GiftID(validUUID), "Gift", shared2.CategoryID(""), shared2.Money(100), []string{"https://example.com"}, nil, shared2.Age12)
 	if err != ErrInvalidCategory {
 		t.Fatalf("expected ErrInvalidCategory, got %v", err)
 	}
@@ -70,7 +70,7 @@ func TestNewGiftInvalidCategory(t *testing.T) {
 func TestNewGiftInvalidURL(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewGift(GiftID(validUUID), "Gift", shared.CategoryID("category"), shared.Money(100), []string{"ftp://example.com"}, nil, shared.Age12)
+	_, err := NewGift(GiftID(validUUID), "Gift", shared2.CategoryID("category"), shared2.Money(100), []string{"ftp://example.com"}, nil, shared2.Age12)
 	if err != ErrInvalidShopURL {
 		t.Fatalf("expected ErrInvalidShopURL, got %v", err)
 	}
@@ -79,7 +79,7 @@ func TestNewGiftInvalidURL(t *testing.T) {
 func TestNewGiftInvalidTag(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewGift(GiftID(validUUID), "Gift", shared.CategoryID("category"), shared.Money(100), []string{"https://example.com"}, []shared.TagID{""}, shared.Age12)
+	_, err := NewGift(GiftID(validUUID), "Gift", shared2.CategoryID("category"), shared2.Money(100), []string{"https://example.com"}, []shared2.TagID{""}, shared2.Age12)
 	if err != ErrInvalidTag {
 		t.Fatalf("expected ErrInvalidTag, got %v", err)
 	}
@@ -88,8 +88,8 @@ func TestNewGiftInvalidTag(t *testing.T) {
 func TestNewGiftInvalidPrice(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewGift(GiftID(validUUID), "Gift", shared.CategoryID("category"), shared.Money(-1), []string{"https://example.com"}, nil, shared.Age12)
-	if err != shared.ErrInvalidPrice {
+	_, err := NewGift(GiftID(validUUID), "Gift", shared2.CategoryID("category"), shared2.Money(-1), []string{"https://example.com"}, nil, shared2.Age12)
+	if err != shared2.ErrInvalidPrice {
 		t.Fatalf("expected ErrInvalidPrice, got %v", err)
 	}
 }
@@ -97,8 +97,8 @@ func TestNewGiftInvalidPrice(t *testing.T) {
 func TestNewGiftInvalidAge(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewGift(GiftID(validUUID), "Gift", shared.CategoryID("category"), shared.Money(100), []string{"https://example.com"}, nil, shared.AgeLimit(15))
-	if err != shared.ErrInvalidAgeLimit {
+	_, err := NewGift(GiftID(validUUID), "Gift", shared2.CategoryID("category"), shared2.Money(100), []string{"https://example.com"}, nil, shared2.AgeLimit(15))
+	if err != shared2.ErrInvalidAgeLimit {
 		t.Fatalf("expected ErrInvalidAgeLimit, got %v", err)
 	}
 }
