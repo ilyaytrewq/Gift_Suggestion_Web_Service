@@ -11,6 +11,6 @@ type UserRepository interface {
 	Save(ctx context.Context, user *user.User) error
 }
 
-type IDGenerator interface {
+type UserIDGenerator interface {
 	NewUserID() (user.UserID, error)
 }

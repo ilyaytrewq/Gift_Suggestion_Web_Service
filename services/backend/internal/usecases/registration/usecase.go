@@ -10,10 +10,10 @@ import (
 
 type RegistrationUseCase struct {
 	repo  UserRepository
-	idGen IDGenerator
+	idGen UserIDGenerator
 }
 
-func NewRegistrationUseCase(repo UserRepository, idGen IDGenerator) (*RegistrationUseCase, error) {
+func NewRegistrationUseCase(repo UserRepository, idGen UserIDGenerator) (*RegistrationUseCase, error) {
 	if repo == nil {
 		return nil, ErrNilUserRepository
 	}
