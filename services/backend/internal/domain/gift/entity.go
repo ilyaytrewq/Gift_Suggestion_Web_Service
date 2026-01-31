@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	shared "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/shared"
+	shared2 "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
 )
 
 type GiftID string
@@ -13,15 +13,15 @@ type GiftID string
 type Gift struct {
 	id       GiftID
 	title    string
-	category shared.CategoryID
-	price    shared.Money
+	category shared2.CategoryID
+	price    shared2.Money
 	shopURLs []string
-	tags     []shared.TagID
-	ageLimit shared.AgeLimit
+	tags     []shared2.TagID
+	ageLimit shared2.AgeLimit
 	active   bool
 }
 
-func NewGift(id GiftID, title string, cat shared.CategoryID, price shared.Money, urls []string, tags []shared.TagID, limit shared.AgeLimit) (*Gift, error) {
+func NewGift(id GiftID, title string, cat shared2.CategoryID, price shared2.Money, urls []string, tags []shared2.TagID, limit shared2.AgeLimit) (*Gift, error) {
 	if !id.IsValid() {
 		return nil, ErrInvalidGiftID
 	}
@@ -44,10 +44,10 @@ func NewGift(id GiftID, title string, cat shared.CategoryID, price shared.Money,
 		}
 	}
 	if !price.IsNonNegative() {
-		return nil, shared.ErrInvalidPrice
+		return nil, shared2.ErrInvalidPrice
 	}
 	if !limit.IsValid() {
-		return nil, shared.ErrInvalidAgeLimit
+		return nil, shared2.ErrInvalidAgeLimit
 	}
 	return &Gift{
 		id:       id,
@@ -55,7 +55,7 @@ func NewGift(id GiftID, title string, cat shared.CategoryID, price shared.Money,
 		category: cat,
 		price:    price,
 		shopURLs: normalizedURLs,
-		tags:     shared.UniqTags(tags),
+		tags:     shared2.UniqTags(tags),
 		ageLimit: limit,
 		active:   true,
 	}, nil

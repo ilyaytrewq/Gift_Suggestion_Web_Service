@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/shared"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
 )
 
 func TestNewSnapshotValid(t *testing.T) {

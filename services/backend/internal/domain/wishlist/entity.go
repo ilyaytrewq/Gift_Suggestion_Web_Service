@@ -3,8 +3,8 @@ package wishlist
 import (
 	"time"
 
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/gift"
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/user"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/gift"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/user"
 )
 
 type WishlistItem struct {

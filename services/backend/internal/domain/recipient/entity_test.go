@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/shared"
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/user"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/user"
 )
 
 const validUUID = "550e8400-e29b-41d4-a716-446655440000"

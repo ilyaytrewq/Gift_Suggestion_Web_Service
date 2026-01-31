@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/models/shared"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
 )
 
 func (id RecipientProfileID) IsValid() bool {

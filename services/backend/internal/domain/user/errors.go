@@ -9,7 +9,7 @@ var (
 	ErrEmailEmpty   = errors.New("email is empty")
 	ErrInvalidEmail = errors.New("email has invalid format")
 
-	ErrPasswordEmpty = errors.New("password is empty")
+	ErrPasswordEmpty    = errors.New("password is empty")
 	ErrPasswordTooShort = errors.New("password is too short")
 	ErrPasswordTooLong  = errors.New("password is too long")
 
