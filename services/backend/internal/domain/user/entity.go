@@ -21,7 +21,7 @@ const (
 )
 
 type User struct {
-	id           UserID
+	id           *UserID
 	email        Email
 	passwordHash PasswordHash
 	role         Role
@@ -62,14 +62,15 @@ func NewUser(id UserID, email Email, password Password, role Role) (*User, error
 	}, nil
 }
 
-func NewUserID(id string) (UserID, error) {
+func NewUserID(id string) (*UserID, error) {
 	if isBlank(id) {
-		return "", ErrUserIDEmpty
+		return nil, ErrUserIDEmpty
 	}
 	if !isValidUserID(id) {
-		return "", ErrInvalidUserID
+		return nil, ErrInvalidUserID
 	}
-	return UserID(id), nil
+	userId := UserID(id)
+	return &userId, nil
 }
 
 func (id UserID) IsValid() bool {
@@ -123,7 +124,7 @@ func (u *User) ComparePassword(password Password) bool {
 	return bcrypt.CompareHashAndPassword(u.passwordHash, []byte(string(password))) == nil
 }
 
-func (u *User) ID() UserID {
+func (u *User) ID() *UserID {
 	return u.id
 }
 

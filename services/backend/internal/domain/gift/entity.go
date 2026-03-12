@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	shared2 "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
+	shared "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/shared"
 )
 
 type GiftID string
@@ -13,15 +13,15 @@ type GiftID string
 type Gift struct {
 	id       GiftID
 	title    string
-	category shared2.CategoryID
-	price    shared2.Money
+	category shared.CategoryID
+	price    shared.Money
 	shopURLs []string
-	tags     []shared2.TagID
-	ageLimit shared2.AgeLimit
+	tags     []shared.TagID
+	ageLimit shared.AgeLimit
 	active   bool
 }
 
-func NewGift(id GiftID, title string, cat shared2.CategoryID, price shared2.Money, urls []string, tags []shared2.TagID, limit shared2.AgeLimit) (*Gift, error) {
+func NewGift(id GiftID, title string, cat shared.CategoryID, price shared.Money, urls []string, tags []shared.TagID, limit shared.AgeLimit) (*Gift, error) {
 	if !id.IsValid() {
 		return nil, ErrInvalidGiftID
 	}
@@ -44,10 +44,10 @@ func NewGift(id GiftID, title string, cat shared2.CategoryID, price shared2.Mone
 		}
 	}
 	if !price.IsNonNegative() {
-		return nil, shared2.ErrInvalidPrice
+		return nil, shared.ErrInvalidPrice
 	}
 	if !limit.IsValid() {
-		return nil, shared2.ErrInvalidAgeLimit
+		return nil, shared.ErrInvalidAgeLimit
 	}
 	return &Gift{
 		id:       id,
@@ -55,10 +55,42 @@ func NewGift(id GiftID, title string, cat shared2.CategoryID, price shared2.Mone
 		category: cat,
 		price:    price,
 		shopURLs: normalizedURLs,
-		tags:     shared2.UniqTags(tags),
+		tags:     shared.UniqTags(tags),
 		ageLimit: limit,
 		active:   true,
 	}, nil
+}
+
+func (g *Gift) ID() GiftID {
+	return g.id
+}
+
+func (g *Gift) Title() string {
+	return g.title
+}
+
+func (g *Gift) Category() shared.CategoryID {
+	return g.category
+}
+
+func (g *Gift) Price() shared.Money {
+	return g.price
+}
+
+func (g *Gift) ShopURLs() []string {
+	return g.shopURLs
+}
+
+func (g *Gift) Tags() []shared.TagID {
+	return g.tags
+}
+
+func NewGiftID(id string) (*GiftID, error) {
+	giftID := GiftID(id)
+	if !giftID.IsValid() {
+		return nil, ErrInvalidGiftID
+	}
+	return &giftID, nil
 }
 
 func normalizeShopURLs(raws []string) ([]string, error) {

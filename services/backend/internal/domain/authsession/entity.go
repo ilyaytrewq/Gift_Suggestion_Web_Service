@@ -22,7 +22,7 @@ type AuthSession struct {
 	LastUsedAt time.Time
 }
 
-func NewAuthSession(userID user.UserID, ttl time.Duration) (*AuthSession, error) {
+func NewAuthSession(userID *user.UserID, ttl time.Duration) (*AuthSession, error) {
 	if !userID.IsValid() {
 		return nil, ErrInvalidUserID
 	}
@@ -42,7 +42,7 @@ func NewAuthSession(userID user.UserID, ttl time.Duration) (*AuthSession, error)
 	now := time.Now()
 	return &AuthSession{
 		AuthSessionID: id,
-		UserID:        &userID,
+		UserID:        userID,
 		CSRFSecret:    secret,
 		CreatedAt:     now,
 		ExpiresAt:     now.Add(ttl),
@@ -59,12 +59,28 @@ func NewAuthSessionID() (*AuthSessionID, error) {
 	return &id, nil
 }
 
+func NewAuthSessionIDFromString(s string) (*AuthSessionID, error) {
+	id := AuthSessionID(s)
+	if id.IsValid() != nil {
+		return nil, ErrInvalidAuthSessionID
+	}
+	return &id, nil
+}
+
 func NewCSRFSecret() (*CSRFSecret, error) {
 	s, err := randomB64URL(32)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate csrf secret")
 	}
 	id := CSRFSecret(s)
+	return &id, nil
+}
+
+func NewCSRFSecretFromString(s string) (*CSRFSecret, error) {
+	id := CSRFSecret(s)
+	if id.IsValid() != nil {
+		return nil, ErrInvalidCSRFSecret
+	}
 	return &id, nil
 }
 
