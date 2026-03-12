@@ -2,8 +2,10 @@ package shared
 
 import "slices"
 
-type CategoryID string
-type TagID string
+type (
+	CategoryID string
+	TagID      string
+)
 
 func UniqTags(tags []TagID) []TagID {
 	if len(tags) == 0 {

@@ -3,9 +3,8 @@ package registration
 import (
 	"context"
 
-	"github.com/pkg/errors"
-
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/user"
+	"github.com/pkg/errors"
 )
 
 type RegistrationUseCase struct {
