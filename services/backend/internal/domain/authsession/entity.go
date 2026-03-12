@@ -5,22 +5,23 @@ import (
 	"encoding/base64"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/user"
+	"github.com/pkg/errors"
 )
 
-type AuthSessionID string
-type CSRFSecret string
-type AuthSession struct {
-	AuthSessionID *AuthSessionID
-	UserID        *user.UserID
-	CSRFSecret    *CSRFSecret
+type (
+	AuthSessionID string
+	CSRFSecret    string
+	AuthSession   struct {
+		AuthSessionID *AuthSessionID
+		UserID        *user.UserID
+		CSRFSecret    *CSRFSecret
 
-	CreatedAt  time.Time
-	ExpiresAt  time.Time
-	LastUsedAt time.Time
-}
+		CreatedAt  time.Time
+		ExpiresAt  time.Time
+		LastUsedAt time.Time
+	}
+)
 
 func NewAuthSession(userID *user.UserID, ttl time.Duration) (*AuthSession, error) {
 	if !userID.IsValid() {

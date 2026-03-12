@@ -5,16 +5,18 @@ import (
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/domain/user"
 )
 
-type RecipientProfileID string
-type RecipientProfile struct {
-	RecipientID  RecipientProfileID
-	OwnerUserID  *user.UserID
-	Occasion     *shared.Occasion
-	Relation     *shared.Relation
-	Age          shared.AgeLimit
-	Budget       shared.Money
-	InterestTags []shared.TagID
-}
+type (
+	RecipientProfileID string
+	RecipientProfile   struct {
+		RecipientID  RecipientProfileID
+		OwnerUserID  *user.UserID
+		Occasion     *shared.Occasion
+		Relation     *shared.Relation
+		Age          shared.AgeLimit
+		Budget       shared.Money
+		InterestTags []shared.TagID
+	}
+)
 
 func NewRecipientProfile(id RecipientProfileID, ownerUserID *user.UserID, occasion *shared.Occasion, relation *shared.Relation, age shared.AgeLimit, budget shared.Money, interestTags []shared.TagID) (*RecipientProfile, error) {
 	if isBlank(string(id)) {

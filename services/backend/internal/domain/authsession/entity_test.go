@@ -13,7 +13,8 @@ func TestNewAuthSessionValid(t *testing.T) {
 	t.Parallel()
 
 	ttl := time.Hour
-	session, err := NewAuthSession(user.UserID(validUUID), ttl)
+	uId := new(user.UserID(validUUID))
+	session, err := NewAuthSession(uId, ttl)
 	if err != nil {
 		t.Fatalf("NewAuthSession() error=%v", err)
 	}
@@ -43,7 +44,7 @@ func TestNewAuthSessionValid(t *testing.T) {
 func TestNewAuthSessionInvalidUserID(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewAuthSession(user.UserID("bad-id"), time.Hour)
+	_, err := NewAuthSession(new(user.UserID("bad-id")), time.Hour)
 	if err != ErrInvalidUserID {
 		t.Fatalf("expected ErrInvalidUserID, got %v", err)
 	}
@@ -52,12 +53,12 @@ func TestNewAuthSessionInvalidUserID(t *testing.T) {
 func TestNewAuthSessionInvalidTTL(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewAuthSession(user.UserID(validUUID), 0)
+	_, err := NewAuthSession(new(user.UserID(validUUID)), 0)
 	if err != ErrInvalidTTL {
 		t.Fatalf("expected ErrInvalidTTL, got %v", err)
 	}
 
-	_, err = NewAuthSession(user.UserID(validUUID), -time.Second)
+	_, err = NewAuthSession(new(user.UserID(validUUID)), -time.Second)
 	if err != ErrInvalidTTL {
 		t.Fatalf("expected ErrInvalidTTL, got %v", err)
 	}
