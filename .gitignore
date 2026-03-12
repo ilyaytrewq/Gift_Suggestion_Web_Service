@@ -9,8 +9,9 @@
 *.a
 *.o
 
-# Build output
-/bin/
+ Build output
+*bin/
+in/bin/
 /dist/
 /build/
 /target/
@@ -49,3 +50,7 @@ Thumbs.db
 
 .gocache/
 **/.gocache/
+
+*TZ/
+*TODO.md
+
