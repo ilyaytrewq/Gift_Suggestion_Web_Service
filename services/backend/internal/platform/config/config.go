@@ -23,6 +23,7 @@ const (
 	defaultDBMaxIdleConns    = 5
 	defaultDBConnMaxLifetime = 30 * time.Minute
 	defaultDBPingTimeout     = 2 * time.Second
+	defaultImportMaxFileSize = 5 * 1024 * 1024
 	defaultMLDialTimeout     = 3 * time.Second
 	defaultJWTIssuer         = "gift-suggestion-backend"
 	defaultJWTAudience       = "gift-suggestion-web-service"
@@ -37,6 +38,7 @@ type Config struct {
 	App      AppConfig
 	HTTP     HTTPConfig
 	Database DatabaseConfig
+	Import   ImportConfig
 	ML       MLConfig
 	Auth     AuthConfig
 }
@@ -67,6 +69,10 @@ type DatabaseConfig struct {
 	ConnMaxLifetime   time.Duration
 	PingTimeout       time.Duration
 	MigrationsEnabled bool
+}
+
+type ImportConfig struct {
+	MaxFileSizeBytes int64
 }
 
 type MLConfig struct {
@@ -155,12 +161,12 @@ func LoadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 		return Config{}, err
 	}
 
-	cfg.ML.Enabled, err = boolWithDefault(lookup, "ML_GRPC_ENABLED", false)
+	cfg.Import, err = loadImportConfig(lookup)
 	if err != nil {
 		return Config{}, err
 	}
-	cfg.ML.Address = stringWithDefault(lookup, "ML_GRPC_ADDR", "")
-	cfg.ML.DialTimeout, err = durationWithDefault(lookup, "ML_GRPC_DIAL_TIMEOUT", defaultMLDialTimeout)
+
+	cfg.ML, err = loadMLConfig(lookup)
 	if err != nil {
 		return Config{}, err
 	}
@@ -216,6 +222,9 @@ func (cfg Config) validate() error {
 	}
 	if cfg.Database.MaxIdleConns > cfg.Database.MaxOpenConns {
 		return errors.New("DB_MAX_IDLE_CONNS must be less than or equal to DB_MAX_OPEN_CONNS")
+	}
+	if cfg.Import.MaxFileSizeBytes < 1 {
+		return errors.New("IMPORT_MAX_FILE_SIZE_BYTES must be greater than zero")
 	}
 	if cfg.ML.Enabled && cfg.ML.Address == "" {
 		return errors.New("ML_GRPC_ADDR is required when ML_GRPC_ENABLED=true")
@@ -276,6 +285,49 @@ func intWithDefault(lookup func(string) (string, bool), key string, defaultValue
 	}
 
 	return parsed, nil
+}
+
+func int64WithDefault(lookup func(string) (string, bool), key string, defaultValue int64) (int64, error) {
+	value, ok := lookup(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return defaultValue, nil
+	}
+
+	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	if err != nil {
+		return 0, errors.New(key + " must be a valid integer")
+	}
+
+	return parsed, nil
+}
+
+func loadImportConfig(lookup func(string) (string, bool)) (ImportConfig, error) {
+	maxFileSizeBytes, err := int64WithDefault(lookup, "IMPORT_MAX_FILE_SIZE_BYTES", defaultImportMaxFileSize)
+	if err != nil {
+		return ImportConfig{}, err
+	}
+
+	return ImportConfig{
+		MaxFileSizeBytes: maxFileSizeBytes,
+	}, nil
+}
+
+func loadMLConfig(lookup func(string) (string, bool)) (MLConfig, error) {
+	enabled, err := boolWithDefault(lookup, "ML_GRPC_ENABLED", false)
+	if err != nil {
+		return MLConfig{}, err
+	}
+
+	dialTimeout, err := durationWithDefault(lookup, "ML_GRPC_DIAL_TIMEOUT", defaultMLDialTimeout)
+	if err != nil {
+		return MLConfig{}, err
+	}
+
+	return MLConfig{
+		Enabled:     enabled,
+		Address:     stringWithDefault(lookup, "ML_GRPC_ADDR", ""),
+		DialTimeout: dialTimeout,
+	}, nil
 }
 
 func durationWithDefault(

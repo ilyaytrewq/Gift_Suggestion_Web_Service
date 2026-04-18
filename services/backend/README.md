@@ -51,6 +51,47 @@ List endpoints используют общий envelope и возвращают 
 Все wishlist endpoints требуют JWT access token и работают только с wishlist текущего пользователя.
 Попытка обратиться к чужому wishlist маскируется ответом `404`, чтобы не раскрывать существование чужих списков.
 
+## Catalog import API
+
+После `feature/import-jobs` backend также поддерживает admin-oriented import flow:
+
+- `POST /api/v1/admin/import-jobs`
+- `GET /api/v1/admin/import-jobs/{job_id}`
+- `GET /api/v1/admin/import-jobs/{job_id}/errors`
+
+Все import endpoints требуют JWT access token с ролью `admin`.
+Импорт выполняется синхронно в рамках `POST`, но результат всегда сохраняется в `import_jobs` и `import_errors`.
+
+Поддерживаемые форматы:
+
+- `CSV`
+- `JSON`
+- `XLSX`
+
+Обязательные поля записи:
+
+- `name`
+- `category`
+- `price`
+- `description`
+- `store_link`
+
+Опциональные поля:
+
+- `image`
+- `age_restriction`
+- `source`
+
+Текущий импортный контракт:
+
+- `category` резолвится по уже существующим `categories` case-insensitive; неизвестная категория уходит в `import_errors`;
+- дубликаты внутри файла и дубликаты относительно каталога (`normalized(name) + normalized(store_link)`) не импортируются и попадают в `import_errors`;
+- частично валидный файл допустим: валидные записи сохраняются, невалидные фиксируются в отчёте;
+- максимальный размер файла задаётся через `IMPORT_MAX_FILE_SIZE_BYTES`.
+
+Для `CSV` и `XLSX` первая строка должна содержать headers.
+Для `JSON` поддерживается массив объектов, а также объект вида `{ "items": [...] }`.
+
 ## OpenAPI
 
 HTTP contracts ведутся в OpenAPI-формате в файле:
@@ -59,7 +100,7 @@ HTTP contracts ведутся в OpenAPI-формате в файле:
 services/backend/docs/openapi/backend.yaml
 ```
 
-Сейчас спецификация покрывает health, auth/user foundation, catalog read и wishlist endpoints.
+Сейчас спецификация покрывает health, auth/user foundation, catalog read, wishlist и admin catalog import endpoints.
 
 ## Локальный запуск backend
 

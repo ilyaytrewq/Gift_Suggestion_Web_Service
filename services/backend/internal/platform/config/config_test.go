@@ -25,6 +25,9 @@ func TestLoadFromLookupDefaults(t *testing.T) {
 	if !cfg.Database.MigrationsEnabled {
 		t.Fatal("expected migrations to be enabled by default")
 	}
+	if cfg.Import.MaxFileSizeBytes != defaultImportMaxFileSize {
+		t.Fatalf("expected default import max file size %d, got %d", defaultImportMaxFileSize, cfg.Import.MaxFileSizeBytes)
+	}
 	if cfg.ML.Enabled {
 		t.Fatal("expected ml grpc to be disabled by default")
 	}
@@ -45,20 +48,21 @@ func TestLoadFromLookupValidatesValues(t *testing.T) {
 	t.Parallel()
 
 	_, err := LoadFromLookup(mapLookup(map[string]string{
-		"DB_DSN":                "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
-		"AUTH_JWT_SECRET":       "very-secret-key-123",
-		"HTTP_PORT":             "invalid",
-		"ML_GRPC_ENABLED":       "true",
-		"ML_GRPC_DIAL_TIMEOUT":  "5s",
-		"DB_CONN_MAX_LIFETIME":  "30m",
-		"DB_PING_TIMEOUT":       "2s",
-		"HTTP_READ_TIMEOUT":     "5s",
-		"HTTP_WRITE_TIMEOUT":    "10s",
-		"HTTP_IDLE_TIMEOUT":     "60s",
-		"HTTP_SHUTDOWN_TIMEOUT": "10s",
-		"DB_MAX_OPEN_CONNS":     "10",
-		"DB_MAX_IDLE_CONNS":     "5",
-		"ML_GRPC_ADDR":          "localhost:50051",
+		"DB_DSN":                     "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
+		"AUTH_JWT_SECRET":            "very-secret-key-123",
+		"HTTP_PORT":                  "invalid",
+		"ML_GRPC_ENABLED":            "true",
+		"ML_GRPC_DIAL_TIMEOUT":       "5s",
+		"DB_CONN_MAX_LIFETIME":       "30m",
+		"DB_PING_TIMEOUT":            "2s",
+		"HTTP_READ_TIMEOUT":          "5s",
+		"HTTP_WRITE_TIMEOUT":         "10s",
+		"HTTP_IDLE_TIMEOUT":          "60s",
+		"HTTP_SHUTDOWN_TIMEOUT":      "10s",
+		"DB_MAX_OPEN_CONNS":          "10",
+		"DB_MAX_IDLE_CONNS":          "5",
+		"IMPORT_MAX_FILE_SIZE_BYTES": "0",
+		"ML_GRPC_ADDR":               "localhost:50051",
 	}))
 	if err == nil {
 		t.Fatal("expected invalid HTTP_PORT to fail")
@@ -85,6 +89,7 @@ func TestLoadFromLookupReadsExplicitValues(t *testing.T) {
 		"DB_CONN_MAX_LIFETIME":       "45m",
 		"DB_PING_TIMEOUT":            "3s",
 		"DB_MIGRATIONS_ENABLED":      "false",
+		"IMPORT_MAX_FILE_SIZE_BYTES": "2097152",
 		"ML_GRPC_ENABLED":            "true",
 		"ML_GRPC_ADDR":               "localhost:50051",
 		"ML_GRPC_DIAL_TIMEOUT":       "7s",
@@ -109,6 +114,9 @@ func TestLoadFromLookupReadsExplicitValues(t *testing.T) {
 	}
 	if cfg.Database.MigrationsEnabled {
 		t.Fatal("expected migrations to be disabled")
+	}
+	if cfg.Import.MaxFileSizeBytes != 2097152 {
+		t.Fatalf("expected import max file size 2097152, got %d", cfg.Import.MaxFileSizeBytes)
 	}
 	if !cfg.ML.Enabled {
 		t.Fatal("expected ml grpc to be enabled")

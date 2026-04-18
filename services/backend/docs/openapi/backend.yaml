@@ -5,7 +5,8 @@ info:
   description: |
     Backend API gateway for the Gift Suggestion Web Service.
     The specification is maintained manually and currently covers health,
-    auth/user foundation, catalog read endpoints, and wishlist endpoints.
+    auth/user foundation, catalog read endpoints, wishlist endpoints,
+    and admin catalog import endpoints.
 servers:
   - url: http://localhost:8080
 tags:
@@ -14,6 +15,7 @@ tags:
   - name: users
   - name: catalog
   - name: wishlist
+  - name: admin-import
 paths:
   /health/live:
     get:
@@ -511,6 +513,133 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/admin/import-jobs:
+    post:
+      tags: [admin-import]
+      summary: Upload catalog import file
+      operationId: createImportJob
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                source:
+                  type: string
+      responses:
+        '201':
+          description: Import job created and processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJobEnvelope'
+        '400':
+          description: Invalid multipart payload, unsupported format, empty file or invalid file size
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Admin role is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/admin/import-jobs/{job_id}:
+    get:
+      tags: [admin-import]
+      summary: Get import job detail
+      operationId: getImportJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ImportJobIDPath'
+      responses:
+        '200':
+          description: Import job detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJobEnvelope'
+        '400':
+          description: Invalid identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Admin role is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Import job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/admin/import-jobs/{job_id}/errors:
+    get:
+      tags: [admin-import]
+      summary: List import job errors
+      operationId: listImportJobErrors
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ImportJobIDPath'
+        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/OffsetQuery'
+      responses:
+        '200':
+          description: Import job error list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJobErrorsEnvelope'
+        '400':
+          description: Invalid identifier or query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Admin role is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Import job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 components:
   securitySchemes:
     bearerAuth:
@@ -528,6 +657,13 @@ components:
     WishlistIDPath:
       in: path
       name: wishlist_id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ImportJobIDPath:
+      in: path
+      name: job_id
       required: true
       schema:
         type: string
@@ -1136,6 +1272,127 @@ components:
           properties:
             deleted:
               type: boolean
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    ImportJobSummary:
+      type: object
+      required: [total_rows, processed_rows, imported_rows, updated_rows, skipped_rows, duplicate_in_file_rows, duplicate_in_catalog_rows, error_rows]
+      properties:
+        total_rows:
+          type: integer
+        processed_rows:
+          type: integer
+        imported_rows:
+          type: integer
+        updated_rows:
+          type: integer
+        skipped_rows:
+          type: integer
+        duplicate_in_file_rows:
+          type: integer
+        duplicate_in_catalog_rows:
+          type: integer
+        error_rows:
+          type: integer
+      additionalProperties: false
+    ImportJob:
+      type: object
+      required: [id, status, source_format, source_filename, source_size_bytes, summary, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        requested_by_user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, completed_with_errors, failed]
+        source_format:
+          type: string
+          enum: [csv, json, xlsx]
+        source_filename:
+          type: string
+        source_label:
+          type: string
+        source_size_bytes:
+          type: integer
+          format: int64
+        summary:
+          $ref: '#/components/schemas/ImportJobSummary'
+        failure_code:
+          type: string
+        failure_message:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    ImportError:
+      type: object
+      required: [id, code, message]
+      properties:
+        id:
+          type: string
+          format: uuid
+        row_number:
+          type: integer
+        record_key:
+          type: string
+        field_name:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        raw_record:
+          type: string
+      additionalProperties: false
+    ImportJobEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [job]
+          properties:
+            job:
+              $ref: '#/components/schemas/ImportJob'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    ImportJobErrorsEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [items, page]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ImportError'
+            page:
+              $ref: '#/components/schemas/Page'
           additionalProperties: false
         meta:
           $ref: '#/components/schemas/Meta'

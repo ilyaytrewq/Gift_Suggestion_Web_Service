@@ -15,6 +15,10 @@ import (
 	cataloghttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalog/delivery/http"
 	catalogpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalog/infra/postgres"
 	catalogusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalog/usecase"
+	catalogimporthttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalogimport/delivery/http"
+	catalogimportparser "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalogimport/infra/parser"
+	catalogimportpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalogimport/infra/postgres"
+	catalogimportusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalogimport/usecase"
 	healthhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/delivery/http"
 	healthgrpc "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/infra/grpc"
 	healthpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/infra/postgres"
@@ -191,8 +195,12 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	if err != nil {
 		return nil, err
 	}
+	importHandler, err := newCatalogImportHandler(database, authMiddleware, cfg.Import, uuidGenerator)
+	if err != nil {
+		return nil, err
+	}
 
-	router := transporthttp.NewRouter(log, healthHandler, authHandler, userHandler, catalogHandler, wishlistHandler)
+	router := transporthttp.NewRouter(log, healthHandler, authHandler, userHandler, catalogHandler, wishlistHandler, importHandler)
 
 	return &App{
 		cfg:      cfg,
@@ -226,6 +234,31 @@ func newHealthHandler(database *sql.DB, mlClient *mlgrpc.Client) (*healthhttp.Ha
 	}
 
 	return healthhttp.NewHandler(healthService)
+}
+
+func newCatalogImportHandler(
+	database *sql.DB,
+	authMiddleware gin.HandlerFunc,
+	cfg config.ImportConfig,
+	uuidGenerator idgen.UUIDGenerator,
+) (*catalogimporthttp.Handler, error) {
+	importRepository := catalogimportpostgres.NewRepository(database)
+	importParsers := catalogimportparser.NewRegistry()
+
+	importService, err := catalogimportusecase.NewService(
+		importRepository,
+		importParsers,
+		uuidGenerator,
+		uuidGenerator,
+		uuidGenerator,
+		cfg.MaxFileSizeBytes,
+		clock.Real{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return catalogimporthttp.NewHandler(importService, authMiddleware, cfg.MaxFileSizeBytes)
 }
 
 func (a *App) Start(ctx context.Context) error {
