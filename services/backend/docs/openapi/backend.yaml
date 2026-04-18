@@ -5,7 +5,7 @@ info:
   description: |
     Backend API gateway for the Gift Suggestion Web Service.
     The specification is maintained manually and currently covers health,
-    auth/user foundation, and catalog read endpoints.
+    auth/user foundation, catalog read endpoints, and wishlist endpoints.
 servers:
   - url: http://localhost:8080
 tags:
@@ -13,6 +13,7 @@ tags:
   - name: auth
   - name: users
   - name: catalog
+  - name: wishlist
 paths:
   /health/live:
     get:
@@ -290,6 +291,226 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/wishlists:
+    get:
+      tags: [wishlist]
+      summary: List current user wishlists
+      operationId: listWishlists
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/OffsetQuery'
+      responses:
+        '200':
+          description: Wishlist list page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WishlistListEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    post:
+      tags: [wishlist]
+      summary: Create wishlist
+      operationId: createWishlist
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWishlistRequest'
+      responses:
+        '201':
+          description: Wishlist created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WishlistEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Wishlist name already exists for the current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/wishlists/{wishlist_id}:
+    get:
+      tags: [wishlist]
+      summary: Get current user wishlist with items
+      operationId: getWishlist
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WishlistIDPath'
+      responses:
+        '200':
+          description: Wishlist detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WishlistEnvelope'
+        '400':
+          description: Invalid identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Wishlist not found or unavailable to current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [wishlist]
+      summary: Delete current user wishlist
+      operationId: deleteWishlist
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WishlistIDPath'
+      responses:
+        '200':
+          description: Wishlist deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteWishlistEnvelope'
+        '400':
+          description: Invalid identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Wishlist not found or unavailable to current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/wishlists/{wishlist_id}/items:
+    post:
+      tags: [wishlist]
+      summary: Add gift to current user wishlist
+      operationId: addWishlistItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WishlistIDPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddWishlistItemRequest'
+      responses:
+        '201':
+          description: Gift added to wishlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddWishlistItemEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Wishlist or gift not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Gift already exists in wishlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/wishlists/{wishlist_id}/items/{gift_id}:
+    delete:
+      tags: [wishlist]
+      summary: Remove gift from current user wishlist
+      operationId: removeWishlistItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WishlistIDPath'
+        - $ref: '#/components/parameters/GiftIDPath'
+      responses:
+        '200':
+          description: Gift removed from wishlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoveWishlistItemEnvelope'
+        '400':
+          description: Invalid identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Wishlist or wishlist item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 components:
   securitySchemes:
     bearerAuth:
@@ -300,6 +521,13 @@ components:
     GiftIDPath:
       in: path
       name: gift_id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    WishlistIDPath:
+      in: path
+      name: wishlist_id
       required: true
       schema:
         type: string
@@ -749,6 +977,165 @@ components:
                 $ref: '#/components/schemas/CatalogCategory'
             page:
               $ref: '#/components/schemas/Page'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    CreateWishlistRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+      additionalProperties: false
+    AddWishlistItemRequest:
+      type: object
+      required: [gift_id]
+      properties:
+        gift_id:
+          type: string
+          format: uuid
+      additionalProperties: false
+    WishlistItem:
+      type: object
+      required: [id, created_at, gift]
+      properties:
+        id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        gift:
+          $ref: '#/components/schemas/CatalogGift'
+      additionalProperties: false
+    WishlistSummary:
+      type: object
+      required: [id, name, item_count, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        item_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    Wishlist:
+      type: object
+      required: [id, name, item_count, items, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        item_count:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WishlistItem'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    WishlistEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [wishlist]
+          properties:
+            wishlist:
+              $ref: '#/components/schemas/Wishlist'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    WishlistListEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [items, page]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/WishlistSummary'
+            page:
+              $ref: '#/components/schemas/Page'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    AddWishlistItemEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [item]
+          properties:
+            item:
+              $ref: '#/components/schemas/WishlistItem'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    RemoveWishlistItemEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [removed]
+          properties:
+            removed:
+              type: boolean
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    DeleteWishlistEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [deleted]
+          properties:
+            deleted:
+              type: boolean
           additionalProperties: false
         meta:
           $ref: '#/components/schemas/Meta'

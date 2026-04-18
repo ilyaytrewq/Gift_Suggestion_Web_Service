@@ -37,6 +37,20 @@ Password reset пока реализован как foundation: backend сохр
 List endpoints используют общий envelope и возвращают `data.items` + `data.page`.
 Для списка подарков сейчас доступны фильтры `q`, `category_id`, `min_price`, `max_price`, `age_restriction`, `has_image`, `limit`, `offset`, `sort`.
 
+## Wishlist API
+
+После `feature/wishlist-postgres-http` backend также поддерживает:
+
+- `POST /api/v1/wishlists`
+- `GET /api/v1/wishlists`
+- `GET /api/v1/wishlists/{wishlist_id}`
+- `POST /api/v1/wishlists/{wishlist_id}/items`
+- `DELETE /api/v1/wishlists/{wishlist_id}/items/{gift_id}`
+- `DELETE /api/v1/wishlists/{wishlist_id}`
+
+Все wishlist endpoints требуют JWT access token и работают только с wishlist текущего пользователя.
+Попытка обратиться к чужому wishlist маскируется ответом `404`, чтобы не раскрывать существование чужих списков.
+
 ## OpenAPI
 
 HTTP contracts ведутся в OpenAPI-формате в файле:
@@ -45,7 +59,7 @@ HTTP contracts ведутся в OpenAPI-формате в файле:
 services/backend/docs/openapi/backend.yaml
 ```
 
-Сейчас спецификация покрывает health, auth/user foundation и catalog read endpoints.
+Сейчас спецификация покрывает health, auth/user foundation, catalog read и wishlist endpoints.
 
 ## Локальный запуск backend
 

@@ -22,6 +22,9 @@ import (
 	userhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/delivery/http"
 	userpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/infra/postgres"
 	userusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/usecase"
+	wishlisthttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/delivery/http"
+	wishlistpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/infra/postgres"
+	wishlistusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/usecase"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/apperrors"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/authjwt"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/clock"
@@ -83,9 +86,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 
 	if cfg.Database.MigrationsEnabled {
 		if err := postgres.RunMigrations(database); err != nil {
-			if closeErr := database.Close(); closeErr != nil {
-				log.Error("failed to close database after migration error", "error", closeErr)
-			}
+			closeDatabaseWithLog(log, database, "failed to close database after migration error")
 
 			return nil, apperrors.Wrap(
 				apperrors.KindInternal,
@@ -98,9 +99,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 
 	mlClient, err := mlgrpc.NewClient(ctx, cfg.ML)
 	if err != nil {
-		if closeErr := database.Close(); closeErr != nil {
-			log.Error("failed to close database after ml client error", "error", closeErr)
-		}
+		closeDatabaseWithLog(log, database, "failed to close database after ml client error")
 
 		return nil, apperrors.Wrap(
 			apperrors.KindUnavailable,
@@ -110,48 +109,17 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		)
 	}
 
-	healthService, err := healthusecase.NewService(
-		clock.Real{},
-		[]healthusecase.Dependency{
-			{
-				Name:     "postgres",
-				Required: true,
-				Enabled:  true,
-				Probe:    healthpostgres.NewProbe(database),
-			},
-			{
-				Name:     "ml_service",
-				Required: false,
-				Enabled:  mlClient.Enabled(),
-				Probe:    healthgrpc.NewProbe(mlClient),
-			},
-		},
-	)
+	healthHandler, err := newHealthHandler(database, mlClient)
 	if err != nil {
-		if closeErr := mlClient.Close(); closeErr != nil {
-			log.Error("failed to close ml client after health service error", "error", closeErr)
-		}
-		if closeErr := database.Close(); closeErr != nil {
-			log.Error("failed to close database after health service error", "error", closeErr)
-		}
-
-		return nil, err
-	}
-
-	healthHandler, err := healthhttp.NewHandler(healthService)
-	if err != nil {
-		if closeErr := mlClient.Close(); closeErr != nil {
-			log.Error("failed to close ml client after handler error", "error", closeErr)
-		}
-		if closeErr := database.Close(); closeErr != nil {
-			log.Error("failed to close database after handler error", "error", closeErr)
-		}
+		closeMLClientWithLog(log, mlClient, "failed to close ml client after health handler error")
+		closeDatabaseWithLog(log, database, "failed to close database after health handler error")
 
 		return nil, err
 	}
 
 	userRepository := userpostgres.NewRepository(database)
 	catalogRepository := catalogpostgres.NewRepository(database)
+	wishlistRepository := wishlistpostgres.NewRepository(database)
 	sessionRepository := authpostgres.NewSessionRepository(database)
 	passwordResetRepository := authpostgres.NewPasswordResetRepository(database)
 	uuidGenerator := idgen.UUIDGenerator{}
@@ -185,6 +153,17 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	if err != nil {
 		return nil, err
 	}
+	wishlistService, err := wishlistusecase.NewService(
+		wishlistRepository,
+		userRepository,
+		catalogRepository,
+		uuidGenerator,
+		uuidGenerator,
+		clock.Real{},
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	authHandler, err := authhttp.NewHandler(authService, authhttp.RefreshCookieConfig{
 		Name:     cfg.Auth.RefreshCookieName,
@@ -208,8 +187,12 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	if err != nil {
 		return nil, err
 	}
+	wishlistHandler, err := wishlisthttp.NewHandler(wishlistService, authMiddleware)
+	if err != nil {
+		return nil, err
+	}
 
-	router := transporthttp.NewRouter(log, healthHandler, authHandler, userHandler, catalogHandler)
+	router := transporthttp.NewRouter(log, healthHandler, authHandler, userHandler, catalogHandler, wishlistHandler)
 
 	return &App{
 		cfg:      cfg,
@@ -218,6 +201,31 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		database: database,
 		mlClient: mlClient,
 	}, nil
+}
+
+func newHealthHandler(database *sql.DB, mlClient *mlgrpc.Client) (*healthhttp.Handler, error) {
+	healthService, err := healthusecase.NewService(
+		clock.Real{},
+		[]healthusecase.Dependency{
+			{
+				Name:     "postgres",
+				Required: true,
+				Enabled:  true,
+				Probe:    healthpostgres.NewProbe(database),
+			},
+			{
+				Name:     "ml_service",
+				Required: false,
+				Enabled:  mlClient.Enabled(),
+				Probe:    healthgrpc.NewProbe(mlClient),
+			},
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return healthhttp.NewHandler(healthService)
 }
 
 func (a *App) Start(ctx context.Context) error {
@@ -283,5 +291,25 @@ func setGinMode(env string) {
 		gin.SetMode(gin.TestMode)
 	default:
 		gin.SetMode(gin.DebugMode)
+	}
+}
+
+func closeDatabaseWithLog(log *slog.Logger, database *sql.DB, message string) {
+	if database == nil {
+		return
+	}
+
+	if err := database.Close(); err != nil {
+		log.Error(message, "error", err)
+	}
+}
+
+func closeMLClientWithLog(log *slog.Logger, client *mlgrpc.Client, message string) {
+	if client == nil {
+		return
+	}
+
+	if err := client.Close(); err != nil {
+		log.Error(message, "error", err)
 	}
 }

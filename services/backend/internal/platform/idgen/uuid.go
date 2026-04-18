@@ -5,6 +5,7 @@ import (
 
 	authdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/domain"
 	userdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/domain"
+	wishlistdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/domain"
 )
 
 type UUIDGenerator struct{}
@@ -19,4 +20,12 @@ func (UUIDGenerator) NewSessionID() (authdomain.SessionID, error) {
 
 func (UUIDGenerator) NewPasswordResetTokenID() (authdomain.PasswordResetTokenID, error) {
 	return authdomain.NewPasswordResetTokenID(uuid.NewString())
+}
+
+func (UUIDGenerator) NewWishlistID() (wishlistdomain.WishlistID, error) {
+	return wishlistdomain.NewWishlistID(uuid.NewString())
+}
+
+func (UUIDGenerator) NewWishlistItemID() (wishlistdomain.WishlistItemID, error) {
+	return wishlistdomain.NewWishlistItemID(uuid.NewString())
 }
