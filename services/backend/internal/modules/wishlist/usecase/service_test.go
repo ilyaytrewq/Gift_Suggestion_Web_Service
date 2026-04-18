@@ -89,6 +89,35 @@ func TestServiceCreateWishlistDuplicateName(t *testing.T) {
 	}
 }
 
+func TestServiceCreateWishlistMissingUser(t *testing.T) {
+	t.Parallel()
+
+	service := mustWishlistService(t, wishlistServiceDeps{
+		repo:              fakeWishlistRepo{},
+		userReader:        fakeUserReader{},
+		giftReader:        fakeGiftReader{},
+		wishlistIDGen:     fakeWishlistIDGenerator{id: testWishlistID},
+		wishlistItemIDGen: fakeWishlistItemIDGenerator{id: testWishlistItemID},
+		clock:             fixedWishlistClock{now: time.Now().UTC()},
+	})
+
+	_, err := service.CreateWishlist(context.Background(), CreateWishlistInput{
+		UserID: testWishlistUserID,
+		Name:   testWishlistName,
+	})
+	if err == nil {
+		t.Fatal("CreateWishlist() expected not found error")
+	}
+
+	appErr := apperrors.From(err)
+	if appErr.Kind() != apperrors.KindNotFound {
+		t.Fatalf("CreateWishlist() kind = %q, want %q", appErr.Kind(), apperrors.KindNotFound)
+	}
+	if appErr.Code() != "user_not_found" {
+		t.Fatalf("CreateWishlist() code = %q, want %q", appErr.Code(), "user_not_found")
+	}
+}
+
 func TestServiceGetWishlistMasksForeignAccess(t *testing.T) {
 	t.Parallel()
 
