@@ -12,6 +12,9 @@ import (
 	authhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/delivery/http"
 	authpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/infra/postgres"
 	authusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/usecase"
+	cataloghttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalog/delivery/http"
+	catalogpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalog/infra/postgres"
+	catalogusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalog/usecase"
 	healthhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/delivery/http"
 	healthgrpc "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/infra/grpc"
 	healthpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/infra/postgres"
@@ -148,6 +151,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	}
 
 	userRepository := userpostgres.NewRepository(database)
+	catalogRepository := catalogpostgres.NewRepository(database)
 	sessionRepository := authpostgres.NewSessionRepository(database)
 	passwordResetRepository := authpostgres.NewPasswordResetRepository(database)
 	uuidGenerator := idgen.UUIDGenerator{}
@@ -177,6 +181,10 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	if err != nil {
 		return nil, err
 	}
+	catalogService, err := catalogusecase.NewService(catalogRepository)
+	if err != nil {
+		return nil, err
+	}
 
 	authHandler, err := authhttp.NewHandler(authService, authhttp.RefreshCookieConfig{
 		Name:     cfg.Auth.RefreshCookieName,
@@ -196,8 +204,12 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	if err != nil {
 		return nil, err
 	}
+	catalogHandler, err := cataloghttp.NewHandler(catalogService)
+	if err != nil {
+		return nil, err
+	}
 
-	router := transporthttp.NewRouter(log, healthHandler, authHandler, userHandler)
+	router := transporthttp.NewRouter(log, healthHandler, authHandler, userHandler, catalogHandler)
 
 	return &App{
 		cfg:      cfg,

@@ -26,6 +26,27 @@
 
 Password reset пока реализован как foundation: backend сохраняет одноразовый reset-token hash и TTL в БД, но подтверждение reset через отдельный delivery flow еще не выведено наружу.
 
+## Catalog read API
+
+После `feature/catalog-postgres-http` backend также поддерживает:
+
+- `GET /api/v1/catalog/gifts`
+- `GET /api/v1/catalog/gifts/{gift_id}`
+- `GET /api/v1/catalog/categories`
+
+List endpoints используют общий envelope и возвращают `data.items` + `data.page`.
+Для списка подарков сейчас доступны фильтры `q`, `category_id`, `min_price`, `max_price`, `age_restriction`, `has_image`, `limit`, `offset`, `sort`.
+
+## OpenAPI
+
+HTTP contracts ведутся в OpenAPI-формате в файле:
+
+```bash
+services/backend/docs/openapi/backend.yaml
+```
+
+Сейчас спецификация покрывает health, auth/user foundation и catalog read endpoints.
+
 ## Локальный запуск backend
 
 1. Перейти в `services/backend`.

@@ -1,0 +1,755 @@
+openapi: 3.1.0
+info:
+  title: Gift Suggestion Backend API
+  version: 0.2.0
+  description: |
+    Backend API gateway for the Gift Suggestion Web Service.
+    The specification is maintained manually and currently covers health,
+    auth/user foundation, and catalog read endpoints.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: health
+  - name: auth
+  - name: users
+  - name: catalog
+paths:
+  /health/live:
+    get:
+      tags: [health]
+      summary: Liveness probe
+      operationId: getLiveness
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthEnvelope'
+  /health/ready:
+    get:
+      tags: [health]
+      summary: Readiness probe
+      operationId: getReadiness
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthEnvelope'
+        '503':
+          description: Required dependency is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthEnvelope'
+  /api/v1/users:
+    post:
+      tags: [auth, users]
+      summary: Register user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Login user
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Access token issued, refresh token returned via HttpOnly cookie
+          headers:
+            Set-Cookie:
+              description: Refresh token cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh access token
+      operationId: refreshToken
+      parameters:
+        - in: cookie
+          name: refresh_token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: New access token issued, refresh cookie rotated
+          headers:
+            Set-Cookie:
+              description: Rotated refresh token cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshEnvelope'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/auth/password-reset/request:
+    post:
+      tags: [auth]
+      summary: Request password reset
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '202':
+          description: Password reset request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/users/me:
+    get:
+      tags: [users]
+      summary: Get current user profile
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    patch:
+      tags: [users]
+      summary: Update current user profile
+      operationId: updateCurrentUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/catalog/gifts:
+    get:
+      tags: [catalog]
+      summary: Browse catalog gifts
+      operationId: listCatalogGifts
+      parameters:
+        - $ref: '#/components/parameters/SearchQuery'
+        - $ref: '#/components/parameters/CategoryIDQuery'
+        - $ref: '#/components/parameters/MinPriceQuery'
+        - $ref: '#/components/parameters/MaxPriceQuery'
+        - $ref: '#/components/parameters/AgeRestrictionQuery'
+        - $ref: '#/components/parameters/HasImageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/OffsetQuery'
+        - $ref: '#/components/parameters/GiftSortQuery'
+      responses:
+        '200':
+          description: Gift list page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListGiftsEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/catalog/gifts/{gift_id}:
+    get:
+      tags: [catalog]
+      summary: Get gift card
+      operationId: getCatalogGift
+      parameters:
+        - $ref: '#/components/parameters/GiftIDPath'
+      responses:
+        '200':
+          description: Gift detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetGiftEnvelope'
+        '400':
+          description: Invalid identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Gift not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/catalog/categories:
+    get:
+      tags: [catalog]
+      summary: List catalog categories
+      operationId: listCatalogCategories
+      parameters:
+        - $ref: '#/components/parameters/SearchQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/OffsetQuery'
+        - $ref: '#/components/parameters/CategorySortQuery'
+      responses:
+        '200':
+          description: Category list page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCategoriesEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    GiftIDPath:
+      in: path
+      name: gift_id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SearchQuery:
+      in: query
+      name: q
+      required: false
+      schema:
+        type: string
+        maxLength: 256
+    CategoryIDQuery:
+      in: query
+      name: category_id
+      required: false
+      schema:
+        type: string
+        format: uuid
+    MinPriceQuery:
+      in: query
+      name: min_price
+      required: false
+      schema:
+        type: string
+        pattern: '^\d+(\.\d{1,2})?$'
+    MaxPriceQuery:
+      in: query
+      name: max_price
+      required: false
+      schema:
+        type: string
+        pattern: '^\d+(\.\d{1,2})?$'
+    AgeRestrictionQuery:
+      in: query
+      name: age_restriction
+      required: false
+      schema:
+        type: integer
+        enum: [0, 12, 16, 18]
+    HasImageQuery:
+      in: query
+      name: has_image
+      required: false
+      schema:
+        type: boolean
+    LimitQuery:
+      in: query
+      name: limit
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    OffsetQuery:
+      in: query
+      name: offset
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    GiftSortQuery:
+      in: query
+      name: sort
+      required: false
+      schema:
+        type: string
+        enum: [newest, name_asc, name_desc, price_asc, price_desc]
+        default: newest
+    CategorySortQuery:
+      in: query
+      name: sort
+      required: false
+      schema:
+        type: string
+        enum: [name_asc, name_desc, newest]
+        default: name_asc
+  schemas:
+    Meta:
+      type: object
+      properties:
+        request_id:
+          type: string
+      additionalProperties: false
+    ErrorPayload:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      additionalProperties: false
+    ErrorEnvelope:
+      type: object
+      required: [status, error, meta]
+      properties:
+        status:
+          type: string
+          const: error
+        error:
+          $ref: '#/components/schemas/ErrorPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    HealthComponent:
+      type: object
+      required: [name, status, required]
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [up, down, skipped]
+        required:
+          type: boolean
+        error:
+          type: string
+      additionalProperties: false
+    HealthReport:
+      type: object
+      required: [status, checked_at]
+      properties:
+        status:
+          type: string
+          enum: [up, down, skipped]
+        checked_at:
+          type: string
+          format: date-time
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthComponent'
+      additionalProperties: false
+    HealthEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          $ref: '#/components/schemas/HealthReport'
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    UserProfile:
+      type: object
+      required: [id, email, role, display_name, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        display_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_login_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+        display_name:
+          type: string
+          maxLength: 120
+      additionalProperties: false
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      additionalProperties: false
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+      additionalProperties: false
+    UpdateProfileRequest:
+      type: object
+      required: [profile]
+      properties:
+        profile:
+          type: object
+          properties:
+            display_name:
+              type: string
+              nullable: true
+              maxLength: 120
+          additionalProperties: false
+      additionalProperties: false
+    AuthPayload:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          format: int64
+      additionalProperties: false
+    AcceptedPayload:
+      type: object
+      required: [accepted]
+      properties:
+        accepted:
+          type: boolean
+      additionalProperties: false
+    RegisterPayload:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/UserProfile'
+      additionalProperties: false
+    LoginPayload:
+      type: object
+      required: [user, auth]
+      properties:
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        auth:
+          $ref: '#/components/schemas/AuthPayload'
+      additionalProperties: false
+    RefreshPayload:
+      type: object
+      required: [auth]
+      properties:
+        auth:
+          $ref: '#/components/schemas/AuthPayload'
+      additionalProperties: false
+    RegisterEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          $ref: '#/components/schemas/RegisterPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    LoginEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          $ref: '#/components/schemas/LoginPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    RefreshEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          $ref: '#/components/schemas/RefreshPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    AcceptedEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          $ref: '#/components/schemas/AcceptedPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    ProfileEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [user]
+          properties:
+            user:
+              $ref: '#/components/schemas/UserProfile'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    Page:
+      type: object
+      required: [limit, offset, total]
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+      additionalProperties: false
+    CatalogCategory:
+      type: object
+      required: [id, name, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    CatalogGiftCategory:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      additionalProperties: false
+    CatalogGift:
+      type: object
+      required: [id, name, description, price, store_link, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: string
+          pattern: '^\d+(\.\d{2})$'
+        store_link:
+          type: string
+          format: uri
+        image:
+          type: string
+          format: uri
+        age_restriction:
+          type: integer
+          enum: [0, 12, 16, 18]
+        category:
+          $ref: '#/components/schemas/CatalogGiftCategory'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    ListGiftsEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [items, page]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CatalogGift'
+            page:
+              $ref: '#/components/schemas/Page'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    GetGiftEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [gift]
+          properties:
+            gift:
+              $ref: '#/components/schemas/CatalogGift'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    ListCategoriesEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [items, page]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CatalogCategory'
+            page:
+              $ref: '#/components/schemas/Page'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
