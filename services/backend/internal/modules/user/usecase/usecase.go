@@ -3,64 +3,89 @@ package usecase
 import (
 	"context"
 
-	"github.com/pkg/errors"
-
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/domain"
-	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/usecase/register"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/apperrors"
 )
 
-type RegistrationUseCase struct {
-	repo  register.UserRepository
-	idGen register.IDGenerator
+type Service struct {
+	repo  Repository
+	clock Clock
 }
 
-func NewRegistrationUseCase(
-	repo register.UserRepository,
-	idGen register.IDGenerator,
-) (RegistrationUseCase, error) {
+func NewService(repo Repository, clock Clock) (*Service, error) {
 	if repo == nil {
-		return RegistrationUseCase{}, ErrNilUserRepository
+		return nil, ErrNilUserRepository
 	}
-	if idGen == nil {
-		return RegistrationUseCase{}, ErrNilIDGenerator
+	if clock == nil {
+		return nil, ErrNilClock
 	}
-	return RegistrationUseCase{
+	return &Service{
 		repo:  repo,
-		idGen: idGen,
+		clock: clock,
 	}, nil
 }
 
-func (uc *RegistrationUseCase) Register(ctx context.Context, input RegisterInput) (RegisterOutput, error) {
-	email, err := domain.NewEmail(input.Email)
+func (s *Service) GetCurrentUser(ctx context.Context, userID string) (Profile, error) {
+	id, err := domain.NewUserID(userID)
 	if err != nil {
-		return RegisterOutput{}, err
+		return Profile{}, apperrors.Wrap(
+			apperrors.KindValidation,
+			"invalid_user_id",
+			"invalid user id",
+			err,
+		)
 	}
 
-	acc, err := uc.repo.GetByEmail(ctx, email)
+	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return RegisterOutput{}, errors.Wrap(err, "failed to get user by email")
+		return Profile{}, err
 	}
-	if acc != nil {
-		return RegisterOutput{}, ErrEmailAlreadyExists
+	if user == nil {
+		return Profile{}, apperrors.New(
+			apperrors.KindNotFound,
+			"user_not_found",
+			"user not found",
+		)
 	}
 
-	id, err := uc.idGen.NewUserID()
+	return newProfile(user), nil
+}
+
+func (s *Service) UpdateProfile(ctx context.Context, input UpdateProfileInput) (Profile, error) {
+	id, err := domain.NewUserID(input.UserID)
 	if err != nil {
-		return RegisterOutput{}, errors.Wrap(err, "failed to generate id")
+		return Profile{}, apperrors.Wrap(
+			apperrors.KindValidation,
+			"invalid_user_id",
+			"invalid user id",
+			err,
+		)
 	}
 
-	newUser, err := domain.NewUser(id.String(), input.Email, input.Password, string(domain.UserRoleUser))
+	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return RegisterOutput{}, errors.Wrap(err, "failed to create new user")
+		return Profile{}, err
+	}
+	if user == nil {
+		return Profile{}, apperrors.New(
+			apperrors.KindNotFound,
+			"user_not_found",
+			"user not found",
+		)
 	}
 
-	if err = uc.repo.Save(ctx, &newUser); err != nil {
-		return RegisterOutput{}, errors.Wrap(err, "failed to save new user")
+	if err := user.UpdateDisplayName(input.DisplayName, s.clock.Now()); err != nil {
+		return Profile{}, apperrors.Wrap(
+			apperrors.KindValidation,
+			"invalid_display_name",
+			"invalid display name",
+			err,
+		)
 	}
 
-	return RegisterOutput{
-		UserID: newUser.ID(),
-		Email:  newUser.Email(),
-		Role:   newUser.Role(),
-	}, nil
+	if err := s.repo.UpdateProfile(ctx, user); err != nil {
+		return Profile{}, err
+	}
+
+	return newProfile(user), nil
 }

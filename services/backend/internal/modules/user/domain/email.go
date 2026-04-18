@@ -1,5 +1,7 @@
 package domain
 
+import "strings"
+
 type Email struct {
 	value string
 }
@@ -9,14 +11,15 @@ func NewEmail(email string) (Email, error) {
 }
 
 func newEmail(email string) (Email, error) {
-	if isBlank(email) {
+	normalized := strings.ToLower(strings.TrimSpace(email))
+	if isBlank(normalized) {
 		return Email{}, ErrEmailEmpty
 	}
-	if isValidEmail(email) != nil {
+	if isValidEmail(normalized) != nil {
 		return Email{}, ErrInvalidEmail
 	}
 
-	return Email{value: email}, nil
+	return Email{value: normalized}, nil
 }
 
 func (e Email) IsValid() error {

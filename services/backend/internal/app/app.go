@@ -9,17 +9,26 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	authhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/delivery/http"
+	authpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/infra/postgres"
+	authusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/usecase"
 	healthhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/delivery/http"
 	healthgrpc "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/infra/grpc"
 	healthpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/infra/postgres"
 	healthusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/usecase"
+	userhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/delivery/http"
+	userpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/infra/postgres"
+	userusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/usecase"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/apperrors"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/authjwt"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/clock"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/config"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/httpserver"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/idgen"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/logger"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/mlgrpc"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/postgres"
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/randomtoken"
 	transporthttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/transport/http"
 )
 
@@ -138,7 +147,57 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		return nil, err
 	}
 
-	router := transporthttp.NewRouter(log, healthHandler)
+	userRepository := userpostgres.NewRepository(database)
+	sessionRepository := authpostgres.NewSessionRepository(database)
+	passwordResetRepository := authpostgres.NewPasswordResetRepository(database)
+	uuidGenerator := idgen.UUIDGenerator{}
+	jwtManager := authjwt.NewManager(cfg.Auth)
+	refreshTokenGenerator := randomtoken.NewGenerator(32)
+	resetTokenGenerator := randomtoken.NewGenerator(32)
+
+	authService, err := authusecase.NewService(
+		userRepository,
+		sessionRepository,
+		passwordResetRepository,
+		jwtManager,
+		refreshTokenGenerator,
+		resetTokenGenerator,
+		uuidGenerator,
+		uuidGenerator,
+		uuidGenerator,
+		cfg.Auth.RefreshTokenTTL,
+		cfg.Auth.PasswordResetTokenTTL,
+		clock.Real{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	userService, err := userusecase.NewService(userRepository, clock.Real{})
+	if err != nil {
+		return nil, err
+	}
+
+	authHandler, err := authhttp.NewHandler(authService, authhttp.RefreshCookieConfig{
+		Name:     cfg.Auth.RefreshCookieName,
+		Path:     cfg.Auth.RefreshCookiePath,
+		Domain:   cfg.Auth.RefreshCookieDomain,
+		Secure:   cfg.Auth.RefreshCookieSecure,
+		MaxAge:   int(cfg.Auth.RefreshTokenTTL.Seconds()),
+		SameSite: http.SameSiteLaxMode,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	authMiddleware := authhttp.NewMiddleware(authService) //nolint:contextcheck // request context is supplied inside the returned Gin handler.
+
+	userHandler, err := userhttp.NewHandler(userService, authMiddleware)
+	if err != nil {
+		return nil, err
+	}
+
+	router := transporthttp.NewRouter(log, healthHandler, authHandler, userHandler)
 
 	return &App{
 		cfg:      cfg,

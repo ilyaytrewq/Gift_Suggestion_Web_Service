@@ -30,7 +30,7 @@ func NewHandler(service healthService) (*Handler, error) {
 	return &Handler{service: service}, nil
 }
 
-func (h *Handler) Register(root gin.IRoutes) {
+func (h *Handler) Register(root gin.IRouter) {
 	root.GET("/health/live", h.live)
 	root.GET("/health/ready", h.ready)
 }

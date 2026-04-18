@@ -6,6 +6,10 @@ type UserID struct {
 	value uuid.UUID
 }
 
+func NewUserID(id string) (UserID, error) {
+	return newUserID(id)
+}
+
 func newUserID(id string) (UserID, error) {
 	if isBlank(id) {
 		return UserID{}, ErrUserIDEmpty

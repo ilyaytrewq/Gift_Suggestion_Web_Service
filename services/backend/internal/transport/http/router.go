@@ -11,10 +11,14 @@ import (
 )
 
 type HealthHandler interface {
-	Register(root gin.IRoutes)
+	Register(root gin.IRouter)
 }
 
-func NewRouter(logger *slog.Logger, healthHandler HealthHandler) *gin.Engine {
+type APIHandler interface {
+	Register(root gin.IRouter)
+}
+
+func NewRouter(logger *slog.Logger, healthHandler HealthHandler, apiHandlers ...APIHandler) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(httpapi.RequestID())
@@ -47,6 +51,12 @@ func NewRouter(logger *slog.Logger, healthHandler HealthHandler) *gin.Engine {
 	api.GET("/health/ready", func(c *gin.Context) {
 		c.Redirect(http.StatusPermanentRedirect, "/health/ready")
 	})
+	for _, handler := range apiHandlers {
+		if handler == nil {
+			continue
+		}
+		handler.Register(api)
+	}
 
 	return router
 }

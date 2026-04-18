@@ -40,6 +40,16 @@ services:
       ML_GRPC_ENABLED: ${ML_GRPC_ENABLED:-false}
       ML_GRPC_ADDR: ${ML_GRPC_ADDR:-ml-service:50051}
       ML_GRPC_DIAL_TIMEOUT: ${ML_GRPC_DIAL_TIMEOUT:-3s}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change-me-please}
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-gift-suggestion-backend}
+      AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-gift-suggestion-web-service}
+      AUTH_ACCESS_TTL: ${AUTH_ACCESS_TTL:-15m}
+      AUTH_REFRESH_TTL: ${AUTH_REFRESH_TTL:-168h}
+      AUTH_PASSWORD_RESET_TTL: ${AUTH_PASSWORD_RESET_TTL:-30m}
+      AUTH_REFRESH_COOKIE_NAME: ${AUTH_REFRESH_COOKIE_NAME:-refresh_token}
+      AUTH_REFRESH_COOKIE_PATH: ${AUTH_REFRESH_COOKIE_PATH:-/api/v1/auth}
+      AUTH_REFRESH_COOKIE_DOMAIN: ${AUTH_REFRESH_COOKIE_DOMAIN:-}
+      AUTH_REFRESH_COOKIE_SECURE: ${AUTH_REFRESH_COOKIE_SECURE:-false}
     depends_on:
       postgres:
         condition: service_healthy

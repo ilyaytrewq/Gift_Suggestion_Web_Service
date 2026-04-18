@@ -24,6 +24,13 @@ const (
 	defaultDBConnMaxLifetime = 30 * time.Minute
 	defaultDBPingTimeout     = 2 * time.Second
 	defaultMLDialTimeout     = 3 * time.Second
+	defaultJWTIssuer         = "gift-suggestion-backend"
+	defaultJWTAudience       = "gift-suggestion-web-service"
+	defaultAccessTokenTTL    = 15 * time.Minute
+	defaultRefreshTokenTTL   = 7 * 24 * time.Hour
+	defaultResetTokenTTL     = 30 * time.Minute
+	defaultRefreshCookieName = "refresh_token"
+	defaultRefreshCookiePath = "/api/v1/auth"
 )
 
 type Config struct {
@@ -31,6 +38,7 @@ type Config struct {
 	HTTP     HTTPConfig
 	Database DatabaseConfig
 	ML       MLConfig
+	Auth     AuthConfig
 }
 
 type AppConfig struct {
@@ -65,6 +73,19 @@ type MLConfig struct {
 	Enabled     bool
 	Address     string
 	DialTimeout time.Duration
+}
+
+type AuthConfig struct {
+	JWTSecret             string
+	JWTIssuer             string
+	JWTAudience           string
+	AccessTokenTTL        time.Duration
+	RefreshTokenTTL       time.Duration
+	PasswordResetTokenTTL time.Duration
+	RefreshCookieName     string
+	RefreshCookiePath     string
+	RefreshCookieDomain   string
+	RefreshCookieSecure   bool
 }
 
 func Load() (Config, error) {
@@ -144,6 +165,31 @@ func LoadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 		return Config{}, err
 	}
 
+	if cfg.Auth.JWTSecret, err = requiredString(lookup, "AUTH_JWT_SECRET"); err != nil {
+		return Config{}, err
+	}
+	cfg.Auth.JWTIssuer = stringWithDefault(lookup, "AUTH_JWT_ISSUER", defaultJWTIssuer)
+	cfg.Auth.JWTAudience = stringWithDefault(lookup, "AUTH_JWT_AUDIENCE", defaultJWTAudience)
+	cfg.Auth.AccessTokenTTL, err = durationWithDefault(lookup, "AUTH_ACCESS_TTL", defaultAccessTokenTTL)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.Auth.RefreshTokenTTL, err = durationWithDefault(lookup, "AUTH_REFRESH_TTL", defaultRefreshTokenTTL)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.Auth.PasswordResetTokenTTL, err = durationWithDefault(lookup, "AUTH_PASSWORD_RESET_TTL", defaultResetTokenTTL)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.Auth.RefreshCookieName = stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_NAME", defaultRefreshCookieName)
+	cfg.Auth.RefreshCookiePath = stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_PATH", defaultRefreshCookiePath)
+	cfg.Auth.RefreshCookieDomain = stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_DOMAIN", "")
+	cfg.Auth.RefreshCookieSecure, err = boolWithDefault(lookup, "AUTH_REFRESH_COOKIE_SECURE", false)
+	if err != nil {
+		return Config{}, err
+	}
+
 	if err := cfg.validate(); err != nil {
 		return Config{}, err
 	}
@@ -173,6 +219,18 @@ func (cfg Config) validate() error {
 	}
 	if cfg.ML.Enabled && cfg.ML.Address == "" {
 		return errors.New("ML_GRPC_ADDR is required when ML_GRPC_ENABLED=true")
+	}
+	if len(cfg.Auth.JWTSecret) < 16 {
+		return errors.New("AUTH_JWT_SECRET must be at least 16 characters long")
+	}
+	if cfg.Auth.AccessTokenTTL <= 0 {
+		return errors.New("AUTH_ACCESS_TTL must be greater than zero")
+	}
+	if cfg.Auth.RefreshTokenTTL <= 0 {
+		return errors.New("AUTH_REFRESH_TTL must be greater than zero")
+	}
+	if cfg.Auth.PasswordResetTokenTTL <= 0 {
+		return errors.New("AUTH_PASSWORD_RESET_TTL must be greater than zero")
 	}
 
 	return nil

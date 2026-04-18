@@ -9,6 +9,10 @@ type PasswordHash struct {
 	value []byte
 }
 
+func NewPasswordHash(password Password) (PasswordHash, error) {
+	return newPasswordHash(password)
+}
+
 func newPasswordHash(password Password) (PasswordHash, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password.value), bcrypt.DefaultCost)
 	if err != nil {
@@ -16,4 +20,20 @@ func newPasswordHash(password Password) (PasswordHash, error) {
 	}
 
 	return PasswordHash{value: hash}, nil
+}
+
+func RestorePasswordHash(hash string) (PasswordHash, error) {
+	if isBlank(hash) {
+		return PasswordHash{}, ErrPasswordHashEmpty
+	}
+
+	return PasswordHash{value: []byte(hash)}, nil
+}
+
+func (h PasswordHash) String() string {
+	return string(h.value)
+}
+
+func (h PasswordHash) Compare(password Password) bool {
+	return bcrypt.CompareHashAndPassword(h.value, []byte(password.value)) == nil
 }

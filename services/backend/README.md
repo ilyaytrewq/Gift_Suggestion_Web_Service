@@ -13,6 +13,19 @@
 - scaffold gRPC client для ML-service;
 - Dockerfile и `docker-compose.yml` для локального окружения.
 
+## User/Auth minimum
+
+После `feature/user-postgres-http` backend поддерживает:
+
+- `POST /api/v1/users`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/password-reset/request`
+- `GET /api/v1/users/me`
+- `PATCH /api/v1/users/me`
+
+Password reset пока реализован как foundation: backend сохраняет одноразовый reset-token hash и TTL в БД, но подтверждение reset через отдельный delivery flow еще не выведено наружу.
+
 ## Локальный запуск backend
 
 1. Перейти в `services/backend`.

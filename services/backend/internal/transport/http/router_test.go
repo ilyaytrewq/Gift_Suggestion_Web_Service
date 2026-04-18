@@ -11,7 +11,7 @@ import (
 
 type stubHealthHandler struct{}
 
-func (stubHealthHandler) Register(root gin.IRoutes) {
+func (stubHealthHandler) Register(root gin.IRouter) {
 	root.GET("/health/live", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})

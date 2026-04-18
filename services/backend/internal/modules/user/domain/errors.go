@@ -5,12 +5,17 @@ import "errors"
 var (
 	ErrUserIDEmpty   = errors.New("user id is empty")
 	ErrInvalidUserID = errors.New("user id has invalid format")
+	ErrUserNotFound  = errors.New("user not found")
+	ErrUserExists    = errors.New("user already exists")
 
 	ErrEmailEmpty   = errors.New("email is empty")
 	ErrInvalidEmail = errors.New("email has invalid format")
 
 	ErrInvalidRole = errors.New("invalid role value")
 	ErrRoleEmpty   = errors.New("role is empty")
+
+	ErrDisplayNameTooLong = errors.New("display name is too long")
+	ErrPasswordHashEmpty  = errors.New("password hash is empty")
 )
 
 var (

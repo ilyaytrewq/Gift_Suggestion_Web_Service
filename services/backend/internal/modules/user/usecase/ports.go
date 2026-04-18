@@ -1,7 +1,13 @@
 package usecase
 
-import "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/usecase/register"
+import (
+	"time"
 
-type UserRepository = register.UserRepository
+	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/domain"
+)
 
-type UserIDGenerator = register.IDGenerator
+type Repository = domain.Repository
+
+type Clock interface {
+	Now() time.Time
+}

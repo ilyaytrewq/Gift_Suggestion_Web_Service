@@ -17,8 +17,15 @@ func isValidUserID(id string) bool {
 }
 
 func isValidEmail(email string) error {
-	_, err := mail.ParseAddress(email)
-	return err
+	address, err := mail.ParseAddress(email)
+	if err != nil {
+		return err
+	}
+	if address.Address != email {
+		return ErrInvalidEmail
+	}
+
+	return nil
 }
 
 const (

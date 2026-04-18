@@ -9,7 +9,8 @@ func TestLoadFromLookupDefaults(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := LoadFromLookup(mapLookup(map[string]string{
-		"DB_DSN": "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
+		"DB_DSN":          "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
+		"AUTH_JWT_SECRET": "very-secret-key-123",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -27,6 +28,9 @@ func TestLoadFromLookupDefaults(t *testing.T) {
 	if cfg.ML.Enabled {
 		t.Fatal("expected ml grpc to be disabled by default")
 	}
+	if cfg.Auth.RefreshCookieName != defaultRefreshCookieName {
+		t.Fatalf("expected default refresh cookie name %q, got %q", defaultRefreshCookieName, cfg.Auth.RefreshCookieName)
+	}
 }
 
 func TestLoadFromLookupRequiresDatabaseDSN(t *testing.T) {
@@ -42,6 +46,7 @@ func TestLoadFromLookupValidatesValues(t *testing.T) {
 
 	_, err := LoadFromLookup(mapLookup(map[string]string{
 		"DB_DSN":                "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
+		"AUTH_JWT_SECRET":       "very-secret-key-123",
 		"HTTP_PORT":             "invalid",
 		"ML_GRPC_ENABLED":       "true",
 		"ML_GRPC_DIAL_TIMEOUT":  "5s",
@@ -64,24 +69,33 @@ func TestLoadFromLookupReadsExplicitValues(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := LoadFromLookup(mapLookup(map[string]string{
-		"APP_NAME":              "gift-svc",
-		"APP_ENV":               "production",
-		"LOG_LEVEL":             "warn",
-		"HTTP_HOST":             "127.0.0.1",
-		"HTTP_PORT":             "9090",
-		"HTTP_READ_TIMEOUT":     "6s",
-		"HTTP_WRITE_TIMEOUT":    "11s",
-		"HTTP_IDLE_TIMEOUT":     "61s",
-		"HTTP_SHUTDOWN_TIMEOUT": "12s",
-		"DB_DSN":                "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
-		"DB_MAX_OPEN_CONNS":     "12",
-		"DB_MAX_IDLE_CONNS":     "6",
-		"DB_CONN_MAX_LIFETIME":  "45m",
-		"DB_PING_TIMEOUT":       "3s",
-		"DB_MIGRATIONS_ENABLED": "false",
-		"ML_GRPC_ENABLED":       "true",
-		"ML_GRPC_ADDR":          "localhost:50051",
-		"ML_GRPC_DIAL_TIMEOUT":  "7s",
+		"APP_NAME":                   "gift-svc",
+		"APP_ENV":                    "production",
+		"LOG_LEVEL":                  "warn",
+		"HTTP_HOST":                  "127.0.0.1",
+		"HTTP_PORT":                  "9090",
+		"HTTP_READ_TIMEOUT":          "6s",
+		"HTTP_WRITE_TIMEOUT":         "11s",
+		"HTTP_IDLE_TIMEOUT":          "61s",
+		"HTTP_SHUTDOWN_TIMEOUT":      "12s",
+		"DB_DSN":                     "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
+		"AUTH_JWT_SECRET":            "very-secret-key-123",
+		"DB_MAX_OPEN_CONNS":          "12",
+		"DB_MAX_IDLE_CONNS":          "6",
+		"DB_CONN_MAX_LIFETIME":       "45m",
+		"DB_PING_TIMEOUT":            "3s",
+		"DB_MIGRATIONS_ENABLED":      "false",
+		"ML_GRPC_ENABLED":            "true",
+		"ML_GRPC_ADDR":               "localhost:50051",
+		"ML_GRPC_DIAL_TIMEOUT":       "7s",
+		"AUTH_JWT_ISSUER":            "gift-api",
+		"AUTH_JWT_AUDIENCE":          "gift-web",
+		"AUTH_ACCESS_TTL":            "20m",
+		"AUTH_REFRESH_TTL":           "168h",
+		"AUTH_PASSWORD_RESET_TTL":    "45m",
+		"AUTH_REFRESH_COOKIE_NAME":   "gift_refresh",
+		"AUTH_REFRESH_COOKIE_PATH":   "/api/v1/auth",
+		"AUTH_REFRESH_COOKIE_SECURE": "true",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -101,6 +115,12 @@ func TestLoadFromLookupReadsExplicitValues(t *testing.T) {
 	}
 	if cfg.ML.DialTimeout != 7*time.Second {
 		t.Fatalf("expected ml dial timeout 7s, got %s", cfg.ML.DialTimeout)
+	}
+	if cfg.Auth.JWTIssuer != "gift-api" {
+		t.Fatalf("expected auth issuer gift-api, got %s", cfg.Auth.JWTIssuer)
+	}
+	if !cfg.Auth.RefreshCookieSecure {
+		t.Fatal("expected refresh cookie secure to be true")
 	}
 }
 
