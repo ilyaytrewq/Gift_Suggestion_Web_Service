@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -59,7 +60,7 @@ func TestNewPassword(t *testing.T) {
 			t.Parallel()
 
 			password, err := newPassword(tt.input)
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("newPassword() error = %v, want %v", err, tt.wantErr)
 			}
 

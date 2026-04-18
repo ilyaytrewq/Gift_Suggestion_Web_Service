@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestNewEmail(t *testing.T) {
 	t.Parallel()
@@ -31,7 +34,7 @@ func TestNewEmail(t *testing.T) {
 			t.Parallel()
 
 			email, err := newEmail(tt.input)
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("newEmail() error = %v, want %v", err, tt.wantErr)
 			}
 
@@ -71,7 +74,7 @@ func TestEmailIsValid(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if err := tt.email.IsValid(); err != tt.wantErr {
+			if err := tt.email.IsValid(); !errors.Is(err, tt.wantErr) {
 				t.Fatalf("IsValid() error = %v, want %v", err, tt.wantErr)
 			}
 		})

@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestNewRole(t *testing.T) {
 	t.Parallel()
@@ -38,7 +41,7 @@ func TestNewRole(t *testing.T) {
 			t.Parallel()
 
 			role, err := newRole(tt.input)
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("newRole() error = %v, want %v", err, tt.wantErr)
 			}
 

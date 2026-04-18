@@ -15,7 +15,7 @@ type User struct {
 	updatedAt    time.Time
 }
 
-func NewUser(id string, email string, password string, role string) (User, error) {
+func NewUser(id, email, password, role string) (User, error) {
 	uid, err := newUserID(id)
 	if err != nil {
 		return User{}, err

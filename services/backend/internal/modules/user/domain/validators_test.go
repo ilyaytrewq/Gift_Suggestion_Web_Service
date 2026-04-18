@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestIsBlank(t *testing.T) {
 	t.Parallel()
@@ -90,7 +93,7 @@ func TestIsValidPassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if err := isValidPassword(tt.password); err != tt.wantErr {
+			if err := isValidPassword(tt.password); !errors.Is(err, tt.wantErr) {
 				t.Fatalf("isValidPassword() error = %v, want %v", err, tt.wantErr)
 			}
 		})

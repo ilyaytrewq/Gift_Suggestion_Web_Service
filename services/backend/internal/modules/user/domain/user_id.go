@@ -33,3 +33,7 @@ func (id UserID) IsValid() error {
 
 	return nil
 }
+
+func (id UserID) String() string {
+	return id.value.String()
+}

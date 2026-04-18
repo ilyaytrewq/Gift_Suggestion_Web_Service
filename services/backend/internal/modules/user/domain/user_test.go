@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -104,7 +105,7 @@ func TestNewUserInvalidInput(t *testing.T) {
 			t.Parallel()
 
 			_, err := NewUser(tt.id, tt.email, tt.password, tt.role)
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("NewUser() error = %v, want %v", err, tt.wantErr)
 			}
 		})

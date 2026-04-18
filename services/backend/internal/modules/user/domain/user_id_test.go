@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestNewUserID(t *testing.T) {
 	t.Parallel()
@@ -31,7 +34,7 @@ func TestNewUserID(t *testing.T) {
 			t.Parallel()
 
 			id, err := newUserID(tt.input)
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("newUserID() error = %v, want %v", err, tt.wantErr)
 			}
 

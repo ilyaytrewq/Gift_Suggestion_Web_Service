@@ -4,6 +4,10 @@ type Email struct {
 	value string
 }
 
+func NewEmail(email string) (Email, error) {
+	return newEmail(email)
+}
+
 func newEmail(email string) (Email, error) {
 	if isBlank(email) {
 		return Email{}, ErrEmailEmpty
@@ -24,4 +28,8 @@ func (e Email) IsValid() error {
 	}
 
 	return nil
+}
+
+func (e Email) String() string {
+	return e.value
 }
