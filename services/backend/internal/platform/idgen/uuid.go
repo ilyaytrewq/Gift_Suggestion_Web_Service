@@ -7,6 +7,7 @@ import (
 	catalogdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalog/domain"
 	catalogimportdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalogimport/domain"
 	recommendationdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/domain"
+	trackingdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/tracking/domain"
 	userdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/domain"
 	wishlistdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/domain"
 )
@@ -43,6 +44,10 @@ func (UUIDGenerator) NewRecommendationRequestID() (recommendationdomain.RequestI
 
 func (UUIDGenerator) NewRecommendationResultID() (recommendationdomain.ResultID, error) {
 	return recommendationdomain.NewResultID(uuid.NewString())
+}
+
+func (UUIDGenerator) NewTrackingEventID() (trackingdomain.EventID, error) {
+	return trackingdomain.NewEventID(uuid.NewString())
 }
 
 func (UUIDGenerator) NewWishlistID() (wishlistdomain.WishlistID, error) {

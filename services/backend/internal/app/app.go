@@ -27,6 +27,9 @@ import (
 	recommendationgrpc "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/infra/grpc"
 	recommendationpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/infra/postgres"
 	recommendationusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/usecase"
+	trackinghttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/tracking/delivery/http"
+	trackingpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/tracking/infra/postgres"
+	trackingusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/tracking/usecase"
 	userhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/delivery/http"
 	userpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/infra/postgres"
 	userusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/usecase"
@@ -216,6 +219,17 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	if err != nil {
 		return nil, err
 	}
+	trackingHandler, err := newTrackingHandler(
+		database,
+		authMiddleware,
+		userRepository,
+		catalogRepository,
+		wishlistRepository,
+		uuidGenerator,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	router := transporthttp.NewRouter(
 		log,
@@ -226,6 +240,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		wishlistHandler,
 		importHandler,
 		recommendationHandler,
+		trackingHandler,
 	)
 
 	return &App{
@@ -316,6 +331,33 @@ func newRecommendationHandler(
 	}
 
 	return recommendationhttp.NewHandler(recommendationService, authMiddleware)
+}
+
+func newTrackingHandler(
+	database *sql.DB,
+	authMiddleware gin.HandlerFunc,
+	userRepository *userpostgres.Repository,
+	catalogRepository *catalogpostgres.Repository,
+	wishlistRepository *wishlistpostgres.Repository,
+	uuidGenerator idgen.UUIDGenerator,
+) (*trackinghttp.Handler, error) {
+	trackingRepository := trackingpostgres.NewRepository(database)
+	recommendationRepository := recommendationpostgres.NewRepository(database)
+
+	trackingService, err := trackingusecase.NewService(
+		trackingRepository,
+		userRepository,
+		catalogRepository,
+		wishlistRepository,
+		recommendationRepository,
+		uuidGenerator,
+		clock.Real{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return trackinghttp.NewHandler(trackingService, authMiddleware)
 }
 
 func (a *App) Start(ctx context.Context) error {

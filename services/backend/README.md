@@ -127,6 +127,38 @@ Guest recommendation flow не реализован в этой ветке и б
 - число retry ограничивается `ML_GRPC_MAX_RETRIES`;
 - backend хранит `recommendation_requests` и `recommendation_results` для traceability и следующей tracking-ветки.
 
+## Tracking API
+
+После `feature/tracking-events` backend поддерживает auth-only ingestion path для user interaction events:
+
+- `POST /api/v1/tracking/events`
+
+Минимально поддерживаемые типы:
+
+- `recommendation_request`
+- `card_view`
+- `wishlist_add`
+- `outbound_click`
+
+Контракт события:
+
+- `type` обязателен;
+- `gift_id` обязателен для `card_view`, `wishlist_add`, `outbound_click`;
+- `wishlist_id` обязателен для `wishlist_add`;
+- `recommendation_request_id` обязателен для `recommendation_request` и optional для остальных;
+- `client_event_id` optional и используется как idempotency key для повторной отправки одного и того же события;
+- `metadata.surface` и `metadata.position` optional и валидируются как компактный аналитический контекст.
+
+Текущая реализация хранит события в append-only `tracking_events` и валидирует ссылки на:
+
+- текущего пользователя из JWT access token;
+- `recommendation_request_id` с ownership check;
+- `wishlist_id` с ownership check;
+- `gift_id` через catalog existence check.
+
+Автоматическая серверная эмиссия tracking-событий из `recommendation` и `wishlist` use-case в этой ветке не добавлялась сознательно.
+Сейчас ветка даёт единый ingestion endpoint и storage foundation без расширения чужих модулей.
+
 ## OpenAPI
 
 HTTP contracts ведутся в OpenAPI-формате в файле:
@@ -135,7 +167,7 @@ HTTP contracts ведутся в OpenAPI-формате в файле:
 services/backend/docs/openapi/backend.yaml
 ```
 
-Сейчас спецификация покрывает health, auth/user foundation, catalog read, wishlist, admin catalog import и recommendation endpoints.
+Сейчас спецификация покрывает health, auth/user foundation, catalog read, wishlist, admin catalog import, recommendation и tracking endpoints.
 
 ## Локальный запуск backend
 

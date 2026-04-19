@@ -6,7 +6,7 @@ info:
     Backend API gateway for the Gift Suggestion Web Service.
     The specification is maintained manually and currently covers health,
     auth/user foundation, catalog read endpoints, wishlist endpoints,
-    admin catalog import endpoints, and recommendation endpoints.
+    admin catalog import endpoints, recommendation endpoints, and tracking endpoints.
 servers:
   - url: http://localhost:8080
 tags:
@@ -17,6 +17,7 @@ tags:
   - name: wishlist
   - name: admin-import
   - name: recommendation
+  - name: tracking
 paths:
   /health/live:
     get:
@@ -712,6 +713,59 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Recommendation request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/tracking/events:
+    post:
+      tags: [tracking]
+      summary: Record a user interaction event
+      description: |
+        Auth-only tracking ingestion endpoint.
+        Repeated requests with the same `client_event_id` for the same user are treated idempotently.
+      operationId: trackEvent
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackEventRequest'
+      responses:
+        '201':
+          description: Tracking event recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingEventEnvelope'
+        '200':
+          description: Duplicate client event id accepted idempotently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingEventEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Related resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: client_event_id is reused for another payload
           content:
             application/json:
               schema:
@@ -1527,6 +1581,91 @@ components:
           properties:
             recommendation:
               $ref: '#/components/schemas/RecommendationSet'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    TrackEventMetadata:
+      type: object
+      properties:
+        surface:
+          type: string
+          enum: [catalog, recommendation, wishlist, direct]
+        position:
+          type: integer
+          minimum: 1
+          maximum: 100
+      additionalProperties: false
+    TrackEventRequest:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [recommendation_request, card_view, wishlist_add, outbound_click]
+        client_event_id:
+          type: string
+          maxLength: 64
+        occurred_at:
+          type: string
+          format: date-time
+        recommendation_request_id:
+          type: string
+          format: uuid
+        wishlist_id:
+          type: string
+          format: uuid
+        gift_id:
+          type: string
+          format: uuid
+        metadata:
+          $ref: '#/components/schemas/TrackEventMetadata'
+      additionalProperties: false
+    TrackingEvent:
+      type: object
+      required: [id, type, duplicate, metadata, occurred_at, recorded_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [recommendation_request, card_view, wishlist_add, outbound_click]
+        duplicate:
+          type: boolean
+        client_event_id:
+          type: string
+        recommendation_request_id:
+          type: string
+          format: uuid
+        wishlist_id:
+          type: string
+          format: uuid
+        gift_id:
+          type: string
+          format: uuid
+        metadata:
+          $ref: '#/components/schemas/TrackEventMetadata'
+        occurred_at:
+          type: string
+          format: date-time
+        recorded_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    TrackingEventEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [event]
+          properties:
+            event:
+              $ref: '#/components/schemas/TrackingEvent'
           additionalProperties: false
         meta:
           $ref: '#/components/schemas/Meta'
