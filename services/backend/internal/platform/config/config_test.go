@@ -37,6 +37,12 @@ func TestLoadFromLookupDefaults(t *testing.T) {
 	if cfg.ML.MaxRetries != defaultMLMaxRetries {
 		t.Fatalf("expected default ml max retries %d, got %d", defaultMLMaxRetries, cfg.ML.MaxRetries)
 	}
+	if cfg.VK.Enabled {
+		t.Fatal("expected vk integration to be disabled by default")
+	}
+	if cfg.VK.RequestTimeout != defaultVKRequestTimeout {
+		t.Fatalf("expected default vk request timeout %s, got %s", defaultVKRequestTimeout, cfg.VK.RequestTimeout)
+	}
 	if cfg.Auth.RefreshCookieName != defaultRefreshCookieName {
 		t.Fatalf("expected default refresh cookie name %q, got %q", defaultRefreshCookieName, cfg.Auth.RefreshCookieName)
 	}
@@ -71,6 +77,9 @@ func TestLoadFromLookupValidatesValues(t *testing.T) {
 		"DB_MAX_IDLE_CONNS":          "5",
 		"IMPORT_MAX_FILE_SIZE_BYTES": "0",
 		"ML_GRPC_ADDR":               "localhost:50051",
+		"VK_ENABLED":                 "true",
+		"VK_REQUEST_TIMEOUT":         "4s",
+		"VK_TOKEN_ENCRYPTION_KEY":    "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
 	}))
 	if err == nil {
 		t.Fatal("expected invalid HTTP_PORT to fail")
@@ -103,6 +112,9 @@ func TestLoadFromLookupReadsExplicitValues(t *testing.T) {
 		"ML_GRPC_DIAL_TIMEOUT":       "7s",
 		"ML_GRPC_REQUEST_TIMEOUT":    "2500ms",
 		"ML_GRPC_MAX_RETRIES":        "1",
+		"VK_ENABLED":                 "true",
+		"VK_REQUEST_TIMEOUT":         "4s",
+		"VK_TOKEN_ENCRYPTION_KEY":    "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
 		"AUTH_JWT_ISSUER":            "gift-api",
 		"AUTH_JWT_AUDIENCE":          "gift-web",
 		"AUTH_ACCESS_TTL":            "20m",
@@ -140,11 +152,53 @@ func TestLoadFromLookupReadsExplicitValues(t *testing.T) {
 	if cfg.ML.MaxRetries != 1 {
 		t.Fatalf("expected ml max retries 1, got %d", cfg.ML.MaxRetries)
 	}
+	if !cfg.VK.Enabled {
+		t.Fatal("expected vk integration to be enabled")
+	}
+	if cfg.VK.RequestTimeout != 4*time.Second {
+		t.Fatalf("expected vk request timeout 4s, got %s", cfg.VK.RequestTimeout)
+	}
+	if cfg.VK.TokenEncryptionKey == "" {
+		t.Fatal("expected vk token encryption key to be loaded")
+	}
 	if cfg.Auth.JWTIssuer != "gift-api" {
 		t.Fatalf("expected auth issuer gift-api, got %s", cfg.Auth.JWTIssuer)
 	}
 	if !cfg.Auth.RefreshCookieSecure {
 		t.Fatal("expected refresh cookie secure to be true")
+	}
+}
+
+func TestLoadFromLookupAllowsVKWithoutEncryptionKey(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := LoadFromLookup(mapLookup(map[string]string{
+		"DB_DSN":          "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
+		"AUTH_JWT_SECRET": "very-secret-key-123",
+		"VK_ENABLED":      "true",
+	}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !cfg.VK.Enabled {
+		t.Fatal("expected vk integration to be enabled")
+	}
+	if cfg.VK.TokenEncryptionKey != "" {
+		t.Fatalf("expected empty vk token encryption key, got %q", cfg.VK.TokenEncryptionKey)
+	}
+}
+
+func TestLoadFromLookupRejectsInvalidVKEncryptionKey(t *testing.T) {
+	t.Parallel()
+
+	_, err := LoadFromLookup(mapLookup(map[string]string{
+		"DB_DSN":                  "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
+		"AUTH_JWT_SECRET":         "very-secret-key-123",
+		"VK_TOKEN_ENCRYPTION_KEY": "invalid",
+	}))
+	if err == nil {
+		t.Fatal("expected invalid vk encryption key to fail")
 	}
 }
 

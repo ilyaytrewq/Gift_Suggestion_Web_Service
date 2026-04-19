@@ -159,6 +159,36 @@ Guest recommendation flow не реализован в этой ветке и б
 Автоматическая серверная эмиссия tracking-событий из `recommendation` и `wishlist` use-case в этой ветке не добавлялась сознательно.
 Сейчас ветка даёт единый ingestion endpoint и storage foundation без расширения чужих модулей.
 
+## VK integration scaffold
+
+После `feature/vk-connections` backend поддерживает auth-only scaffold для consent-aware VK linkage:
+
+- `GET /api/v1/integrations/vk/connection`
+- `PUT /api/v1/integrations/vk/connection`
+- `DELETE /api/v1/integrations/vk/connection`
+- `POST /api/v1/integrations/vk/connection/sync-interests`
+
+VK integration deliberately остаётся supporting-module scaffold:
+
+- backend хранит один `vk_connection` на пользователя;
+- consent и connection state валидируются в use-case, не в handler;
+- access token никогда не возвращается в API и, если передан, хранится только в зашифрованном виде;
+- imported interests сохраняются snapshot-моделью в `vk_imported_interests`;
+- если `VK_ENABLED=false`, endpoints возвращают `503 vk_integration_disabled`.
+
+Текущий safe scope этой ветки:
+
+- connect/disconnect текущего пользователя;
+- безопасное хранение non-secret metadata (`screen_name`, `profile_url`, scopes, expires_at`);
+- foundation для `sync-interests` с pluggable VK importer;
+- feature-flag friendly wiring через `VK_ENABLED`, `VK_REQUEST_TIMEOUT`, `VK_TOKEN_ENCRYPTION_KEY`.
+
+Текущая граница реализованного:
+
+- реальный VK API/OAuth flow намеренно не реализован;
+- встроенный importer возвращает controlled scaffold error, пока внешний VK client не добавлен;
+- `sync-interests` готов к рабочему провайдеру, но не делает опасных предположений о внешнем API.
+
 ## OpenAPI
 
 HTTP contracts ведутся в OpenAPI-формате в файле:
@@ -168,6 +198,7 @@ services/backend/docs/openapi/backend.yaml
 ```
 
 Сейчас спецификация покрывает health, auth/user foundation, catalog read, wishlist, admin catalog import, recommendation и tracking endpoints.
+После `feature/vk-connections` она также покрывает auth-only VK integration scaffold.
 
 ## Локальный запуск backend
 
@@ -202,6 +233,7 @@ Compose поднимает:
 
 По умолчанию в compose отключен ML gRPC (`ML_GRPC_ENABLED=false`), поэтому bootstrap можно поднять без ML-service.
 В этом режиме recommendation flow продолжает работать через backend fallback ranking.
+VK scaffold по умолчанию тоже отключён (`VK_ENABLED=false`). Для сохранения access token в зашифрованном виде нужно задать `VK_TOKEN_ENCRYPTION_KEY` как base64-encoded 32-byte AES key.
 
 ## Полезные команды
 

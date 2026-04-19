@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"net"
 	"os"
@@ -27,6 +28,7 @@ const (
 	defaultMLDialTimeout     = 3 * time.Second
 	defaultMLRequestTimeout  = 2500 * time.Millisecond
 	defaultMLMaxRetries      = 1
+	defaultVKRequestTimeout  = 3 * time.Second
 	defaultJWTIssuer         = "gift-suggestion-backend"
 	defaultJWTAudience       = "gift-suggestion-web-service"
 	defaultAccessTokenTTL    = 15 * time.Minute
@@ -42,6 +44,7 @@ type Config struct {
 	Database DatabaseConfig
 	Import   ImportConfig
 	ML       MLConfig
+	VK       VKConfig
 	Auth     AuthConfig
 }
 
@@ -85,6 +88,12 @@ type MLConfig struct {
 	MaxRetries     int
 }
 
+type VKConfig struct {
+	Enabled            bool
+	RequestTimeout     time.Duration
+	TokenEncryptionKey string
+}
+
 type AuthConfig struct {
 	JWTSecret             string
 	JWTIssuer             string
@@ -111,94 +120,42 @@ func LoadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 		},
 	}
 
-	httpPort, err := intWithDefault(lookup, "HTTP_PORT", defaultHTTPPort)
-	if err != nil {
-		return Config{}, err
-	}
-	httpReadTimeout, err := durationWithDefault(lookup, "HTTP_READ_TIMEOUT", defaultHTTPReadTimeout)
-	if err != nil {
-		return Config{}, err
-	}
-	httpWriteTimeout, err := durationWithDefault(lookup, "HTTP_WRITE_TIMEOUT", defaultHTTPWriteTimeout)
-	if err != nil {
-		return Config{}, err
-	}
-	httpIdleTimeout, err := durationWithDefault(lookup, "HTTP_IDLE_TIMEOUT", defaultHTTPIdleTimeout)
-	if err != nil {
-		return Config{}, err
-	}
-	httpShutdownTimeout, err := durationWithDefault(lookup, "HTTP_SHUTDOWN_TIMEOUT", defaultHTTPShutdownGrace)
+	httpCfg, err := loadHTTPConfig(lookup)
 	if err != nil {
 		return Config{}, err
 	}
 
-	cfg.HTTP = HTTPConfig{
-		Host:            stringWithDefault(lookup, "HTTP_HOST", defaultHTTPHost),
-		Port:            httpPort,
-		ReadTimeout:     httpReadTimeout,
-		WriteTimeout:    httpWriteTimeout,
-		IdleTimeout:     httpIdleTimeout,
-		ShutdownTimeout: httpShutdownTimeout,
-	}
-
-	if cfg.Database.DSN, err = requiredString(lookup, "DB_DSN"); err != nil {
-		return Config{}, err
-	}
-	cfg.Database.MaxOpenConns, err = intWithDefault(lookup, "DB_MAX_OPEN_CONNS", defaultDBMaxOpenConns)
-	if err != nil {
-		return Config{}, err
-	}
-	cfg.Database.MaxIdleConns, err = intWithDefault(lookup, "DB_MAX_IDLE_CONNS", defaultDBMaxIdleConns)
-	if err != nil {
-		return Config{}, err
-	}
-	cfg.Database.ConnMaxLifetime, err = durationWithDefault(lookup, "DB_CONN_MAX_LIFETIME", defaultDBConnMaxLifetime)
-	if err != nil {
-		return Config{}, err
-	}
-	cfg.Database.PingTimeout, err = durationWithDefault(lookup, "DB_PING_TIMEOUT", defaultDBPingTimeout)
-	if err != nil {
-		return Config{}, err
-	}
-	cfg.Database.MigrationsEnabled, err = boolWithDefault(lookup, "DB_MIGRATIONS_ENABLED", true)
+	databaseCfg, err := loadDatabaseConfig(lookup)
 	if err != nil {
 		return Config{}, err
 	}
 
-	cfg.Import, err = loadImportConfig(lookup)
+	importCfg, err := loadImportConfig(lookup)
 	if err != nil {
 		return Config{}, err
 	}
 
-	cfg.ML, err = loadMLConfig(lookup)
+	mlCfg, err := loadMLConfig(lookup)
 	if err != nil {
 		return Config{}, err
 	}
 
-	if cfg.Auth.JWTSecret, err = requiredString(lookup, "AUTH_JWT_SECRET"); err != nil {
-		return Config{}, err
-	}
-	cfg.Auth.JWTIssuer = stringWithDefault(lookup, "AUTH_JWT_ISSUER", defaultJWTIssuer)
-	cfg.Auth.JWTAudience = stringWithDefault(lookup, "AUTH_JWT_AUDIENCE", defaultJWTAudience)
-	cfg.Auth.AccessTokenTTL, err = durationWithDefault(lookup, "AUTH_ACCESS_TTL", defaultAccessTokenTTL)
+	vkCfg, err := loadVKConfig(lookup)
 	if err != nil {
 		return Config{}, err
 	}
-	cfg.Auth.RefreshTokenTTL, err = durationWithDefault(lookup, "AUTH_REFRESH_TTL", defaultRefreshTokenTTL)
+
+	authCfg, err := loadAuthConfig(lookup)
 	if err != nil {
 		return Config{}, err
 	}
-	cfg.Auth.PasswordResetTokenTTL, err = durationWithDefault(lookup, "AUTH_PASSWORD_RESET_TTL", defaultResetTokenTTL)
-	if err != nil {
-		return Config{}, err
-	}
-	cfg.Auth.RefreshCookieName = stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_NAME", defaultRefreshCookieName)
-	cfg.Auth.RefreshCookiePath = stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_PATH", defaultRefreshCookiePath)
-	cfg.Auth.RefreshCookieDomain = stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_DOMAIN", "")
-	cfg.Auth.RefreshCookieSecure, err = boolWithDefault(lookup, "AUTH_REFRESH_COOKIE_SECURE", false)
-	if err != nil {
-		return Config{}, err
-	}
+
+	cfg.HTTP = httpCfg
+	cfg.Database = databaseCfg
+	cfg.Import = importCfg
+	cfg.ML = mlCfg
+	cfg.VK = vkCfg
+	cfg.Auth = authCfg
 
 	if err := cfg.validate(); err != nil {
 		return Config{}, err
@@ -208,6 +165,20 @@ func LoadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 }
 
 func (cfg Config) validate() error {
+	if err := cfg.validateAppAndHTTP(); err != nil {
+		return err
+	}
+	if err := cfg.validateStorageAndIntegrations(); err != nil {
+		return err
+	}
+	if err := cfg.validateAuth(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cfg Config) validateAppAndHTTP() error {
 	if cfg.HTTP.Port < 1 || cfg.HTTP.Port > 65535 {
 		return errors.New("HTTP_PORT must be between 1 and 65535")
 	}
@@ -218,6 +189,10 @@ func (cfg Config) validate() error {
 		return errors.New("LOG_LEVEL must be one of debug, info, warn, error")
 	}
 
+	return nil
+}
+
+func (cfg Config) validateStorageAndIntegrations() error {
 	if cfg.Database.MaxOpenConns < 1 {
 		return errors.New("DB_MAX_OPEN_CONNS must be greater than zero")
 	}
@@ -239,6 +214,19 @@ func (cfg Config) validate() error {
 	if cfg.ML.MaxRetries < 0 || cfg.ML.MaxRetries > 3 {
 		return errors.New("ML_GRPC_MAX_RETRIES must be between 0 and 3")
 	}
+	if cfg.VK.RequestTimeout <= 0 {
+		return errors.New("VK_REQUEST_TIMEOUT must be greater than zero")
+	}
+	if strings.TrimSpace(cfg.VK.TokenEncryptionKey) != "" {
+		if err := validateBase64AES256Key(cfg.VK.TokenEncryptionKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (cfg Config) validateAuth() error {
 	if len(cfg.Auth.JWTSecret) < 16 {
 		return errors.New("AUTH_JWT_SECRET must be at least 16 characters long")
 	}
@@ -322,6 +310,74 @@ func loadImportConfig(lookup func(string) (string, bool)) (ImportConfig, error) 
 	}, nil
 }
 
+func loadHTTPConfig(lookup func(string) (string, bool)) (HTTPConfig, error) {
+	httpPort, err := intWithDefault(lookup, "HTTP_PORT", defaultHTTPPort)
+	if err != nil {
+		return HTTPConfig{}, err
+	}
+	httpReadTimeout, err := durationWithDefault(lookup, "HTTP_READ_TIMEOUT", defaultHTTPReadTimeout)
+	if err != nil {
+		return HTTPConfig{}, err
+	}
+	httpWriteTimeout, err := durationWithDefault(lookup, "HTTP_WRITE_TIMEOUT", defaultHTTPWriteTimeout)
+	if err != nil {
+		return HTTPConfig{}, err
+	}
+	httpIdleTimeout, err := durationWithDefault(lookup, "HTTP_IDLE_TIMEOUT", defaultHTTPIdleTimeout)
+	if err != nil {
+		return HTTPConfig{}, err
+	}
+	httpShutdownTimeout, err := durationWithDefault(lookup, "HTTP_SHUTDOWN_TIMEOUT", defaultHTTPShutdownGrace)
+	if err != nil {
+		return HTTPConfig{}, err
+	}
+
+	return HTTPConfig{
+		Host:            stringWithDefault(lookup, "HTTP_HOST", defaultHTTPHost),
+		Port:            httpPort,
+		ReadTimeout:     httpReadTimeout,
+		WriteTimeout:    httpWriteTimeout,
+		IdleTimeout:     httpIdleTimeout,
+		ShutdownTimeout: httpShutdownTimeout,
+	}, nil
+}
+
+func loadDatabaseConfig(lookup func(string) (string, bool)) (DatabaseConfig, error) {
+	dsn, err := requiredString(lookup, "DB_DSN")
+	if err != nil {
+		return DatabaseConfig{}, err
+	}
+	maxOpenConns, err := intWithDefault(lookup, "DB_MAX_OPEN_CONNS", defaultDBMaxOpenConns)
+	if err != nil {
+		return DatabaseConfig{}, err
+	}
+	maxIdleConns, err := intWithDefault(lookup, "DB_MAX_IDLE_CONNS", defaultDBMaxIdleConns)
+	if err != nil {
+		return DatabaseConfig{}, err
+	}
+	connMaxLifetime, err := durationWithDefault(lookup, "DB_CONN_MAX_LIFETIME", defaultDBConnMaxLifetime)
+	if err != nil {
+		return DatabaseConfig{}, err
+	}
+	pingTimeout, err := durationWithDefault(lookup, "DB_PING_TIMEOUT", defaultDBPingTimeout)
+	if err != nil {
+		return DatabaseConfig{}, err
+	}
+	migrationsEnabled, err := boolWithDefault(lookup, "DB_MIGRATIONS_ENABLED", true)
+	if err != nil {
+		return DatabaseConfig{}, err
+	}
+
+	return DatabaseConfig{
+		DSN:               dsn,
+		MaxOpenConns:      maxOpenConns,
+		MaxIdleConns:      maxIdleConns,
+		ConnMaxLifetime:   connMaxLifetime,
+		PingTimeout:       pingTimeout,
+		MigrationsEnabled: migrationsEnabled,
+	}, nil
+}
+
 func loadMLConfig(lookup func(string) (string, bool)) (MLConfig, error) {
 	enabled, err := boolWithDefault(lookup, "ML_GRPC_ENABLED", false)
 	if err != nil {
@@ -347,6 +403,60 @@ func loadMLConfig(lookup func(string) (string, bool)) (MLConfig, error) {
 		DialTimeout:    dialTimeout,
 		RequestTimeout: requestTimeout,
 		MaxRetries:     maxRetries,
+	}, nil
+}
+
+func loadVKConfig(lookup func(string) (string, bool)) (VKConfig, error) {
+	enabled, err := boolWithDefault(lookup, "VK_ENABLED", false)
+	if err != nil {
+		return VKConfig{}, err
+	}
+
+	requestTimeout, err := durationWithDefault(lookup, "VK_REQUEST_TIMEOUT", defaultVKRequestTimeout)
+	if err != nil {
+		return VKConfig{}, err
+	}
+
+	return VKConfig{
+		Enabled:            enabled,
+		RequestTimeout:     requestTimeout,
+		TokenEncryptionKey: stringWithDefault(lookup, "VK_TOKEN_ENCRYPTION_KEY", ""),
+	}, nil
+}
+
+func loadAuthConfig(lookup func(string) (string, bool)) (AuthConfig, error) {
+	jwtSecret, err := requiredString(lookup, "AUTH_JWT_SECRET")
+	if err != nil {
+		return AuthConfig{}, err
+	}
+	accessTokenTTL, err := durationWithDefault(lookup, "AUTH_ACCESS_TTL", defaultAccessTokenTTL)
+	if err != nil {
+		return AuthConfig{}, err
+	}
+	refreshTokenTTL, err := durationWithDefault(lookup, "AUTH_REFRESH_TTL", defaultRefreshTokenTTL)
+	if err != nil {
+		return AuthConfig{}, err
+	}
+	passwordResetTokenTTL, err := durationWithDefault(lookup, "AUTH_PASSWORD_RESET_TTL", defaultResetTokenTTL)
+	if err != nil {
+		return AuthConfig{}, err
+	}
+	refreshCookieSecure, err := boolWithDefault(lookup, "AUTH_REFRESH_COOKIE_SECURE", false)
+	if err != nil {
+		return AuthConfig{}, err
+	}
+
+	return AuthConfig{
+		JWTSecret:             jwtSecret,
+		JWTIssuer:             stringWithDefault(lookup, "AUTH_JWT_ISSUER", defaultJWTIssuer),
+		JWTAudience:           stringWithDefault(lookup, "AUTH_JWT_AUDIENCE", defaultJWTAudience),
+		AccessTokenTTL:        accessTokenTTL,
+		RefreshTokenTTL:       refreshTokenTTL,
+		PasswordResetTokenTTL: passwordResetTokenTTL,
+		RefreshCookieName:     stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_NAME", defaultRefreshCookieName),
+		RefreshCookiePath:     stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_PATH", defaultRefreshCookiePath),
+		RefreshCookieDomain:   stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_DOMAIN", ""),
+		RefreshCookieSecure:   refreshCookieSecure,
 	}, nil
 }
 
@@ -380,4 +490,20 @@ func boolWithDefault(lookup func(string) (string, bool), key string, defaultValu
 	}
 
 	return parsed, nil
+}
+
+func validateBase64AES256Key(raw string) error {
+	decoded, err := decodeBase64(raw)
+	if err != nil {
+		return errors.New("VK_TOKEN_ENCRYPTION_KEY must be a valid base64 string")
+	}
+	if len(decoded) != 32 {
+		return errors.New("VK_TOKEN_ENCRYPTION_KEY must decode to 32 bytes")
+	}
+
+	return nil
+}
+
+func decodeBase64(raw string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(strings.TrimSpace(raw))
 }
