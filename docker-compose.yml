@@ -41,6 +41,8 @@ services:
       ML_GRPC_ENABLED: ${ML_GRPC_ENABLED:-false}
       ML_GRPC_ADDR: ${ML_GRPC_ADDR:-ml-service:50051}
       ML_GRPC_DIAL_TIMEOUT: ${ML_GRPC_DIAL_TIMEOUT:-3s}
+      ML_GRPC_REQUEST_TIMEOUT: ${ML_GRPC_REQUEST_TIMEOUT:-2500ms}
+      ML_GRPC_MAX_RETRIES: ${ML_GRPC_MAX_RETRIES:-1}
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change-me-please}
       AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-gift-suggestion-backend}
       AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-gift-suggestion-web-service}

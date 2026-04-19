@@ -13,13 +13,47 @@ import (
 
 var ErrRankingNotImplemented = errors.New("ml ranking rpc is not implemented yet")
 
+type QueryContext struct {
+	Occasion     string
+	Relationship string
+	Interests    []string
+	BudgetCents  int64
+	RecipientAge *int
+}
+
+type Candidate struct {
+	ID             string
+	CategoryID     *string
+	CategoryName   string
+	PriceCents     int64
+	AgeRestriction *int
+	Title          string
+	Description    string
+}
+
+type Explanation struct {
+	Code string
+	Text string
+}
+
 type RankRequest struct {
-	SelectionID  string
-	CandidateIDs []string
+	SelectionID string
+	UserID      string
+	TopN        int
+	Query       QueryContext
+	Candidates  []Candidate
+}
+
+type RankedItem struct {
+	CandidateID             string
+	Score                   float64
+	Explanations            []Explanation
+	AlternativeCandidateIDs []string
 }
 
 type RankResponse struct {
-	RankedCandidateIDs []string
+	Items        []RankedItem
+	ModelVersion string
 }
 
 type Client struct {

@@ -23,6 +23,10 @@ import (
 	healthgrpc "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/infra/grpc"
 	healthpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/infra/postgres"
 	healthusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/health/usecase"
+	recommendationhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/delivery/http"
+	recommendationgrpc "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/infra/grpc"
+	recommendationpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/infra/postgres"
+	recommendationusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/usecase"
 	userhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/delivery/http"
 	userpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/infra/postgres"
 	userusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/usecase"
@@ -199,8 +203,30 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	if err != nil {
 		return nil, err
 	}
+	recommendationHandler, err := newRecommendationHandler(
+		database,
+		mlClient,
+		authMiddleware,
+		cfg.ML,
+		userRepository,
+		catalogRepository,
+		wishlistRepository,
+		uuidGenerator,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	router := transporthttp.NewRouter(log, healthHandler, authHandler, userHandler, catalogHandler, wishlistHandler, importHandler)
+	router := transporthttp.NewRouter(
+		log,
+		healthHandler,
+		authHandler,
+		userHandler,
+		catalogHandler,
+		wishlistHandler,
+		importHandler,
+		recommendationHandler,
+	)
 
 	return &App{
 		cfg:      cfg,
@@ -259,6 +285,37 @@ func newCatalogImportHandler(
 	}
 
 	return catalogimporthttp.NewHandler(importService, authMiddleware, cfg.MaxFileSizeBytes)
+}
+
+func newRecommendationHandler(
+	database *sql.DB,
+	mlClient *mlgrpc.Client,
+	authMiddleware gin.HandlerFunc,
+	cfg config.MLConfig,
+	userRepository *userpostgres.Repository,
+	catalogRepository *catalogpostgres.Repository,
+	wishlistRepository *wishlistpostgres.Repository,
+	uuidGenerator idgen.UUIDGenerator,
+) (*recommendationhttp.Handler, error) {
+	recommendationRepository := recommendationpostgres.NewRepository(database)
+	rankingGateway := recommendationgrpc.NewGateway(mlClient, cfg)
+
+	recommendationService, err := recommendationusecase.NewService(
+		recommendationRepository,
+		recommendationRepository,
+		userRepository,
+		wishlistRepository,
+		catalogRepository,
+		rankingGateway,
+		uuidGenerator,
+		uuidGenerator,
+		clock.Real{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return recommendationhttp.NewHandler(recommendationService, authMiddleware)
 }
 
 func (a *App) Start(ctx context.Context) error {

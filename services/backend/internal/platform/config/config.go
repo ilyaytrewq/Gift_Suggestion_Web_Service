@@ -25,6 +25,8 @@ const (
 	defaultDBPingTimeout     = 2 * time.Second
 	defaultImportMaxFileSize = 5 * 1024 * 1024
 	defaultMLDialTimeout     = 3 * time.Second
+	defaultMLRequestTimeout  = 2500 * time.Millisecond
+	defaultMLMaxRetries      = 1
 	defaultJWTIssuer         = "gift-suggestion-backend"
 	defaultJWTAudience       = "gift-suggestion-web-service"
 	defaultAccessTokenTTL    = 15 * time.Minute
@@ -76,9 +78,11 @@ type ImportConfig struct {
 }
 
 type MLConfig struct {
-	Enabled     bool
-	Address     string
-	DialTimeout time.Duration
+	Enabled        bool
+	Address        string
+	DialTimeout    time.Duration
+	RequestTimeout time.Duration
+	MaxRetries     int
 }
 
 type AuthConfig struct {
@@ -229,6 +233,12 @@ func (cfg Config) validate() error {
 	if cfg.ML.Enabled && cfg.ML.Address == "" {
 		return errors.New("ML_GRPC_ADDR is required when ML_GRPC_ENABLED=true")
 	}
+	if cfg.ML.RequestTimeout <= 0 {
+		return errors.New("ML_GRPC_REQUEST_TIMEOUT must be greater than zero")
+	}
+	if cfg.ML.MaxRetries < 0 || cfg.ML.MaxRetries > 3 {
+		return errors.New("ML_GRPC_MAX_RETRIES must be between 0 and 3")
+	}
 	if len(cfg.Auth.JWTSecret) < 16 {
 		return errors.New("AUTH_JWT_SECRET must be at least 16 characters long")
 	}
@@ -322,11 +332,21 @@ func loadMLConfig(lookup func(string) (string, bool)) (MLConfig, error) {
 	if err != nil {
 		return MLConfig{}, err
 	}
+	requestTimeout, err := durationWithDefault(lookup, "ML_GRPC_REQUEST_TIMEOUT", defaultMLRequestTimeout)
+	if err != nil {
+		return MLConfig{}, err
+	}
+	maxRetries, err := intWithDefault(lookup, "ML_GRPC_MAX_RETRIES", defaultMLMaxRetries)
+	if err != nil {
+		return MLConfig{}, err
+	}
 
 	return MLConfig{
-		Enabled:     enabled,
-		Address:     stringWithDefault(lookup, "ML_GRPC_ADDR", ""),
-		DialTimeout: dialTimeout,
+		Enabled:        enabled,
+		Address:        stringWithDefault(lookup, "ML_GRPC_ADDR", ""),
+		DialTimeout:    dialTimeout,
+		RequestTimeout: requestTimeout,
+		MaxRetries:     maxRetries,
 	}, nil
 }
 

@@ -92,6 +92,41 @@ List endpoints используют общий envelope и возвращают 
 Для `CSV` и `XLSX` первая строка должна содержать headers.
 Для `JSON` поддерживается массив объектов, а также объект вида `{ "items": [...] }`.
 
+## Recommendation API
+
+После `feature/recommendation-ml-gateway` backend также поддерживает recommendation flow:
+
+- `POST /api/v1/recommendations`
+- `GET /api/v1/recommendations/{request_id}`
+
+Текущая HTTP-версия recommendation flow работает только для авторизованного пользователя через JWT access token.
+Guest recommendation flow не реализован в этой ветке и будет отдельным расширением.
+
+Поддерживаемый request payload:
+
+- `budget_max` — обязательный верхний предел бюджета;
+- `recipient_age` — optional hard filter по возрастному ограничению;
+- `occasion`, `relationship` — optional questionnaire context;
+- `preferred_category_ids` — optional hard filter по категориям;
+- `interests` — optional ranking context;
+- `top_n` — optional limit, по умолчанию `5`, максимум `10`;
+- `use_wishlist_context` — optional flag, по умолчанию `true`.
+
+Онлайн pipeline recommendation:
+
+- backend читает кандидатов из уже нормализованного каталога;
+- применяет hard filters по `budget_max`, `recipient_age` и `preferred_category_ids`;
+- подготавливает candidate pool и вызывает ML gateway;
+- если ML недоступен, таймаутится или возвращает невалидный ranking, backend переключается на deterministic fallback;
+- explanations синтезируются backend-ом, если ML их не прислал;
+- alternatives достраиваются из remaining candidate pool, если ML их не прислал или прислал частично.
+
+Текущие execution guarantees:
+
+- per-call timeout на ML ranking задаётся через `ML_GRPC_REQUEST_TIMEOUT`;
+- число retry ограничивается `ML_GRPC_MAX_RETRIES`;
+- backend хранит `recommendation_requests` и `recommendation_results` для traceability и следующей tracking-ветки.
+
 ## OpenAPI
 
 HTTP contracts ведутся в OpenAPI-формате в файле:
@@ -100,7 +135,7 @@ HTTP contracts ведутся в OpenAPI-формате в файле:
 services/backend/docs/openapi/backend.yaml
 ```
 
-Сейчас спецификация покрывает health, auth/user foundation, catalog read, wishlist и admin catalog import endpoints.
+Сейчас спецификация покрывает health, auth/user foundation, catalog read, wishlist, admin catalog import и recommendation endpoints.
 
 ## Локальный запуск backend
 
@@ -134,6 +169,7 @@ Compose поднимает:
 - `backend` на `localhost:8080`.
 
 По умолчанию в compose отключен ML gRPC (`ML_GRPC_ENABLED=false`), поэтому bootstrap можно поднять без ML-service.
+В этом режиме recommendation flow продолжает работать через backend fallback ranking.
 
 ## Полезные команды
 

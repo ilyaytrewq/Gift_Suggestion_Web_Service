@@ -6,7 +6,7 @@ info:
     Backend API gateway for the Gift Suggestion Web Service.
     The specification is maintained manually and currently covers health,
     auth/user foundation, catalog read endpoints, wishlist endpoints,
-    and admin catalog import endpoints.
+    admin catalog import endpoints, and recommendation endpoints.
 servers:
   - url: http://localhost:8080
 tags:
@@ -16,6 +16,7 @@ tags:
   - name: catalog
   - name: wishlist
   - name: admin-import
+  - name: recommendation
 paths:
   /health/live:
     get:
@@ -640,6 +641,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/recommendations:
+    post:
+      tags: [recommendation]
+      summary: Generate gift recommendations for the current user
+      description: |
+        Current HTTP contract is auth-only.
+        Guest recommendation flow is intentionally deferred to a later iteration.
+      operationId: createRecommendation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendRequest'
+      responses:
+        '200':
+          description: Recommendation set generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/recommendations/{request_id}:
+    get:
+      tags: [recommendation]
+      summary: Get recommendation set by request id
+      operationId: getRecommendation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RecommendationRequestIDPath'
+      responses:
+        '200':
+          description: Recommendation set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationEnvelope'
+        '400':
+          description: Invalid identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Recommendation request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 components:
   securitySchemes:
     bearerAuth:
@@ -664,6 +740,13 @@ components:
     ImportJobIDPath:
       in: path
       name: job_id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RecommendationRequestIDPath:
+      in: path
+      name: request_id
       required: true
       schema:
         type: string
@@ -1272,6 +1355,178 @@ components:
           properties:
             deleted:
               type: boolean
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    RecommendRequest:
+      type: object
+      required: [budget_max]
+      properties:
+        occasion:
+          type: string
+          maxLength: 120
+        relationship:
+          type: string
+          maxLength: 120
+        recipient_age:
+          type: integer
+          minimum: 0
+          maximum: 120
+        budget_max:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+        preferred_category_ids:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+        interests:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            maxLength: 80
+        top_n:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+        use_wishlist_context:
+          type: boolean
+          default: true
+      additionalProperties: false
+    RecommendationExplanation:
+      type: object
+      required: [code, text]
+      properties:
+        code:
+          type: string
+        text:
+          type: string
+      additionalProperties: false
+    RecommendationGift:
+      type: object
+      required: [id, name, description, price, store_link]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: string
+          pattern: '^\d+(\.\d{2})$'
+        store_link:
+          type: string
+          format: uri
+        image:
+          type: string
+          format: uri
+        age_restriction:
+          type: integer
+          enum: [0, 12, 16, 18]
+        category:
+          $ref: '#/components/schemas/CatalogGiftCategory'
+      additionalProperties: false
+    RecommendationAlternative:
+      type: object
+      required: [gift, source, explanations]
+      properties:
+        gift:
+          $ref: '#/components/schemas/RecommendationGift'
+        source:
+          type: string
+          enum: [ml, fallback]
+        score:
+          type: number
+          format: double
+        explanations:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendationExplanation'
+      additionalProperties: false
+    RecommendationItem:
+      type: object
+      required: [rank, gift, source, explanations, alternatives]
+      properties:
+        rank:
+          type: integer
+        gift:
+          $ref: '#/components/schemas/RecommendationGift'
+        source:
+          type: string
+          enum: [ml, fallback]
+        score:
+          type: number
+          format: double
+        explanations:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendationExplanation'
+        alternatives:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendationAlternative'
+      additionalProperties: false
+    RecommendationSet:
+      type: object
+      required:
+        [
+          request_id,
+          status,
+          source,
+          requested_top_n,
+          candidate_count_before_filters,
+          candidate_count_after_filters,
+          fallback_used,
+          generated_at,
+          recommendations
+        ]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [completed, completed_with_fallback, completed_empty]
+        source:
+          type: string
+          enum: [ml, fallback, empty]
+        requested_top_n:
+          type: integer
+        candidate_count_before_filters:
+          type: integer
+        candidate_count_after_filters:
+          type: integer
+        fallback_used:
+          type: boolean
+        fallback_reason:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendationItem'
+      additionalProperties: false
+    RecommendationEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [recommendation]
+          properties:
+            recommendation:
+              $ref: '#/components/schemas/RecommendationSet'
           additionalProperties: false
         meta:
           $ref: '#/components/schemas/Meta'

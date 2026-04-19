@@ -31,6 +31,12 @@ func TestLoadFromLookupDefaults(t *testing.T) {
 	if cfg.ML.Enabled {
 		t.Fatal("expected ml grpc to be disabled by default")
 	}
+	if cfg.ML.RequestTimeout != defaultMLRequestTimeout {
+		t.Fatalf("expected default ml request timeout %s, got %s", defaultMLRequestTimeout, cfg.ML.RequestTimeout)
+	}
+	if cfg.ML.MaxRetries != defaultMLMaxRetries {
+		t.Fatalf("expected default ml max retries %d, got %d", defaultMLMaxRetries, cfg.ML.MaxRetries)
+	}
 	if cfg.Auth.RefreshCookieName != defaultRefreshCookieName {
 		t.Fatalf("expected default refresh cookie name %q, got %q", defaultRefreshCookieName, cfg.Auth.RefreshCookieName)
 	}
@@ -53,6 +59,8 @@ func TestLoadFromLookupValidatesValues(t *testing.T) {
 		"HTTP_PORT":                  "invalid",
 		"ML_GRPC_ENABLED":            "true",
 		"ML_GRPC_DIAL_TIMEOUT":       "5s",
+		"ML_GRPC_REQUEST_TIMEOUT":    "0s",
+		"ML_GRPC_MAX_RETRIES":        "1",
 		"DB_CONN_MAX_LIFETIME":       "30m",
 		"DB_PING_TIMEOUT":            "2s",
 		"HTTP_READ_TIMEOUT":          "5s",
@@ -93,6 +101,8 @@ func TestLoadFromLookupReadsExplicitValues(t *testing.T) {
 		"ML_GRPC_ENABLED":            "true",
 		"ML_GRPC_ADDR":               "localhost:50051",
 		"ML_GRPC_DIAL_TIMEOUT":       "7s",
+		"ML_GRPC_REQUEST_TIMEOUT":    "2500ms",
+		"ML_GRPC_MAX_RETRIES":        "1",
 		"AUTH_JWT_ISSUER":            "gift-api",
 		"AUTH_JWT_AUDIENCE":          "gift-web",
 		"AUTH_ACCESS_TTL":            "20m",
@@ -123,6 +133,12 @@ func TestLoadFromLookupReadsExplicitValues(t *testing.T) {
 	}
 	if cfg.ML.DialTimeout != 7*time.Second {
 		t.Fatalf("expected ml dial timeout 7s, got %s", cfg.ML.DialTimeout)
+	}
+	if cfg.ML.RequestTimeout != 2500*time.Millisecond {
+		t.Fatalf("expected ml request timeout 2500ms, got %s", cfg.ML.RequestTimeout)
+	}
+	if cfg.ML.MaxRetries != 1 {
+		t.Fatalf("expected ml max retries 1, got %d", cfg.ML.MaxRetries)
 	}
 	if cfg.Auth.JWTIssuer != "gift-api" {
 		t.Fatalf("expected auth issuer gift-api, got %s", cfg.Auth.JWTIssuer)
