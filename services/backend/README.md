@@ -20,6 +20,7 @@
 - `POST /api/v1/users`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
 - `POST /api/v1/auth/password-reset/request`
 - `GET /api/v1/users/me`
 - `PATCH /api/v1/users/me`
@@ -99,8 +100,9 @@ List endpoints используют общий envelope и возвращают 
 - `POST /api/v1/recommendations`
 - `GET /api/v1/recommendations/{request_id}`
 
-Текущая HTTP-версия recommendation flow работает только для авторизованного пользователя через JWT access token.
-Guest recommendation flow не реализован в этой ветке и будет отдельным расширением.
+`POST /api/v1/recommendations` доступен без авторизации.
+JWT access token опционален: при его наличии backend может использовать user/wishlist контекст для дополнительной персонализации.
+`GET /api/v1/recommendations/{request_id}` остаётся auth-only endpoint.
 
 Поддерживаемый request payload:
 

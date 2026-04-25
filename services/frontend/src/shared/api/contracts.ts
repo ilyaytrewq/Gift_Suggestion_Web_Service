@@ -57,7 +57,23 @@ export type PasswordResetResponse = JsonResponse<
 export type RefreshResponse = JsonResponse<
   paths['/api/v1/auth/refresh']['post']['responses']['200']
 >;
+export type LogoutResponse = JsonResponse<
+  paths['/api/v1/auth/logout']['post']['responses']['200']
+>;
 
 export type CurrentUserResponse = JsonResponse<
   paths['/api/v1/users/me']['get']['responses']['200']
+>;
+export type UpdateCurrentUserRequest = JsonBody<
+  paths['/api/v1/users/me']['patch']
+>;
+export type UpdateCurrentUserResponse = JsonResponse<
+  paths['/api/v1/users/me']['patch']['responses']['200']
+>;
+
+export type RecommendationRequest = JsonBody<
+  paths['/api/v1/recommendations']['post']
+>;
+export type RecommendationResponse = JsonResponse<
+  paths['/api/v1/recommendations']['post']['responses']['200']
 >;

@@ -97,7 +97,7 @@ func NewService(
 }
 
 func (s *Service) Recommend(ctx context.Context, input RecommendInput) (RecommendOutput, error) {
-	userID, err := s.ensureUserExists(ctx, input.UserID)
+	requestedByUserID, useWishlistContext, err := s.resolveRecommendationUser(ctx, input.UserID, input.UseWishlistContext)
 	if err != nil {
 		return RecommendOutput{}, err
 	}
@@ -115,7 +115,7 @@ func (s *Service) Recommend(ctx context.Context, input RecommendInput) (Recommen
 		input.PreferredCategoryIDs,
 		input.Interests,
 		topN,
-		normalizeUseWishlistContext(input.UseWishlistContext),
+		useWishlistContext,
 	)
 	if err != nil {
 		return RecommendOutput{}, mapQuestionnaireError(err)
@@ -126,14 +126,14 @@ func (s *Service) Recommend(ctx context.Context, input RecommendInput) (Recommen
 		return RecommendOutput{}, err
 	}
 
-	request := recommendationdomain.NewRecommendationRequest(requestID, &userID, questionnaire, s.clock.Now())
+	request := recommendationdomain.NewRecommendationRequest(requestID, requestedByUserID, questionnaire, s.clock.Now())
 	if err := s.requestRepo.CreateRequest(ctx, &request); err != nil {
 		return RecommendOutput{}, err
 	}
 
 	wishlistGiftIDs := make(map[string]struct{})
-	if questionnaire.UseWishlistContext() {
-		wishlistGiftIDs, err = s.loadWishlistGiftIDs(ctx, userID)
+	if questionnaire.UseWishlistContext() && requestedByUserID != nil {
+		wishlistGiftIDs, err = s.loadWishlistGiftIDs(ctx, *requestedByUserID)
 		if err != nil {
 			return RecommendOutput{}, s.failRequest(ctx, &request, "wishlist_context_load_failed", "failed to load wishlist context", err)
 		}
@@ -171,7 +171,7 @@ func (s *Service) Recommend(ctx context.Context, input RecommendInput) (Recommen
 	primarySelections, alternativeSelections, rankingSource, fallbackUsed, fallbackReason := s.rankAndShapeRecommendations(
 		ctx,
 		request.ID().String(),
-		userID.String(),
+		userIDValueString(requestedByUserID),
 		questionnaire,
 		fallbackCandidates,
 	)
@@ -201,6 +201,23 @@ func (s *Service) Recommend(ctx context.Context, input RecommendInput) (Recommen
 	return RecommendOutput{
 		Recommendation: newRecommendationSet(request, results, candidateGiftMap(fallbackCandidates)),
 	}, nil
+}
+
+func (s *Service) resolveRecommendationUser(
+	ctx context.Context,
+	rawUserID string,
+	useWishlistContext *bool,
+) (*userdomain.UserID, bool, error) {
+	if strings.TrimSpace(rawUserID) == "" {
+		return nil, false, nil
+	}
+
+	userID, err := s.ensureUserExists(ctx, rawUserID)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return &userID, normalizeUseWishlistContext(useWishlistContext), nil
 }
 
 func (s *Service) GetRecommendation(ctx context.Context, input GetRecommendationInput) (GetRecommendationOutput, error) {
@@ -555,6 +572,14 @@ func normalizeUseWishlistContext(value *bool) bool {
 	}
 
 	return *value
+}
+
+func userIDValueString(value *userdomain.UserID) string {
+	if value == nil {
+		return ""
+	}
+
+	return value.String()
 }
 
 func mapQuestionnaireError(err error) error {

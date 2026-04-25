@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -145,11 +146,67 @@ func TestHandlerRefreshRequiresCookie(t *testing.T) {
 	}
 }
 
+func TestHandlerLogoutClearsRefreshCookie(t *testing.T) {
+	t.Parallel()
+
+	gin.SetMode(gin.TestMode)
+
+	service := &stubAuthService{
+		logoutOutput: authusecase.AcceptedOutput{Accepted: true},
+	}
+	handler, err := NewHandler(service, RefreshCookieConfig{
+		Name:     "refresh_token",
+		Path:     "/api/v1/auth",
+		MaxAge:   3600,
+		SameSite: http.SameSiteLaxMode,
+	})
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	router := gin.New()
+	handler.Register(router.Group("/api/v1"))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", bytes.NewBufferString("{}"))
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: testAuthHandlerRefreshToken})
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	if service.logoutInput.RefreshToken != testAuthHandlerRefreshToken {
+		t.Fatalf("Logout() refresh token = %q, want %q", service.logoutInput.RefreshToken, testAuthHandlerRefreshToken)
+	}
+	cookie := recorder.Header().Get("Set-Cookie")
+	if cookie == "" {
+		t.Fatal("expected refresh cookie to be cleared")
+	}
+	if !strings.Contains(cookie, "refresh_token=") {
+		t.Fatalf("expected refresh cookie in Set-Cookie header, got %q", cookie)
+	}
+	if !strings.Contains(cookie, "Max-Age=0") {
+		t.Fatalf("expected cleared cookie Max-Age=0, got %q", cookie)
+	}
+
+	var response authHandlerResponse[authusecase.AcceptedOutput]
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if !response.Data.Accepted {
+		t.Fatal("expected accepted=true")
+	}
+}
+
 type stubAuthService struct {
 	registerInput  authusecase.RegisterInput
 	registerOutput authusecase.RegisterOutput
 	loginOutput    authusecase.LoginOutput
 	refreshOutput  authusecase.RefreshOutput
+	logoutInput    authusecase.LogoutInput
+	logoutOutput   authusecase.AcceptedOutput
 	resetOutput    authusecase.AcceptedOutput
 }
 
@@ -164,6 +221,11 @@ func (s *stubAuthService) Login(context.Context, authusecase.LoginInput) (authus
 
 func (s *stubAuthService) Refresh(context.Context, authusecase.RefreshInput) (authusecase.RefreshOutput, error) {
 	return s.refreshOutput, nil
+}
+
+func (s *stubAuthService) Logout(_ context.Context, input authusecase.LogoutInput) (authusecase.AcceptedOutput, error) {
+	s.logoutInput = input
+	return s.logoutOutput, nil
 }
 
 func (s *stubAuthService) RequestPasswordReset(context.Context, authusecase.RequestPasswordResetInput) (authusecase.AcceptedOutput, error) {

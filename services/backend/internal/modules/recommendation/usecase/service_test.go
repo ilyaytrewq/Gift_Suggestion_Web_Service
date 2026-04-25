@@ -87,6 +87,50 @@ func TestServiceRecommendSuccessWithMLRanking(t *testing.T) {
 	}
 }
 
+func TestServiceRecommendAllowsGuestSession(t *testing.T) {
+	t.Parallel()
+
+	gift1 := mustRecommendationGift(t, "550e8400-e29b-41d4-a716-446655441012", "Gift One", "Great book", "50.00")
+	repo := &fakeRecommendationRequestRepo{}
+	wishlistReader := &fakeWishlistReader{}
+	ranker := &fakeRankingGateway{
+		err: ErrRankingNotImplemented,
+	}
+
+	service := mustRecommendationService(t, recommendationServiceDeps{
+		candidateReader: &fakeCandidateReader{items: []catalogdomain.Gift{gift1}, total: 1},
+		requestRepo:     repo,
+		userReader:      fakeUserReader{user: nil},
+		wishlistReader:  wishlistReader,
+		giftReader:      fakeGiftReader{gifts: map[string]catalogdomain.Gift{gift1.ID().String(): gift1}},
+		ranker:          ranker,
+	})
+
+	output, err := service.Recommend(context.Background(), RecommendInput{
+		BudgetMax: "100.00",
+		TopN:      1,
+	})
+	if err != nil {
+		t.Fatalf("Recommend() error = %v", err)
+	}
+
+	if repo.created == nil {
+		t.Fatal("CreateRequest() was not called")
+	}
+	if repo.created.RequestedByUserID() != nil {
+		t.Fatalf("expected guest request without user id, got %v", repo.created.RequestedByUserID())
+	}
+	if ranker.input.UserID != "" {
+		t.Fatalf("Rank() user id = %q, want empty for guest flow", ranker.input.UserID)
+	}
+	if wishlistReader.listWishlistsCalls != 0 {
+		t.Fatalf("expected wishlist context to be skipped for guest flow, got %d calls", wishlistReader.listWishlistsCalls)
+	}
+	if output.Recommendation.Source != "fallback" {
+		t.Fatalf("Recommend() source = %q, want %q", output.Recommendation.Source, "fallback")
+	}
+}
+
 func TestServiceRecommendReturnsEmptyWhenNoCandidates(t *testing.T) {
 	t.Parallel()
 
@@ -387,15 +431,19 @@ func (r fakeUserReader) GetByID(context.Context, userdomain.UserID) (*userdomain
 }
 
 type fakeWishlistReader struct {
-	records []wishlistusecase.WishlistSummaryRecord
-	items   map[string][]wishlistdomain.WishlistItem
+	records                []wishlistusecase.WishlistSummaryRecord
+	items                  map[string][]wishlistdomain.WishlistItem
+	listWishlistsCalls     int
+	listWishlistItemsCalls int
 }
 
 func (r *fakeWishlistReader) ListWishlistsByUser(context.Context, userdomain.UserID, int, int) ([]wishlistusecase.WishlistSummaryRecord, int, error) {
+	r.listWishlistsCalls++
 	return r.records, len(r.records), nil
 }
 
 func (r *fakeWishlistReader) ListWishlistItems(_ context.Context, wishlistID wishlistdomain.WishlistID) ([]wishlistdomain.WishlistItem, error) {
+	r.listWishlistItemsCalls++
 	if r.items == nil {
 		return nil, nil
 	}

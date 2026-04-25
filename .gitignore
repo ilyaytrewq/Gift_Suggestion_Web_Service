@@ -9,15 +9,18 @@
 *.a
 *.o
 
- Build output
+# Build output
 *bin/
 in/bin/
-/dist/
+/dist/2
 /build/
 /target/
+.github/workflows/
+ISSUE.md
 
 # Coverage
 *.cover
+services/backend/AGENTS.md
 coverage.out
 coverage*.out
 
@@ -35,6 +38,7 @@ vendor/
 .idea/
 .vscode/
 *.swp
+.github/copilot-instructions.md
 *.swo
 .DS_Store
 Thumbs.db
@@ -53,4 +57,3 @@ Thumbs.db
 
 *TZ/
 *TODO.md
-

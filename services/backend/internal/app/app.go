@@ -216,6 +216,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		database,
 		mlClient,
 		authMiddleware,
+		authService,
 		cfg.ML,
 		userRepository,
 		catalogRepository,
@@ -323,6 +324,7 @@ func newRecommendationHandler(
 	database *sql.DB,
 	mlClient *mlgrpc.Client,
 	authMiddleware gin.HandlerFunc,
+	authAuthorizer *authusecase.Service,
 	cfg config.MLConfig,
 	userRepository *userpostgres.Repository,
 	catalogRepository *catalogpostgres.Repository,
@@ -347,7 +349,7 @@ func newRecommendationHandler(
 		return nil, err
 	}
 
-	return recommendationhttp.NewHandler(recommendationService, authMiddleware)
+	return recommendationhttp.NewHandler(recommendationService, authMiddleware, authAuthorizer)
 }
 
 func newTrackingHandler(

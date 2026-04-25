@@ -250,6 +250,90 @@ func TestServiceRequestPasswordResetStoresHashedToken(t *testing.T) {
 	}
 }
 
+func TestServiceLogoutRevokesActiveSession(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 4, 18, 15, 0, 0, 0, time.UTC)
+	session := mustSession(t, testSessionID, testUserID, testRefreshTokenHash, now.Add(-time.Hour), now.Add(time.Hour))
+
+	sessionRepo := newFakeSessionRepository()
+	sessionRepo.sessionsByHash[testRefreshTokenHash] = &session
+
+	service := mustAuthServiceWithDeps(t, authServiceDeps{
+		userRepo:          newFakeUserRepository(),
+		sessionRepo:       sessionRepo,
+		passwordResetRepo: newFakePasswordResetRepository(),
+		accessTokenManager: &fakeAccessTokenManager{
+			token: testAccessToken,
+			ttl:   15 * time.Minute,
+		},
+		refreshTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: testRefreshToken, hash: testRefreshTokenHash}},
+			hashes:  map[string]string{testRefreshToken: testRefreshTokenHash},
+		},
+		resetTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
+		},
+		clock:           fixedClock{now: now},
+		refreshTokenTTL: 7 * 24 * time.Hour,
+		resetTokenTTL:   30 * time.Minute,
+	})
+
+	output, err := service.Logout(context.Background(), LogoutInput{RefreshToken: testRefreshToken})
+	if err != nil {
+		t.Fatalf("Logout() error = %v", err)
+	}
+	if !output.Accepted {
+		t.Fatal("Logout() accepted = false, want true")
+	}
+	if len(sessionRepo.updatedSessions) != 1 {
+		t.Fatalf("expected one updated session, got %d", len(sessionRepo.updatedSessions))
+	}
+	if !sessionRepo.updatedSessions[0].IsRevoked() {
+		t.Fatal("expected session to be revoked")
+	}
+	revokedAt := sessionRepo.updatedSessions[0].RevokedAt()
+	if revokedAt == nil || !revokedAt.Equal(now) {
+		t.Fatalf("revoked at = %v, want %v", revokedAt, now)
+	}
+}
+
+func TestServiceLogoutMissingRefreshTokenAccepted(t *testing.T) {
+	t.Parallel()
+
+	sessionRepo := newFakeSessionRepository()
+	service := mustAuthService(t, newFakeUserRepository(), sessionRepo, newFakePasswordResetRepository(), fixedClock{now: time.Now().UTC()})
+
+	output, err := service.Logout(context.Background(), LogoutInput{RefreshToken: "   "})
+	if err != nil {
+		t.Fatalf("Logout() error = %v", err)
+	}
+	if !output.Accepted {
+		t.Fatal("Logout() accepted = false, want true")
+	}
+	if len(sessionRepo.updatedSessions) != 0 {
+		t.Fatalf("expected no session updates, got %d", len(sessionRepo.updatedSessions))
+	}
+}
+
+func TestServiceLogoutUnknownRefreshTokenAccepted(t *testing.T) {
+	t.Parallel()
+
+	sessionRepo := newFakeSessionRepository()
+	service := mustAuthService(t, newFakeUserRepository(), sessionRepo, newFakePasswordResetRepository(), fixedClock{now: time.Now().UTC()})
+
+	output, err := service.Logout(context.Background(), LogoutInput{RefreshToken: testRefreshToken})
+	if err != nil {
+		t.Fatalf("Logout() error = %v", err)
+	}
+	if !output.Accepted {
+		t.Fatal("Logout() accepted = false, want true")
+	}
+	if len(sessionRepo.updatedSessions) != 0 {
+		t.Fatalf("expected no session updates, got %d", len(sessionRepo.updatedSessions))
+	}
+}
+
 type authServiceDeps struct {
 	userRepo              *fakeUserRepository
 	sessionRepo           *fakeSessionRepository

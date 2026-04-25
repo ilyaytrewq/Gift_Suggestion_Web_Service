@@ -293,6 +293,33 @@ func (s *Service) Refresh(ctx context.Context, input RefreshInput) (RefreshOutpu
 	}, nil
 }
 
+func (s *Service) Logout(ctx context.Context, input LogoutInput) (AcceptedOutput, error) {
+	refreshToken := strings.TrimSpace(input.RefreshToken)
+	if refreshToken == "" {
+		return AcceptedOutput{Accepted: true}, nil
+	}
+
+	session, err := s.sessionRepo.GetByRefreshTokenHash(ctx, s.refreshTokenGenerator.Hash(refreshToken))
+	if err != nil {
+		if errors.Is(err, authdomain.ErrSessionNotFound) {
+			return AcceptedOutput{Accepted: true}, nil
+		}
+
+		return AcceptedOutput{}, err
+	}
+	if session == nil || session.IsRevoked() {
+		return AcceptedOutput{Accepted: true}, nil
+	}
+
+	session.Revoke(s.clock.Now())
+
+	if err := s.sessionRepo.Update(ctx, session); err != nil {
+		return AcceptedOutput{}, err
+	}
+
+	return AcceptedOutput{Accepted: true}, nil
+}
+
 func (s *Service) RequestPasswordReset(ctx context.Context, input RequestPasswordResetInput) (AcceptedOutput, error) {
 	email, err := userdomain.NewEmail(input.Email)
 	if err != nil {

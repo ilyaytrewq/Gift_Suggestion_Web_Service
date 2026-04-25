@@ -3,11 +3,14 @@ import type {
   CurrentUserResponse,
   LoginRequest,
   LoginResponse,
+  LogoutResponse,
   PasswordResetRequest,
   PasswordResetResponse,
   RegisterRequest,
   RegisterResponse,
   RefreshResponse,
+  UpdateCurrentUserRequest,
+  UpdateCurrentUserResponse,
 } from '../../../shared/api/contracts';
 import { requestJson } from '../../../shared/api/http';
 
@@ -41,9 +44,26 @@ export function refreshToken(): Promise<RefreshResponse> {
   });
 }
 
+export function logoutUser(): Promise<LogoutResponse> {
+  return requestJson<LogoutResponse>('/api/v1/auth/logout', {
+    method: 'POST',
+    retryOnUnauthorized: false,
+  });
+}
+
 export function getCurrentUser(): Promise<CurrentUserResponse> {
   return requestJson<CurrentUserResponse>('/api/v1/users/me', {
     auth: true,
+  });
+}
+
+export function updateCurrentUser(
+  payload: UpdateCurrentUserRequest,
+): Promise<UpdateCurrentUserResponse> {
+  return requestJson<UpdateCurrentUserResponse>('/api/v1/users/me', {
+    method: 'PATCH',
+    auth: true,
+    body: payload,
   });
 }
 

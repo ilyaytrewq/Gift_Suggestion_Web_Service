@@ -54,11 +54,11 @@ export function HomePage(): JSX.Element {
             <h1>Подобрать подарок без бесконечного скролла маркетплейсов.</h1>
             <p className="hero__description">
               Slice 1 запускает public MVP: каталог идей, карточки подарков и
-              auth foundation. Персональный мастер подбора появится следующим
-              срезом, но вся структура интерфейса уже собрана под него.
+              auth foundation. Персональный мастер подбора уже доступен: открыть
+              его можно по кнопке ниже.
             </p>
             <div className="hero__actions">
-              <Link className={buttonClassName({ size: 'lg' })} to="/login">
+              <Link className={buttonClassName({ size: 'lg' })} to="/recommendation">
                 Подобрать подарок
               </Link>
               <Link

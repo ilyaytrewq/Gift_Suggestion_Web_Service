@@ -21,12 +21,21 @@ const (
 	testRecommendationHandlerRequestID = "550e8400-e29b-41d4-a716-446655444001"
 )
 
-func TestHandlerRecommendRequiresAuthorization(t *testing.T) {
+func TestHandlerRecommendAllowsGuestSession(t *testing.T) {
 	t.Parallel()
 
 	gin.SetMode(gin.TestMode)
 
-	handler, err := NewHandler(&stubRecommendationService{}, authhttp.NewMiddleware(stubRecommendationAuthorizer{}))
+	service := &stubRecommendationService{
+		recommendOutput: recommendationusecase.RecommendOutput{
+			Recommendation: recommendationusecase.RecommendationSet{
+				RequestID: testRecommendationHandlerRequestID,
+				Status:    "completed_empty",
+				Source:    "empty",
+			},
+		},
+	}
+	handler, err := NewHandler(service, authhttp.NewMiddleware(stubRecommendationAuthorizer{}))
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -40,8 +49,11 @@ func TestHandlerRecommendRequiresAuthorization(t *testing.T) {
 
 	router.ServeHTTP(recorder, req)
 
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401, got %d", recorder.Code)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	if service.recommendInput.UserID != "" {
+		t.Fatalf("Recommend() user id = %q, want empty for guest flow", service.recommendInput.UserID)
 	}
 }
 
@@ -102,7 +114,9 @@ func TestHandlerRecommendSuccess(t *testing.T) {
 	}
 	handler, err := NewHandler(service, authhttp.NewMiddleware(stubRecommendationAuthorizer{
 		actor: authusecase.Actor{UserID: testRecommendationHandlerUserID, Role: "user"},
-	}))
+	}), stubRecommendationAuthorizer{
+		actor: authusecase.Actor{UserID: testRecommendationHandlerUserID, Role: "user"},
+	})
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -125,6 +139,29 @@ func TestHandlerRecommendSuccess(t *testing.T) {
 	}
 	if service.recommendInput.BudgetMax != "100.00" {
 		t.Fatalf("Recommend() budget = %q, want %q", service.recommendInput.BudgetMax, "100.00")
+	}
+}
+
+func TestHandlerGetRecommendationRequiresAuthorization(t *testing.T) {
+	t.Parallel()
+
+	gin.SetMode(gin.TestMode)
+
+	handler, err := NewHandler(&stubRecommendationService{}, authhttp.NewMiddleware(stubRecommendationAuthorizer{}))
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	router := gin.New()
+	handler.Register(router.Group("/api/v1"))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/recommendations/"+testRecommendationHandlerRequestID, nil)
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", recorder.Code)
 	}
 }
 

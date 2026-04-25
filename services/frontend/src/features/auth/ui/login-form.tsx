@@ -1,7 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import {
+  Link,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom';
 
 import { applyAuthenticatedSession, loginUser } from '../api/auth';
 import { loginSchema, type LoginSchema } from '../model/schemas';
@@ -11,9 +15,27 @@ import { ErrorBanner } from '../../../shared/ui/feedback/error-banner';
 import { Field } from '../../../shared/ui/form/field';
 import { Input } from '../../../shared/ui/input/input';
 
+function resolvePostLoginPath(nextPath: string | null): string {
+  if (!nextPath) {
+    return '/';
+  }
+
+  if (!nextPath.startsWith('/')) {
+    return '/';
+  }
+
+  if (nextPath.startsWith('//')) {
+    return '/';
+  }
+
+  return nextPath;
+}
+
 export function LoginForm(): JSX.Element {
   const auth = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const postLoginPath = resolvePostLoginPath(searchParams.get('next'));
   const form = useForm<LoginSchema>({
     defaultValues: {
       email: '',
@@ -27,7 +49,7 @@ export function LoginForm(): JSX.Element {
     onSuccess: (payload) => {
       applyAuthenticatedSession(payload.data.auth.access_token);
       auth.setSession(payload.data.auth.access_token, payload.data.user);
-      navigate('/');
+      navigate(postLoginPath, { replace: true });
     },
   });
 

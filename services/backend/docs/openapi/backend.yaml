@@ -145,6 +145,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: Logout user
+      operationId: logoutUser
+      responses:
+        '200':
+          description: Logout accepted, refresh token cookie cleared
+          headers:
+            Set-Cookie:
+              description: Cleared refresh token cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedEnvelope'
   /api/v1/auth/password-reset/request:
     post:
       tags: [auth]
@@ -647,13 +664,12 @@ paths:
   /api/v1/recommendations:
     post:
       tags: [recommendation]
-      summary: Generate gift recommendations for the current user
+      summary: Generate gift recommendations
       description: |
-        Current HTTP contract is auth-only.
-        Guest recommendation flow is intentionally deferred to a later iteration.
+        Recommendation session is available for guests.
+        Bearer token is optional and is used only for additional personalization
+        (for example, wishlist context).
       operationId: createRecommendation
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -673,14 +689,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-        '401':
-          description: Missing or invalid access token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
-          description: User not found
+          description: Authenticated user not found
           content:
             application/json:
               schema:

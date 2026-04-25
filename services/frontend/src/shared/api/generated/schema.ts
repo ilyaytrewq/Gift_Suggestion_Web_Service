@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout user */
+        post: operations["logoutUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/password-reset/request": {
         parameters: {
             query?: never;
@@ -306,9 +323,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Generate gift recommendations for the current user
-         * @description Current HTTP contract is auth-only.
-         *     Guest recommendation flow is intentionally deferred to a later iteration.
+         * Generate gift recommendations
+         * @description Recommendation session is available for guests.
+         *     Bearer token is optional and is used only for additional personalization
+         *     (for example, wishlist context).
          */
         post: operations["createRecommendation"];
         delete?: never;
@@ -1114,6 +1132,28 @@ export interface operations {
             };
         };
     };
+    logoutUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Logout accepted, refresh token cookie cleared */
+            200: {
+                headers: {
+                    /** @description Cleared refresh token cookie */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedEnvelope"];
+                };
+            };
+        };
+    };
     requestPasswordReset: {
         parameters: {
             query?: never;
@@ -1847,16 +1887,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description Missing or invalid access token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description User not found */
+            /** @description Authenticated user not found */
             404: {
                 headers: {
                     [name: string]: unknown;
