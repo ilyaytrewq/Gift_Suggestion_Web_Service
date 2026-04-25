@@ -17,7 +17,7 @@
     <text x="756" y="49" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="700"><tspan x="756" dy="0">Каталог</tspan></text><text x="842" y="49" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="700"><tspan x="842" dy="0">Как это работает</tspan></text>
     <g>
     <rect x="1040" y="24" width="180" height="32" rx="999" fill="#efe6d6" stroke="#d8c8b0" stroke-width="1"/>
-    <text x="1055" y="45" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="13" font-weight="800"><tspan x="1055" dy="0">maria@example.com</tspan></text>
+    <text x="1055" y="45" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="13" font-weight="800"><tspan x="1055" dy="0">angelina@example.com</tspan></text>
   </g><g opacity="1">
     <rect x="1240" y="18" width="80" height="44" rx="999" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
     <text x="1280" y="46" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="13" font-weight="800" text-anchor="middle">Профиль</text>
@@ -31,17 +31,17 @@
     <rect x="0" y="0" width="575" height="424" rx="24" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1" filter="url(#shadow)"/>
     
         <circle cx="50" cy="72" r="38" fill="#dbe9e2" stroke="#245c4a" stroke-width="1"/>
-        <text x="108" y="66" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="28" font-weight="700"><tspan x="108" dy="0">Мария Иванова</tspan></text>
-        <text x="108" y="98" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="108" dy="0">maria@example.com</tspan></text>
+        <text x="108" y="66" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="28" font-weight="700"><tspan x="108" dy="0">Англеина Федяева</tspan></text>
+        <text x="108" y="98" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="108" dy="0">angelina@example.com</tspan></text>
         <g>
     <text x="48" y="156" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800"><tspan x="48" dy="0">Отображаемое имя</tspan></text>
     <rect x="48" y="170" width="480" height="54" rx="12" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
-    <text x="65" y="204" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="15" font-weight="500"><tspan x="65" dy="0">Мария Иванова</tspan></text>
+    <text x="65" y="204" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="15" font-weight="500"><tspan x="65" dy="0">Англеина Федяева</tspan></text>
   </g>
         <g>
     <text x="48" y="248" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800"><tspan x="48" dy="0">Email</tspan></text>
     <rect x="48" y="262" width="480" height="54" rx="12" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
-    <text x="65" y="296" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="15" font-weight="500"><tspan x="65" dy="0">maria@example.com</tspan></text>
+    <text x="65" y="296" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="15" font-weight="500"><tspan x="65" dy="0">angelina@example.com</tspan></text>
   </g>
         <g opacity="1">
     <rect x="48" y="346" width="176" height="50" rx="999" fill="#c65a1e" stroke="transparent" stroke-width="1"/>

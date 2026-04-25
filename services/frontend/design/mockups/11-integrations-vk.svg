@@ -17,7 +17,7 @@
     <text x="756" y="49" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="700"><tspan x="756" dy="0">Каталог</tspan></text><text x="842" y="49" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="700"><tspan x="842" dy="0">Как это работает</tspan></text>
     <g>
     <rect x="1040" y="24" width="180" height="32" rx="999" fill="#efe6d6" stroke="#d8c8b0" stroke-width="1"/>
-    <text x="1055" y="45" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="13" font-weight="800"><tspan x="1055" dy="0">maria@example.com</tspan></text>
+    <text x="1055" y="45" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="13" font-weight="800"><tspan x="1055" dy="0">angelina@example.com</tspan></text>
   </g><g opacity="1">
     <rect x="1240" y="18" width="80" height="44" rx="999" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
     <text x="1280" y="46" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="13" font-weight="800" text-anchor="middle">Профиль</text>

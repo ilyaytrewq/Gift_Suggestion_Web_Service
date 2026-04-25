@@ -1,0 +1,9 @@
+.git
+.idea
+.DS_Store
+**/.DS_Store
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/*.log
+services/backend/bin

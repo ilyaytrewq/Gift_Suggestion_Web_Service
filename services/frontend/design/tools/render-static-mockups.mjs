@@ -280,7 +280,7 @@ function header(signedIn = false, active = 'Каталог') {
     ${text(X, 51, 'Gift Suggestion', { size: 25, weight: 800, family: 'Fraunces, Georgia, serif' })}
     ${nav.map(([label, x]) => text(x, 49, label, { size: 16, weight: active === label ? 900 : 700, fill: active === label ? C.ink : C.inkMuted })).join('')}
     ${signedIn
-      ? `${chip(1040, 24, 'maria@example.com', 180, 'muted')}${button(1240, 18, 80, 'Профиль', 'ghost', { height: 44, size: 13 })}`
+      ? `${chip(1040, 24, 'angelina@example.com', 180, 'muted')}${button(1240, 18, 80, 'Профиль', 'ghost', { height: 44, size: 13 })}`
       : `${text(1068, 49, 'Войти', { size: 16, weight: 700, fill: C.inkMuted })}${button(1140, 18, 172, 'Регистрация', 'secondary', { height: 44, size: 14 })}`}
   </g>`;
 }
@@ -415,8 +415,8 @@ function authPage(kind) {
       ${panel(0, 318, 480, 142, `${text(28, 48, 'Состояния формы', { size: 24, family: 'Fraunces, Georgia, serif', weight: 700 })}${text(28, 82, ['default, validation error, server error,', 'loading и success.'], { size: 15, fill: C.inkMuted, lineHeight: 21 })}`, { rx: 20 })}
       ${panel(636, 0, 564, 560, `
         ${text(40, 64, formTitle, { size: 34, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${isRegister ? input(40, 108, 484, 'Имя', 'Мария') : ''}
-        ${input(40, isRegister ? 188 : 130, 484, 'Email', 'maria@example.com')}
+        ${isRegister ? input(40, 108, 484, 'Имя', 'Англеина Федяева') : ''}
+        ${input(40, isRegister ? 188 : 130, 484, 'Email', 'angelina@example.com')}
         ${isReset ? '' : input(40, isRegister ? 268 : 212, 484, 'Пароль', '••••••••••')}
         ${isRegister ? input(40, 348, 484, 'Повтор пароля', '••••••••••') : ''}
         ${isLogin ? banner(40, 306, 484, 'Неверный email или пароль', 'danger') : ''}
@@ -487,10 +487,10 @@ function profile() {
       ${heading(0, 58, 'Личный кабинет пользователя.', 46)}
       ${panel(0, 142, 575, 424, `
         ${circle(50, 72, 38, { fill: C.secondarySoft, stroke: C.secondary, strokeWidth: 1 })}
-        ${text(108, 66, 'Мария Иванова', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${text(108, 98, 'maria@example.com', { size: 16, fill: C.inkMuted })}
-        ${input(48, 156, 480, 'Отображаемое имя', 'Мария Иванова')}
-        ${input(48, 248, 480, 'Email', 'maria@example.com')}
+        ${text(108, 66, 'Англеина Федяева', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${text(108, 98, 'angelina@example.com', { size: 16, fill: C.inkMuted })}
+        ${input(48, 156, 480, 'Отображаемое имя', 'Англеина Федяева')}
+        ${input(48, 248, 480, 'Email', 'angelina@example.com')}
         ${button(48, 346, 176, 'Сохранить', 'primary')}
       `)}
       ${panel(625, 142, 575, 424, `
