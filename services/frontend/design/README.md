@@ -10,6 +10,7 @@ The mockups follow the current Slice 1 frontend visual language:
 - Surface cards: `#fffdf8`
 - Primary action: `#c65a1e`
 - Secondary action: `#245c4a`
+- Accent: `#cbae63`
 - Borders: `#d8c8b0`
 - Editorial commerce tone with serif headings, rounded cards, catalog grids, gift cards, auth form blocks, banners and skeleton states.
 
@@ -17,7 +18,9 @@ Typography mirrors the frontend CSS intent:
 
 - Headings: `Fraunces, Georgia, serif`
 - Body/UI: `Manrope, Segoe UI, sans-serif`
-- Numeric emphasis follows the current compact UI treatment.
+- Numeric emphasis uses compact, high-contrast UI text.
+
+The quality pass keeps each screen inside a fixed `1440x1024` SVG frame, with no external images, fonts, local file links or backend calls.
 
 ## Covered Screens
 
@@ -47,8 +50,8 @@ services/frontend/design/index.html
 1. Create or open the Figma page named `Frontend Final Mockups`.
 2. Create the sections from `figma-layout-spec.md`.
 3. Drag SVG files from `services/frontend/design/mockups/` onto the Figma canvas.
-4. Place frames in the specified order and use each SVG file name as the frame caption.
-5. For mobile review, create `390x844` companion frames using the layout notes in the spec.
+4. Keep each imported SVG at `1440x1024`.
+5. Place frames in the specified order and use each SVG file name as the frame caption.
 
 SVG files are pure static artifacts, so they can be opened in a browser and imported into Figma without running the app.
 

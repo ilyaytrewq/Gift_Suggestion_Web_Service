@@ -2,67 +2,66 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024" role="img" aria-label="09 Profile final mockup">
   <defs>
     <radialGradient id="warmGlow" cx="0.08" cy="0.04" r="0.68">
-      <stop offset="0" stop-color="#cbae63" stop-opacity="0.34"/>
-      <stop offset="0.46" stop-color="#f6f1e8" stop-opacity="0.8"/>
+      <stop offset="0" stop-color="#cbae63" stop-opacity="0.30"/>
+      <stop offset="0.46" stop-color="#f6f1e8" stop-opacity="0.82"/>
       <stop offset="1" stop-color="#f6f1e8"/>
     </radialGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
-      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#4d3319" flood-opacity="0.11"/>
+    <filter id="shadow" x="-12%" y="-12%" width="124%" height="136%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#4d3319" flood-opacity="0.10"/>
     </filter>
   </defs>
   <rect x="0" y="0" width="1440" height="1024" rx="0" fill="url(#warmGlow)"/>
   <g>
-    <rect x="0" y="0" width="1440" height="76" rx="0" fill="#f6f1e8" stroke="#d8c8b0" stroke-width="1" opacity="0.94"/>
-    <text x="130" y="48" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="25" font-weight="800"><tspan x="130" dy="0">Gift Suggestion</tspan></text>
-    <text x="788" y="47" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="700"><tspan x="788" dy="0">Каталог</tspan></text>
-    <text x="872" y="47" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="700"><tspan x="872" dy="0">Как это работает</tspan></text>
+    <rect x="0" y="0" width="1440" height="80" rx="0" fill="#f6f1e8" stroke="#d8c8b0" stroke-width="1" opacity="0.96"/>
+    <text x="120" y="51" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="25" font-weight="800"><tspan x="120" dy="0">Gift Suggestion</tspan></text>
+    <text x="756" y="49" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="700"><tspan x="756" dy="0">Каталог</tspan></text><text x="842" y="49" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="700"><tspan x="842" dy="0">Как это работает</tspan></text>
     <g>
-    <rect x="1055" y="22" width="170" height="34" rx="999" fill="#efe6d6" stroke="#d8c8b0"/>
-    <text x="1071" y="44" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800"><tspan x="1071" dy="0">maria@example.com</tspan></text>
+    <rect x="1040" y="24" width="180" height="32" rx="999" fill="#efe6d6" stroke="#d8c8b0" stroke-width="1"/>
+    <text x="1055" y="45" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="13" font-weight="800"><tspan x="1055" dy="0">maria@example.com</tspan></text>
   </g><g opacity="1">
-    <rect x="1240" y="16" width="70" height="44" rx="999" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
-    <text x="1275" y="45" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800" text-anchor="middle">Профиль</text>
+    <rect x="1240" y="18" width="80" height="44" rx="999" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
+    <text x="1280" y="46" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="13" font-weight="800" text-anchor="middle">Профиль</text>
   </g>
   </g>
   
-    <g transform="translate(130 118)">
-      <text x="0" y="0" fill="#c65a1e" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800"><tspan x="0" dy="0">ПРОФИЛЬ</tspan></text>
-      <text x="0" y="58" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="48" font-weight="700"><tspan x="0" dy="0">Личный кабинет пользователя.</tspan></text>
-      <g>
-    <rect x="0" y="130" width="560" height="420" rx="28" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1" filter="url(#shadow)"/>
+    <g transform="translate(120 122)">
+      <text x="0" y="0" fill="#c65a1e" font-family="Manrope, Segoe UI, sans-serif" font-size="13" font-weight="800"><tspan x="0" dy="0">ПРОФИЛЬ</tspan></text>
+      <text x="0" y="58" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="46" font-weight="700"><tspan x="0" dy="0">Личный кабинет пользователя.</tspan></text>
+      <g transform="translate(0 142)">
+    <rect x="0" y="0" width="575" height="424" rx="24" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1" filter="url(#shadow)"/>
     
-        <circle cx="48" cy="70" r="38" fill="#dbe9e2" stroke="#245c4a"/>
-        <text x="106" y="64" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="28" font-weight="700"><tspan x="106" dy="0">Мария Иванова</tspan></text>
-        <text x="106" y="96" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="106" dy="0">maria@example.com</tspan></text>
+        <circle cx="50" cy="72" r="38" fill="#dbe9e2" stroke="#245c4a" stroke-width="1"/>
+        <text x="108" y="66" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="28" font-weight="700"><tspan x="108" dy="0">Мария Иванова</tspan></text>
+        <text x="108" y="98" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="108" dy="0">maria@example.com</tspan></text>
         <g>
-    <text x="48" y="154" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="15" font-weight="800"><tspan x="48" dy="0">Отображаемое имя</tspan></text>
-    <rect x="48" y="168" width="464" height="54" rx="12" fill="#fffdf8" stroke="#d8c8b0"/>
-    <text x="66" y="202" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="66" dy="0">Мария Иванова</tspan></text>
+    <text x="48" y="156" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800"><tspan x="48" dy="0">Отображаемое имя</tspan></text>
+    <rect x="48" y="170" width="480" height="54" rx="12" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
+    <text x="65" y="204" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="15" font-weight="500"><tspan x="65" dy="0">Мария Иванова</tspan></text>
   </g>
         <g>
-    <text x="48" y="246" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="15" font-weight="800"><tspan x="48" dy="0">Email</tspan></text>
-    <rect x="48" y="260" width="464" height="54" rx="12" fill="#fffdf8" stroke="#d8c8b0"/>
-    <text x="66" y="294" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="66" dy="0">maria@example.com</tspan></text>
+    <text x="48" y="248" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800"><tspan x="48" dy="0">Email</tspan></text>
+    <rect x="48" y="262" width="480" height="54" rx="12" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
+    <text x="65" y="296" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="15" font-weight="500"><tspan x="65" dy="0">maria@example.com</tspan></text>
   </g>
         <g opacity="1">
-    <rect x="48" y="344" width="180" height="52" rx="999" fill="#c65a1e" stroke="transparent" stroke-width="1"/>
-    <text x="138" y="377" fill="#ffffff" font-family="Manrope, Segoe UI, sans-serif" font-size="17" font-weight="800" text-anchor="middle">Сохранить</text>
+    <rect x="48" y="346" width="176" height="50" rx="999" fill="#c65a1e" stroke="transparent" stroke-width="1"/>
+    <text x="136" y="377" fill="#ffffff" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="800" text-anchor="middle">Сохранить</text>
   </g>
       
   </g>
-      <g>
-    <rect x="620" y="130" width="560" height="420" rx="28" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1" filter="url(#shadow)"/>
+      <g transform="translate(625 142)">
+    <rect x="0" y="0" width="575" height="424" rx="24" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1" filter="url(#shadow)"/>
     
-        <text x="660" y="188" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="30" font-weight="700"><tspan x="660" dy="0">Быстрые переходы</tspan></text>
-        <g>
-    <rect x="660" y="230" width="460" height="82" rx="16" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
-    <text x="688" y="278" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="22" font-weight="900"><tspan x="688" dy="0">Wishlist</tspan></text><text x="1010" y="278" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="1010" dy="0">12 идей</tspan></text>
+        <text x="40" y="62" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="30" font-weight="700"><tspan x="40" dy="0">Быстрые переходы</tspan></text>
+        <g transform="translate(40 102)">
+    <rect x="0" y="0" width="495" height="82" rx="16" fill="#dbe9e2" stroke="#245c4a" stroke-width="1"/>
+    <text x="26" y="50" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="22" font-weight="900"><tspan x="26" dy="0">Wishlist</tspan></text><text x="396" y="50" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="396" dy="0">12 идей</tspan></text>
   </g>
-        <g>
-    <rect x="660" y="332" width="460" height="82" rx="16" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
-    <text x="688" y="380" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="22" font-weight="900"><tspan x="688" dy="0">Интеграции</tspan></text><text x="1000" y="380" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="1000" dy="0">VK planned</tspan></text>
+        <g transform="translate(40 204)">
+    <rect x="0" y="0" width="495" height="82" rx="16" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
+    <text x="26" y="50" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="22" font-weight="900"><tspan x="26" dy="0">Интеграции</tspan></text><text x="374" y="50" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="374" dy="0">VK planned</tspan></text>
   </g>
-        <text x="660" y="474" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="660" dy="0">getCurrentUser и updateCurrentUser покрывают этот экран.</tspan></text>
+        <text x="40" y="340" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="40" dy="0">getCurrentUser и updateCurrentUser покрывают</tspan><tspan x="40" dy="22">этот экран без дополнительных API.</tspan></text>
       
   </g>
     </g>

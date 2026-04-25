@@ -24,6 +24,8 @@ Canvas order:
 - Section spacing: `160px` horizontal, `140px` vertical
 - Caption spacing below imported SVG: `24px`
 
+Every SVG has `width="1440"`, `height="1024"` and `viewBox="0 0 1440 1024"`.
+
 ## Desktop Frame Order
 
 Place desktop SVGs left to right, then wrap to the next row.

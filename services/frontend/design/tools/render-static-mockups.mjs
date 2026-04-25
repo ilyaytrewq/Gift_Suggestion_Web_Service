@@ -10,31 +10,38 @@ mkdirSync(mockupsDir, { recursive: true });
 
 const W = 1440;
 const H = 1024;
+const X = 120;
+const CONTENT = 1200;
+
 const C = {
   bg: '#f6f1e8',
   surface: '#fffdf8',
+  surfaceAlt: '#fbf5ea',
   muted: '#efe6d6',
   ink: '#1f1a14',
   inkMuted: '#625746',
   primary: '#c65a1e',
+  primarySoft: '#f3e3d8',
   primaryHover: '#a94816',
   secondary: '#245c4a',
   secondarySoft: '#dbe9e2',
   accent: '#cbae63',
+  accentSoft: '#f1e8ca',
   danger: '#b13a2f',
   dangerSoft: '#f6ddd8',
   success: '#2f7a4a',
   successSoft: '#dcebdd',
   border: '#d8c8b0',
+  white: '#ffffff',
 };
 
 const gifts = [
-  ['Кофейный сет', '2 790 ₽', 'Для дома', 'Свежеобжаренный кофе, керамика и открытка.'],
-  ['Плед из мериноса', '5 490 ₽', 'Уют', 'Тёплый подарок для вечеров и спокойного отдыха.'],
-  ['Книга-альбом', '3 200 ₽', 'Культура', 'Большое издание с иллюстрациями и историей дизайна.'],
-  ['Умная колонка', '7 990 ₽', 'Техника', 'Музыка, напоминания и голосовые сценарии дома.'],
-  ['Набор для керамики', '4 100 ₽', 'Хобби', 'Глина, инструменты и понятный стартовый гид.'],
-  ['Сертификат SPA', '6 500 ₽', 'Впечатления', 'Подарок-восстановление без угадывания размера.'],
+  ['Кофейный сет', '2 790 ₽', 'Для дома', ['Кофе, керамика и открытка', 'для уютного старта.']],
+  ['Плед из мериноса', '5 490 ₽', 'Уют', ['Мягкий подарок для дома', 'и спокойных вечеров.']],
+  ['Книга-альбом', '3 200 ₽', 'Культура', ['Большое издание с историей', 'дизайна и иллюстрациями.']],
+  ['Умная колонка', '7 990 ₽', 'Техника', ['Музыка, напоминания', 'и голосовые сценарии.']],
+  ['Набор для керамики', '4 100 ₽', 'Хобби', ['Глина, инструменты', 'и понятный стартовый гид.']],
+  ['Сертификат SPA', '6 500 ₽', 'Впечатления', ['Подарок-восстановление', 'без выбора размера.']],
 ];
 
 function esc(value) {
@@ -86,6 +93,7 @@ function circle(cx, cy, r, options = {}) {
     r,
     fill: options.fill ?? C.muted,
     stroke: options.stroke,
+    'stroke-width': options.strokeWidth,
     opacity: options.opacity,
   })}/>`;
 }
@@ -96,6 +104,7 @@ function text(x, y, lines, options = {}) {
   const lineHeight = options.lineHeight ?? Math.round(size * 1.35);
   const family = options.family ?? 'Manrope, Segoe UI, sans-serif';
   const fill = options.fill ?? C.ink;
+
   return `<text ${attrs({
     x,
     y,
@@ -109,24 +118,38 @@ function text(x, y, lines, options = {}) {
     .join('')}</text>`;
 }
 
-function title(x, y, lines, size = 54) {
+function heading(x, y, lines, size = 52) {
   return text(x, y, lines, {
     size,
-    lineHeight: Math.round(size * 1.04),
+    lineHeight: Math.round(size * 1.06),
     weight: 700,
     family: 'Fraunces, Georgia, serif',
   });
 }
 
-function eyebrow(x, y, value) {
-  return text(x, y, value, {
-    size: 14,
+function eyebrow(x, y, label) {
+  return text(x, y, label, {
+    size: 13,
     weight: 800,
     fill: C.primary,
   });
 }
 
+function panel(x, y, width, height, body = '', options = {}) {
+  return `<g transform="translate(${x} ${y})">
+    ${rect(0, 0, width, height, {
+      rx: options.rx ?? 24,
+      fill: options.fill ?? C.surface,
+      stroke: options.stroke ?? C.border,
+      strokeWidth: 1,
+      filter: options.shadow === false ? undefined : 'url(#shadow)',
+    })}
+    ${body}
+  </g>`;
+}
+
 function button(x, y, width, label, variant = 'primary', options = {}) {
+  const height = options.height ?? 50;
   const fills = {
     primary: C.primary,
     secondary: C.secondary,
@@ -134,10 +157,10 @@ function button(x, y, width, label, variant = 'primary', options = {}) {
     disabled: C.muted,
     danger: C.danger,
   };
+  const color = variant === 'ghost' || variant === 'disabled' ? C.ink : C.white;
   const stroke = variant === 'ghost' || variant === 'disabled' ? C.border : 'transparent';
-  const color = variant === 'ghost' || variant === 'disabled' ? C.ink : '#ffffff';
   return `<g opacity="${options.opacity ?? 1}">
-    ${rect(x, y, width, options.height ?? 52, {
+    ${rect(x, y, width, height, {
       rx: 999,
       fill: fills[variant] ?? C.primary,
       stroke,
@@ -145,10 +168,10 @@ function button(x, y, width, label, variant = 'primary', options = {}) {
     })}
     <text ${attrs({
       x: x + width / 2,
-      y: y + (options.height ?? 52) / 2 + 7,
+      y: y + height / 2 + 6,
       fill: color,
       'font-family': 'Manrope, Segoe UI, sans-serif',
-      'font-size': options.size ?? 17,
+      'font-size': options.size ?? 16,
       'font-weight': 800,
       'text-anchor': 'middle',
     })}>${esc(label)}</text>
@@ -156,105 +179,118 @@ function button(x, y, width, label, variant = 'primary', options = {}) {
 }
 
 function chip(x, y, label, width, variant = 'primary') {
-  const fill = variant === 'green' ? C.secondarySoft : variant === 'muted' ? C.muted : '#f3e3d8';
-  const color = variant === 'green' ? C.secondary : C.ink;
+  const fill = variant === 'green' ? C.secondarySoft : variant === 'accent' ? C.accentSoft : variant === 'muted' ? C.muted : C.primarySoft;
+  const stroke = variant === 'muted' ? C.border : undefined;
+  const color = variant === 'green' ? C.secondary : variant === 'accent' ? '#6d5721' : C.ink;
   return `<g>
-    ${rect(x, y, width, 34, { rx: 999, fill, stroke: variant === 'muted' ? C.border : undefined })}
-    ${text(x + 16, y + 22, label, { size: 14, weight: 800, fill: color })}
+    ${rect(x, y, width, 32, { rx: 999, fill, stroke, strokeWidth: stroke ? 1 : undefined })}
+    ${text(x + 15, y + 21, label, { size: 13, weight: 800, fill: color })}
   </g>`;
 }
 
 function input(x, y, width, label, value, options = {}) {
+  const height = options.height ?? 54;
   return `<g>
-    ${text(x, y, label, { size: 15, weight: 800 })}
-    ${rect(x, y + 14, width, options.height ?? 54, { rx: 12, fill: C.surface, stroke: C.border })}
-    ${text(x + 18, y + 48, value, { size: 16, weight: 500, fill: options.muted ? C.inkMuted : C.ink })}
+    ${text(x, y, label, { size: 14, weight: 800 })}
+    ${rect(x, y + 14, width, height, { rx: 12, fill: C.surface, stroke: C.border, strokeWidth: 1 })}
+    ${text(x + 17, y + 48, value, { size: 15, weight: 500, fill: options.muted ? C.inkMuted : C.ink })}
   </g>`;
 }
 
-function card(x, y, width, height, body = '', options = {}) {
-  return `<g>
-    ${rect(x, y, width, height, {
-      rx: options.rx ?? 28,
-      fill: options.fill ?? C.surface,
-      stroke: options.stroke ?? C.border,
-      strokeWidth: 1,
-      filter: options.shadow ? 'url(#shadow)' : undefined,
-    })}
-    ${body}
-  </g>`;
+function banner(x, y, width, lines, variant = 'info') {
+  const theme = {
+    info: [C.secondarySoft, '#bdd5ca', C.secondary],
+    danger: [C.dangerSoft, '#e1b7af', C.danger],
+    success: [C.successSoft, '#b9d3be', C.success],
+    warm: [C.primarySoft, '#e1c3ad', C.primary],
+  }[variant];
+  return panel(
+    x,
+    y,
+    width,
+    Array.isArray(lines) && lines.length > 1 ? 82 : 62,
+    text(24, 38, lines, { size: 16, weight: 800, fill: theme[2], lineHeight: 22 }),
+    { rx: 16, fill: theme[0], stroke: theme[1], shadow: false },
+  );
 }
 
 function photo(x, y, width, height, variant = 0) {
   const colors = [
-    ['#d9b66b', '#245c4a'],
-    ['#c65a1e', '#f0c987'],
-    ['#8f9e85', '#efe6d6'],
-    ['#245c4a', '#cbae63'],
-    ['#b76e45', '#dbe9e2'],
-  ][variant % 5];
+    [C.accent, C.secondary],
+    [C.primary, '#f0c987'],
+    ['#8f9e85', C.muted],
+    [C.secondary, C.accent],
+    ['#b76e45', C.secondarySoft],
+    [C.danger, '#f3d5c7'],
+  ][variant % 6];
   return `<g>
-    ${rect(x, y, width, height, { rx: 22, fill: colors[1] })}
-    <path d="M${x} ${y + height * 0.82} C${x + width * 0.25} ${y + height * 0.58}, ${x + width * 0.52} ${y + height * 0.92}, ${x + width} ${y + height * 0.60} L${x + width} ${y + height} L${x} ${y + height} Z" fill="${colors[0]}" opacity="0.78"/>
-    ${circle(x + width * 0.78, y + height * 0.24, Math.min(width, height) * 0.13, { fill: '#fffdf8', opacity: 0.74 })}
-    ${rect(x + width * 0.19, y + height * 0.29, width * 0.31, height * 0.34, { rx: 14, fill: '#fffdf8', opacity: 0.72 })}
-    ${line(x + width * 0.34, y + height * 0.29, x + width * 0.34, y + height * 0.63, { stroke: colors[0], width: 5, opacity: 0.85 })}
-    ${line(x + width * 0.19, y + height * 0.43, x + width * 0.50, y + height * 0.43, { stroke: colors[0], width: 5, opacity: 0.85 })}
+    ${rect(x, y, width, height, { rx: 20, fill: colors[1] })}
+    <path d="M${x} ${y + height * 0.82} C${x + width * 0.25} ${y + height * 0.58}, ${x + width * 0.52} ${y + height * 0.93}, ${x + width} ${y + height * 0.60} L${x + width} ${y + height} L${x} ${y + height} Z" fill="${colors[0]}" opacity="0.78"/>
+    ${circle(x + width * 0.78, y + height * 0.24, Math.min(width, height) * 0.12, { fill: C.surface, opacity: 0.78 })}
+    ${rect(x + width * 0.18, y + height * 0.30, width * 0.32, height * 0.32, { rx: 14, fill: C.surface, opacity: 0.74 })}
+    ${line(x + width * 0.34, y + height * 0.30, x + width * 0.34, y + height * 0.62, { stroke: colors[0], width: 5, opacity: 0.85 })}
+    ${line(x + width * 0.18, y + height * 0.43, x + width * 0.50, y + height * 0.43, { stroke: colors[0], width: 5, opacity: 0.85 })}
   </g>`;
 }
 
-function giftCard(x, y, width, gift, index, compact = false) {
+function giftCard(x, y, width, gift, index, options = {}) {
   const [name, price, category, desc] = gift;
-  const imageH = compact ? 110 : 138;
-  return card(
+  const height = options.height ?? 270;
+  const imageH = options.imageH ?? 104;
+  const showButtons = options.buttons !== false;
+  const showDescription = options.description !== false && height >= 300;
+  return panel(
     x,
     y,
     width,
-    compact ? 255 : 310,
-    `${photo(x + 14, y + 14, width - 28, imageH, index)}
-    ${chip(x + 22, y + imageH + 28, category, 104, 'muted')}
-    ${text(x + 22, y + imageH + 82, name, { size: compact ? 21 : 24, weight: 700, family: 'Fraunces, Georgia, serif' })}
-    ${text(x + width - 22, y + imageH + 82, price, { size: 18, weight: 900, anchor: 'end' })}
-    ${text(x + 22, y + imageH + 114, [desc], { size: 15, weight: 500, fill: C.inkMuted })}
-    ${compact ? '' : button(x + 22, y + 244, 140, 'Подробнее', 'ghost', { height: 42, size: 14 })}
-    ${compact ? '' : button(x + width - 158, y + 244, 136, 'Купить', 'primary', { height: 42, size: 14 })}`,
-    { shadow: true, rx: 22 },
+    height,
+    `${photo(14, 14, width - 28, imageH, index)}
+    ${chip(20, imageH + 28, category, Math.max(96, category.length * 9 + 34), 'muted')}
+    ${text(20, imageH + 80, name, { size: 22, weight: 700, family: 'Fraunces, Georgia, serif' })}
+    ${text(width - 20, imageH + 80, price, { size: 17, weight: 900, anchor: 'end' })}
+    ${showDescription ? text(20, imageH + 112, desc, { size: 14, weight: 500, fill: C.inkMuted, lineHeight: 20 }) : ''}
+    ${showButtons ? button(20, height - 58, 132, 'Подробнее', 'ghost', { height: 40, size: 13 }) : ''}
+    ${showButtons ? button(width - 144, height - 58, 124, 'Купить', 'primary', { height: 40, size: 13 }) : ''}`,
+    { rx: 22 },
   );
 }
 
-function giftMini(x, y, width, gift, index) {
+function miniGift(x, y, width, gift, index) {
   const [name, price, category] = gift;
-  return card(
+  return panel(
     x,
     y,
     width,
-    146,
-    `${photo(x + 14, y + 14, 88, 118, index)}
-    ${chip(x + 118, y + 24, category, 104, 'muted')}
-    ${text(x + 118, y + 80, name, { size: 20, weight: 700, family: 'Fraunces, Georgia, serif' })}
-    ${text(x + 118, y + 114, price, { size: 17, weight: 900 })}`,
-    { shadow: true, rx: 20 },
+    132,
+    `${photo(12, 12, 84, 108, index)}
+    ${chip(112, 20, category, Math.max(84, category.length * 8 + 32), 'muted')}
+    ${text(112, 72, name, { size: 19, weight: 700, family: 'Fraunces, Georgia, serif' })}
+    ${text(112, 104, price, { size: 16, weight: 900 })}`,
+    { rx: 18 },
   );
 }
 
 function header(signedIn = false, active = 'Каталог') {
+  const nav = [
+    ['Каталог', 756],
+    ['Как это работает', 842],
+  ];
   return `<g>
-    ${rect(0, 0, W, 76, { rx: 0, fill: C.bg, stroke: C.border, strokeWidth: 1, opacity: 0.94 })}
-    ${text(130, 48, 'Gift Suggestion', { size: 25, weight: 800, family: 'Fraunces, Georgia, serif' })}
-    ${text(788, 47, 'Каталог', { size: 16, weight: active === 'Каталог' ? 900 : 700, fill: active === 'Каталог' ? C.ink : C.inkMuted })}
-    ${text(872, 47, 'Как это работает', { size: 16, weight: 700, fill: C.inkMuted })}
+    ${rect(0, 0, W, 80, { rx: 0, fill: C.bg, stroke: C.border, strokeWidth: 1, opacity: 0.96 })}
+    ${text(X, 51, 'Gift Suggestion', { size: 25, weight: 800, family: 'Fraunces, Georgia, serif' })}
+    ${nav.map(([label, x]) => text(x, 49, label, { size: 16, weight: active === label ? 900 : 700, fill: active === label ? C.ink : C.inkMuted })).join('')}
     ${signedIn
-      ? chip(1055, 22, 'maria@example.com', 170, 'muted') + button(1240, 16, 70, 'Профиль', 'ghost', { height: 44, size: 14 })
-      : text(1072, 47, 'Войти', { size: 16, weight: 700, fill: C.inkMuted }) + button(1142, 16, 160, 'Регистрация', 'secondary', { height: 44, size: 14 })}
+      ? `${chip(1040, 24, 'maria@example.com', 180, 'muted')}${button(1240, 18, 80, 'Профиль', 'ghost', { height: 44, size: 13 })}`
+      : `${text(1068, 49, 'Войти', { size: 16, weight: 700, fill: C.inkMuted })}${button(1140, 18, 172, 'Регистрация', 'secondary', { height: 44, size: 14 })}`}
   </g>`;
 }
 
-function footer(y = 938) {
+function footer(y = 918) {
   return `<g>
-    ${line(130, y, 1310, y, { opacity: 0.72 })}
-    ${text(130, y + 44, 'Gift Suggestion', { size: 18, weight: 900 })}
-    ${text(130, y + 70, 'Подбор идей подарков, который не сводится к безликим фильтрам маркетплейса.', { size: 15, fill: C.inkMuted })}
-    ${text(1000, y + 52, 'Каталог идей     Войти     Создать аккаунт', { size: 15, fill: C.inkMuted })}
+    ${line(X, y, X + CONTENT, y, { opacity: 0.74 })}
+    ${text(X, y + 42, 'Gift Suggestion', { size: 18, weight: 900 })}
+    ${text(X, y + 68, 'Подбор идей подарков, который не сводится к безликим фильтрам маркетплейса.', { size: 15, fill: C.inkMuted })}
+    ${text(956, y + 52, 'Каталог идей     Войти     Создать аккаунт', { size: 15, fill: C.inkMuted })}
   </g>`;
 }
 
@@ -263,12 +299,12 @@ function shell(titleText, body, options = {}) {
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(titleText)}">
   <defs>
     <radialGradient id="warmGlow" cx="0.08" cy="0.04" r="0.68">
-      <stop offset="0" stop-color="#cbae63" stop-opacity="0.34"/>
-      <stop offset="0.46" stop-color="#f6f1e8" stop-opacity="0.8"/>
+      <stop offset="0" stop-color="#cbae63" stop-opacity="0.30"/>
+      <stop offset="0.46" stop-color="#f6f1e8" stop-opacity="0.82"/>
       <stop offset="1" stop-color="#f6f1e8"/>
     </radialGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
-      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#4d3319" flood-opacity="0.11"/>
+    <filter id="shadow" x="-12%" y="-12%" width="124%" height="136%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#4d3319" flood-opacity="0.10"/>
     </filter>
   </defs>
   ${rect(0, 0, W, H, { rx: 0, fill: 'url(#warmGlow)' })}
@@ -280,72 +316,80 @@ function shell(titleText, body, options = {}) {
 
 function home() {
   return shell('01 Home final mockup', `
-    <g transform="translate(130 112)">
-      ${card(0, 0, 710, 390, `
-        ${eyebrow(44, 64, 'GIFT SUGGESTION WEB SERVICE')}
-        ${title(44, 124, ['Подобрать подарок', 'без бесконечного', 'скролла маркетплейсов.'], 56)}
-        ${text(44, 280, ['Каталог идей уже открыт без регистрации. Персональный мастер ведёт к auth-flow,', 'потому что recommendation endpoint сейчас требует пользователя.'], { size: 18, fill: C.inkMuted })}
-        ${button(44, 320, 196, 'Подобрать подарок', 'primary')}
-        ${button(256, 320, 166, 'Каталог идей', 'secondary')}
-      `, { shadow: true })}
-      ${card(734, 0, 446, 390, `
-        ${card(758, 24, 398, 92, `${text(784, 78, 'Каталог', { size: 22, weight: 900 })}${text(784, 104, 'Поиск, категории и карточки подарков.', { size: 15, fill: C.inkMuted })}`, { rx: 18 })}
-        ${card(758, 144, 398, 92, `${text(784, 198, 'Auth foundation', { size: 22, weight: 900 })}${text(784, 224, 'Login, register и reset request.', { size: 15, fill: C.inkMuted })}`, { rx: 18 })}
-        ${card(758, 264, 398, 92, `${text(784, 318, 'Без выдуманного API', { size: 22, weight: 900 })}${text(784, 344, 'UI следует OpenAPI контракту.', { size: 15, fill: C.inkMuted })}`, { rx: 18 })}
-      `, { shadow: true, fill: C.surface })}
-      ${eyebrow(0, 462, 'ПОЧЕМУ СЕРВИС ПОЛЕЗЕН')}
-      ${title(0, 514, 'Выбор подарка становится понятным сценарием.', 36)}
-      ${card(0, 548, 372, 122, `${text(24, 596, 'Объяснимые рекомендации', { size: 23, weight: 700, family: 'Fraunces, Georgia, serif' })}${text(24, 628, 'Причины выбора рядом с карточкой.', { size: 16, fill: C.inkMuted })}`, { shadow: true })}
-      ${card(404, 548, 372, 122, `${text(428, 596, 'Каталог из магазинов', { size: 23, weight: 700, family: 'Fraunces, Georgia, serif' })}${text(428, 628, 'Цена, категория и переход к покупке.', { size: 16, fill: C.inkMuted })}`, { shadow: true })}
-      ${card(808, 548, 372, 122, `${text(832, 596, 'Готово под wishlist', { size: 23, weight: 700, family: 'Fraunces, Georgia, serif' })}${text(832, 628, 'Паттерны сохранения уже заложены.', { size: 16, fill: C.inkMuted })}`, { shadow: true })}
-      ${eyebrow(0, 708, 'ПРЕДПРОСМОТР КАТАЛОГА')}
-      ${title(0, 754, 'Несколько свежих идей.', 34)}
-      ${giftMini(0, 792, 270, gifts[0], 0)}
-      ${giftMini(300, 792, 270, gifts[1], 1)}
-      ${giftMini(600, 792, 270, gifts[2], 2)}
-      ${giftMini(900, 792, 270, gifts[3], 3)}
+    ${panel(X, 118, 720, 352, `
+      ${eyebrow(42, 58, 'GIFT SUGGESTION WEB SERVICE')}
+      ${heading(42, 122, ['Подобрать подарок', 'без бесконечного', 'скролла маркетплейсов.'], 54)}
+      ${text(42, 268, ['Каталог идей открыт без регистрации. Мастер подбора ведёт к входу,', 'потому что recommendation endpoint сейчас требует пользователя.'], { size: 17, fill: C.inkMuted, lineHeight: 23 })}
+      ${button(42, 306, 190, 'Подобрать подарок', 'primary')}
+      ${button(248, 306, 162, 'Каталог идей', 'secondary')}
+    `)}
+    ${panel(872, 118, 448, 352, `
+      ${panel(24, 24, 400, 86, `${text(26, 36, 'Каталог', { size: 22, weight: 900 })}${text(26, 63, 'Поиск, категории и карточки подарков.', { size: 15, fill: C.inkMuted })}`, { rx: 16, shadow: false })}
+      ${panel(24, 132, 400, 86, `${text(26, 36, 'Auth foundation', { size: 22, weight: 900 })}${text(26, 63, 'Login, register и reset request.', { size: 15, fill: C.inkMuted })}`, { rx: 16, shadow: false })}
+      ${panel(24, 240, 400, 86, `${text(26, 36, 'Без выдуманного API', { size: 22, weight: 900 })}${text(26, 63, 'UI следует OpenAPI контракту.', { size: 15, fill: C.inkMuted })}`, { rx: 16, shadow: false })}
+    `)}
+    <g transform="translate(${X} 532)">
+      ${eyebrow(0, 0, 'ПОЧЕМУ СЕРВИС ПОЛЕЗЕН')}
+      ${heading(0, 48, 'Выбор подарка становится понятным сценарием.', 34)}
+      ${panel(0, 82, 376, 116, `${text(24, 44, 'Объяснимые рекомендации', { size: 22, weight: 700, family: 'Fraunces, Georgia, serif' })}${text(24, 76, 'Причины выбора рядом с карточкой.', { size: 15, fill: C.inkMuted })}`, { rx: 20 })}
+      ${panel(412, 82, 376, 116, `${text(24, 44, 'Каталог из магазинов', { size: 22, weight: 700, family: 'Fraunces, Georgia, serif' })}${text(24, 76, 'Цена, категория и переход к покупке.', { size: 15, fill: C.inkMuted })}`, { rx: 20 })}
+      ${panel(824, 82, 376, 116, `${text(24, 44, 'Готово под wishlist', { size: 22, weight: 700, family: 'Fraunces, Georgia, serif' })}${text(24, 76, 'Паттерны сохранения уже заложены.', { size: 15, fill: C.inkMuted })}`, { rx: 20 })}
+    </g>
+    <g transform="translate(${X} 782)">
+      ${eyebrow(0, 0, 'ПРЕДПРОСМОТР КАТАЛОГА')}
+      ${heading(0, 44, 'Несколько свежих идей.', 32)}
+      ${miniGift(0, 72, 276, gifts[0], 0)}
+      ${miniGift(308, 72, 276, gifts[1], 1)}
+      ${miniGift(616, 72, 276, gifts[2], 2)}
+      ${miniGift(924, 72, 276, gifts[3], 3)}
     </g>`);
 }
 
 function catalog() {
   return shell('02 Catalog final mockup', `
-    <g transform="translate(130 122)">
+    <g transform="translate(${X} 112)">
       ${eyebrow(0, 0, 'КАТАЛОГ ИДЕЙ')}
-      ${title(0, 58, ['Подберите стартовый список', 'подарков по категории и поиску.'], 46)}
-      ${text(0, 174, 'Используются только catalog endpoints: q, category_id и sort.', { size: 18, fill: C.inkMuted })}
-      ${card(0, 220, 1180, 124, `
-        ${input(26, 28, 530, 'Поиск', 'кофе, хобби, техника', { muted: true })}
-        ${input(582, 28, 240, 'Сортировка', 'Сначала новые', { muted: false })}
-        ${button(846, 42, 142, 'Искать', 'primary')}
-        ${button(1004, 42, 134, 'Сбросить', 'ghost')}
-      `, { shadow: true })}
-      ${chip(0, 372, 'Все', 72)} ${chip(86, 372, 'Для дома', 114, 'muted')} ${chip(214, 372, 'Техника', 108, 'muted')} ${chip(336, 372, 'Впечатления', 142, 'green')} ${chip(492, 372, 'Хобби', 92, 'muted')} ${chip(598, 372, 'Культура', 110, 'muted')}
-      ${text(0, 440, 'Найдено: 126', { size: 16, fill: C.inkMuted })}
-      ${text(930, 440, 'Показаны первые 24 результата', { size: 16, fill: C.inkMuted })}
-      ${giftCard(0, 468, 360, gifts[0], 0)}
-      ${giftCard(410, 468, 360, gifts[1], 1)}
-      ${giftCard(820, 468, 360, gifts[2], 2)}
-      ${giftCard(0, 808, 360, gifts[3], 3)}
-      ${giftCard(410, 808, 360, gifts[4], 4)}
-      ${giftCard(820, 808, 360, gifts[5], 5)}
+      ${heading(0, 52, ['Подберите стартовый список', 'подарков по категории и поиску.'], 42)}
+      ${text(0, 154, 'Используются только catalog endpoints: q, category_id и sort.', { size: 16, fill: C.inkMuted })}
+      ${panel(0, 190, CONTENT, 108, `
+        ${input(24, 28, 520, 'Поиск', 'кофе, хобби, техника', { muted: true })}
+        ${input(568, 28, 236, 'Сортировка', 'Сначала новые')}
+        ${button(834, 42, 140, 'Искать', 'primary')}
+        ${button(992, 42, 138, 'Сбросить', 'ghost')}
+      `)}
+      ${chip(0, 326, 'Все', 70)}
+      ${chip(84, 326, 'Для дома', 112, 'muted')}
+      ${chip(210, 326, 'Техника', 104, 'muted')}
+      ${chip(328, 326, 'Впечатления', 136, 'green')}
+      ${chip(478, 326, 'Хобби', 90, 'muted')}
+      ${chip(582, 326, 'Культура', 108, 'muted')}
+      ${text(0, 388, 'Найдено: 126', { size: 16, fill: C.inkMuted })}
+      ${text(930, 388, 'Показаны первые 24 результата', { size: 16, fill: C.inkMuted })}
+      ${giftCard(0, 414, 374, gifts[0], 0, { height: 226, imageH: 82 })}
+      ${giftCard(413, 414, 374, gifts[1], 1, { height: 226, imageH: 82 })}
+      ${giftCard(826, 414, 374, gifts[2], 2, { height: 226, imageH: 82 })}
+      ${giftCard(0, 666, 374, gifts[3], 3, { height: 226, imageH: 82 })}
+      ${giftCard(413, 666, 374, gifts[4], 4, { height: 226, imageH: 82 })}
+      ${giftCard(826, 666, 374, gifts[5], 5, { height: 226, imageH: 82 })}
     </g>`);
 }
 
 function giftDetail() {
   return shell('03 Gift detail final mockup', `
-    <g transform="translate(130 118)">
+    <g transform="translate(${X} 122)">
       ${text(0, 0, '← Вернуться в каталог', { size: 16, fill: C.inkMuted })}
-      ${card(0, 38, 1180, 704, `
-        ${photo(26, 26, 544, 650, 1)}
-        ${chip(616, 58, 'Уют', 82)} ${chip(712, 58, '12+', 64, 'muted')}
-        ${title(616, 146, ['Плед из мериноса', 'для спокойных вечеров'], 52)}
-        ${text(616, 268, '5 490 ₽', { size: 30, weight: 900 })}
-        ${text(616, 330, ['Тёплый подарок с понятной ценностью: уют, качество и отсутствие', 'риска ошибиться с размером. Подходит для близкого человека, которому', 'важен спокойный отдых дома.'], { size: 18, fill: C.inkMuted })}
-        ${button(616, 454, 206, 'Перейти к покупке', 'primary')}
-        ${button(842, 454, 216, 'Смотреть другие идеи', 'secondary')}
-        ${card(616, 550, 500, 92, `${text(642, 590, 'Учтённый gap', { size: 18, weight: 900 })}${text(642, 618, 'Backend отдаёт один store_link, поэтому здесь один purchase CTA.', { size: 15, fill: C.inkMuted })}`, { rx: 16, fill: C.muted })}
-      `, { shadow: true })}
-      ${footer(802)}
+      ${panel(0, 42, CONTENT, 682, `
+        ${photo(28, 28, 548, 626, 1)}
+        ${chip(624, 54, 'Уют', 82)}
+        ${chip(722, 54, '12+', 64, 'muted')}
+        ${heading(624, 142, ['Плед из мериноса', 'для спокойных вечеров'], 50)}
+        ${text(624, 264, '5 490 ₽', { size: 30, weight: 900 })}
+        ${text(624, 324, ['Тёплый подарок с понятной ценностью: уют, качество и отсутствие', 'риска ошибиться с размером. Подходит близкому человеку, которому', 'важен спокойный отдых дома.'], { size: 17, fill: C.inkMuted, lineHeight: 24 })}
+        ${button(624, 446, 206, 'Перейти к покупке', 'primary')}
+        ${button(850, 446, 216, 'Смотреть другие идеи', 'secondary')}
+        ${banner(624, 548, 506, ['Backend отдаёт один store_link,', 'поэтому здесь один purchase CTA.'], 'warm')}
+      `)}
+      ${footer(790)}
     </g>`);
 }
 
@@ -353,223 +397,245 @@ function authPage(kind) {
   const isLogin = kind === 'login';
   const isRegister = kind === 'register';
   const isReset = kind === 'reset';
-  const titleLines = isLogin ? ['Войти, чтобы сохранить', 'подборки и wishlist.'] : isRegister ? ['Создать аккаунт', 'для будущих подборок.'] : ['Восстановить доступ', 'через email.'];
   const fileTitle = isLogin ? '04 Login final mockup' : isRegister ? '05 Register final mockup' : '06 Password reset final mockup';
+  const titleLines = isLogin
+    ? ['Войти, чтобы сохранить', 'подборки и wishlist.']
+    : isRegister
+      ? ['Создать аккаунт', 'для будущих подборок.']
+      : ['Восстановить доступ', 'через email.'];
   const formTitle = isLogin ? 'Вход' : isRegister ? 'Регистрация' : 'Сброс пароля';
   const mainButton = isLogin ? 'Войти' : isRegister ? 'Создать аккаунт' : 'Отправить письмо';
+  const buttonY = isRegister ? 438 : isReset ? 322 : 408;
+
   return shell(fileTitle, `
-    <g transform="translate(130 136)">
-      <g>
-        ${eyebrow(0, 0, isReset ? 'PASSWORD RESET' : 'AUTH FOUNDATION')}
-        ${title(0, 68, titleLines, 52)}
-        ${text(0, 200, ['Формы используют текущие backend auth endpoints и показывают', 'серверные ошибки без локального хранения access token.'], { size: 18, fill: C.inkMuted })}
-        ${card(0, 318, 470, 148, `${text(28, 370, 'Состояния формы', { size: 24, family: 'Fraunces, Georgia, serif', weight: 700 })}${text(28, 410, ['default, validation error, server error, loading, success'], { size: 16, fill: C.inkMuted })}`, { shadow: true })}
-      </g>
-      ${card(628, 0, 552, 560, `
-        ${text(672, 64, formTitle, { size: 34, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${isRegister ? input(672, 110, 464, 'Имя', 'Мария', {}) : ''}
-        ${input(672, isRegister ? 192 : 130, 464, 'Email', 'maria@example.com', {})}
-        ${isReset ? '' : input(672, isRegister ? 274 : 212, 464, 'Пароль', '••••••••••', {})}
-        ${isRegister ? input(672, 356, 464, 'Повтор пароля', '••••••••••', {}) : ''}
-        ${isLogin ? card(672, 310, 464, 64, `${text(694, 350, 'Неверный email или пароль', { size: 15, fill: C.danger, weight: 800 })}`, { rx: 12, fill: C.dangerSoft, stroke: '#e1b7af' }) : ''}
-        ${isReset ? card(672, 220, 464, 70, `${text(694, 260, 'Если email существует, письмо будет отправлено.', { size: 15, fill: C.success, weight: 800 })}`, { rx: 12, fill: C.successSoft, stroke: '#b9d3be' }) : ''}
-        ${button(672, isRegister ? 452 : isReset ? 326 : 408, 464, mainButton, 'primary')}
-        ${text(672, isRegister ? 538 : isReset ? 414 : 496, isLogin ? 'Нет аккаунта? Регистрация        Забыли пароль?' : isRegister ? 'Уже есть аккаунт? Войти' : 'Вернуться ко входу', { size: 15, fill: C.inkMuted })}
-      `, { shadow: true })}
+    <g transform="translate(${X} 136)">
+      ${eyebrow(0, 0, isReset ? 'PASSWORD RESET' : 'AUTH FOUNDATION')}
+      ${heading(0, 68, titleLines, 50)}
+      ${text(0, 200, ['Формы используют текущие auth endpoints и показывают', 'серверные ошибки без localStorage для access token.'], { size: 17, fill: C.inkMuted, lineHeight: 24 })}
+      ${panel(0, 318, 480, 142, `${text(28, 48, 'Состояния формы', { size: 24, family: 'Fraunces, Georgia, serif', weight: 700 })}${text(28, 82, ['default, validation error, server error,', 'loading и success.'], { size: 15, fill: C.inkMuted, lineHeight: 21 })}`, { rx: 20 })}
+      ${panel(636, 0, 564, 560, `
+        ${text(40, 64, formTitle, { size: 34, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${isRegister ? input(40, 108, 484, 'Имя', 'Мария') : ''}
+        ${input(40, isRegister ? 188 : 130, 484, 'Email', 'maria@example.com')}
+        ${isReset ? '' : input(40, isRegister ? 268 : 212, 484, 'Пароль', '••••••••••')}
+        ${isRegister ? input(40, 348, 484, 'Повтор пароля', '••••••••••') : ''}
+        ${isLogin ? banner(40, 306, 484, 'Неверный email или пароль', 'danger') : ''}
+        ${isReset ? banner(40, 220, 484, ['Если email существует,', 'письмо будет отправлено.'], 'success') : ''}
+        ${button(40, buttonY, 484, mainButton, 'primary')}
+        ${text(40, buttonY + 88, isLogin ? 'Нет аккаунта? Регистрация      Забыли пароль?' : isRegister ? 'Уже есть аккаунт? Войти' : 'Вернуться ко входу', { size: 15, fill: C.inkMuted })}
+      `)}
       ${footer(734)}
     </g>`);
 }
 
 function wizard() {
   return shell('07 Recommendation wizard final mockup', `
-    <g transform="translate(130 116)">
+    <g transform="translate(${X} 118)">
       ${eyebrow(0, 0, 'МАСТЕР ПОДБОРА')}
-      ${title(0, 62, ['Ответьте на несколько вопросов,', 'чтобы получить объяснимые идеи.'], 48)}
-      ${card(0, 178, 1180, 620, `
-        ${chip(42, 38, '1 Повод', 102)} ${chip(158, 38, '2 Получатель', 144, 'green')} ${chip(316, 38, '3 Бюджет', 112, 'muted')} ${chip(442, 38, '4 Интересы', 126, 'muted')} ${chip(582, 38, '5 Проверка', 126, 'muted')}
-        ${line(42, 96, 1138, 96)}
+      ${heading(0, 58, ['Ответьте на несколько вопросов,', 'чтобы получить объяснимые идеи.'], 46)}
+      ${panel(0, 178, CONTENT, 606, `
+        ${chip(42, 38, '1 Повод', 98)}
+        ${chip(156, 38, '2 Получатель', 140, 'green')}
+        ${chip(312, 38, '3 Бюджет', 112, 'muted')}
+        ${chip(440, 38, '4 Интересы', 126, 'muted')}
+        ${chip(582, 38, '5 Проверка', 128, 'muted')}
+        ${line(42, 94, 1158, 94)}
         ${text(48, 154, 'Кому выбираем подарок?', { size: 34, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${text(48, 194, 'Поля соответствуют текущему RecommendRequest. Пол отсутствует в контракте и не выводится.', { size: 17, fill: C.inkMuted })}
-        ${card(48, 244, 310, 118, `${text(76, 304, 'Партнёру', { size: 22, weight: 900 })}${text(76, 334, 'Близкий сценарий', { size: 15, fill: C.inkMuted })}`, { rx: 18, fill: C.secondarySoft, stroke: C.secondary })}
-        ${card(386, 244, 310, 118, `${text(414, 304, 'Коллеге', { size: 22, weight: 900 })}${text(414, 334, 'Нейтральный тон', { size: 15, fill: C.inkMuted })}`, { rx: 18 })}
-        ${card(724, 244, 310, 118, `${text(752, 304, 'Друзьям', { size: 22, weight: 900 })}${text(752, 334, 'Можно ярче', { size: 15, fill: C.inkMuted })}`, { rx: 18 })}
-        ${input(48, 416, 310, 'Возраст', '28', {})}
-        ${input(386, 416, 310, 'Бюджет', 'до 7 000 ₽', {})}
-        ${input(724, 416, 310, 'Повод', 'день рождения', {})}
-        ${button(48, 548, 128, 'Назад', 'ghost')}
-        ${button(894, 548, 140, 'Дальше', 'primary')}
-      `, { shadow: true })}
-      ${card(0, 834, 1180, 70, `${text(30, 878, 'Auth-only limitation: submit recommendation доступен после входа пользователя.', { size: 17, fill: C.secondary, weight: 900 })}`, { rx: 18, fill: C.secondarySoft, stroke: '#bdd5ca' })}
+        ${text(48, 196, ['Поля соответствуют текущему RecommendRequest.', 'Пол отсутствует в контракте и не выводится.'], { size: 16, fill: C.inkMuted, lineHeight: 22 })}
+        ${panel(48, 254, 312, 116, `${text(28, 56, 'Партнёру', { size: 22, weight: 900 })}${text(28, 84, 'Близкий сценарий', { size: 15, fill: C.inkMuted })}`, { rx: 18, fill: C.secondarySoft, stroke: C.secondary, shadow: false })}
+        ${panel(392, 254, 312, 116, `${text(28, 56, 'Коллеге', { size: 22, weight: 900 })}${text(28, 84, 'Нейтральный тон', { size: 15, fill: C.inkMuted })}`, { rx: 18, shadow: false })}
+        ${panel(736, 254, 312, 116, `${text(28, 56, 'Друзьям', { size: 22, weight: 900 })}${text(28, 84, 'Можно ярче', { size: 15, fill: C.inkMuted })}`, { rx: 18, shadow: false })}
+        ${input(48, 424, 312, 'Возраст', '28')}
+        ${input(392, 424, 312, 'Бюджет', 'до 7 000 ₽')}
+        ${input(736, 424, 312, 'Повод', 'день рождения')}
+        ${button(48, 544, 128, 'Назад', 'ghost')}
+        ${button(920, 544, 128, 'Дальше', 'primary')}
+      `)}
+      ${banner(0, 824, CONTENT, 'Recommendation submit доступен после входа пользователя.', 'info')}
     </g>`, { signedIn: true, active: 'Подбор' });
 }
 
 function recommendationResults() {
   return shell('08 Recommendation results final mockup', `
-    <g transform="translate(130 116)">
+    <g transform="translate(${X} 118)">
       ${eyebrow(0, 0, 'РЕЗУЛЬТАТЫ ПОДБОРА')}
-      ${title(0, 60, 'Лучшие идеи с объяснениями.', 48)}
-      ${button(970, 10, 210, 'Сохранить подборку', 'secondary')}
-      ${giftCard(0, 122, 360, gifts[1], 1)}
-      ${giftCard(410, 122, 360, gifts[4], 4)}
-      ${giftCard(820, 122, 360, gifts[0], 0)}
-      ${card(0, 480, 760, 250, `
-        ${text(34, 536, 'Почему эти варианты', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${text(34, 590, ['Подбор отдаёт score/source и explanation. UI показывает причины выбора', 'рядом с карточками, не скрывая fallback или пустой результат.'], { size: 18, fill: C.inkMuted })}
-        ${chip(34, 646, 'budget match', 124, 'green')} ${chip(174, 646, 'interest overlap', 150)} ${chip(340, 646, 'category fit', 126, 'muted')}
-      `, { shadow: true })}
-      ${card(800, 480, 380, 250, `
-        ${text(826, 536, 'Альтернативы', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${text(826, 590, ['Если первый вариант не подходит,', 'показываем соседние категории.'], { size: 17, fill: C.inkMuted })}
-        ${button(826, 654, 156, 'Открыть', 'ghost', { height: 44 })}
-      `, { shadow: true })}
-      ${card(0, 762, 1180, 76, `${text(30, 810, 'Wishlist state не приходит в recommendation payload: сохранение требует отдельного wishlist action.', { size: 17, fill: C.primary, weight: 900 })}`, { rx: 18, fill: '#f3e3d8', stroke: '#e1c3ad' })}
+      ${heading(0, 58, 'Лучшие идеи с объяснениями.', 46)}
+      ${button(966, 4, 234, 'Сохранить подборку', 'secondary')}
+      ${giftCard(0, 132, 374, gifts[1], 1, { height: 254, imageH: 100 })}
+      ${giftCard(413, 132, 374, gifts[4], 4, { height: 254, imageH: 100 })}
+      ${giftCard(826, 132, 374, gifts[0], 0, { height: 254, imageH: 100 })}
+      ${panel(0, 428, 770, 238, `
+        ${text(34, 58, 'Почему эти варианты', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${text(34, 112, ['Подбор отдаёт score, source и explanation. UI показывает причины', 'рядом с карточками и не скрывает fallback или пустой результат.'], { size: 17, fill: C.inkMuted, lineHeight: 24 })}
+        ${chip(34, 174, 'budget match', 124, 'green')}
+        ${chip(174, 174, 'interest overlap', 150)}
+        ${chip(340, 174, 'category fit', 126, 'muted')}
+      `)}
+      ${panel(810, 428, 390, 238, `
+        ${text(28, 58, 'Альтернативы', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${text(28, 112, ['Если первый вариант не подходит,', 'показываем соседние категории.'], { size: 16, fill: C.inkMuted, lineHeight: 22 })}
+        ${button(28, 168, 150, 'Открыть', 'ghost', { height: 42 })}
+      `)}
+      ${banner(0, 706, CONTENT, ['Wishlist state не приходит в recommendation payload.', 'Сохранение требует отдельного wishlist action.'], 'warm')}
     </g>`, { signedIn: true, active: 'Подбор' });
 }
 
 function profile() {
   return shell('09 Profile final mockup', `
-    <g transform="translate(130 118)">
+    <g transform="translate(${X} 122)">
       ${eyebrow(0, 0, 'ПРОФИЛЬ')}
-      ${title(0, 58, 'Личный кабинет пользователя.', 48)}
-      ${card(0, 130, 560, 420, `
-        ${circle(48, 70, 38, { fill: C.secondarySoft, stroke: C.secondary })}
-        ${text(106, 64, 'Мария Иванова', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${text(106, 96, 'maria@example.com', { size: 16, fill: C.inkMuted })}
-        ${input(48, 154, 464, 'Отображаемое имя', 'Мария Иванова', {})}
-        ${input(48, 246, 464, 'Email', 'maria@example.com', {})}
-        ${button(48, 344, 180, 'Сохранить', 'primary')}
-      `, { shadow: true })}
-      ${card(620, 130, 560, 420, `
-        ${text(660, 188, 'Быстрые переходы', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${card(660, 230, 460, 82, `${text(688, 278, 'Wishlist', { size: 22, weight: 900 })}${text(1010, 278, '12 идей', { size: 16, fill: C.inkMuted })}`, { rx: 16 })}
-        ${card(660, 332, 460, 82, `${text(688, 380, 'Интеграции', { size: 22, weight: 900 })}${text(1000, 380, 'VK planned', { size: 16, fill: C.inkMuted })}`, { rx: 16 })}
-        ${text(660, 474, 'getCurrentUser и updateCurrentUser покрывают этот экран.', { size: 16, fill: C.inkMuted })}
-      `, { shadow: true })}
+      ${heading(0, 58, 'Личный кабинет пользователя.', 46)}
+      ${panel(0, 142, 575, 424, `
+        ${circle(50, 72, 38, { fill: C.secondarySoft, stroke: C.secondary, strokeWidth: 1 })}
+        ${text(108, 66, 'Мария Иванова', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${text(108, 98, 'maria@example.com', { size: 16, fill: C.inkMuted })}
+        ${input(48, 156, 480, 'Отображаемое имя', 'Мария Иванова')}
+        ${input(48, 248, 480, 'Email', 'maria@example.com')}
+        ${button(48, 346, 176, 'Сохранить', 'primary')}
+      `)}
+      ${panel(625, 142, 575, 424, `
+        ${text(40, 62, 'Быстрые переходы', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${panel(40, 102, 495, 82, `${text(26, 50, 'Wishlist', { size: 22, weight: 900 })}${text(396, 50, '12 идей', { size: 16, fill: C.inkMuted })}`, { rx: 16, shadow: false, fill: C.secondarySoft, stroke: C.secondary })}
+        ${panel(40, 204, 495, 82, `${text(26, 50, 'Интеграции', { size: 22, weight: 900 })}${text(374, 50, 'VK planned', { size: 16, fill: C.inkMuted })}`, { rx: 16, shadow: false })}
+        ${text(40, 340, ['getCurrentUser и updateCurrentUser покрывают', 'этот экран без дополнительных API.'], { size: 16, fill: C.inkMuted, lineHeight: 22 })}
+      `)}
     </g>`, { signedIn: true, active: 'Профиль' });
 }
 
 function wishlist() {
   return shell('10 Wishlist final mockup', `
-    <g transform="translate(130 116)">
+    <g transform="translate(${X} 118)">
       ${eyebrow(0, 0, 'WISHLIST')}
-      ${title(0, 58, 'Сохранённые идеи подарков.', 48)}
-      ${button(980, 8, 200, 'Новый список', 'primary')}
-      ${card(0, 130, 310, 530, `
-        ${text(28, 188, 'Списки', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${card(28, 228, 254, 76, `${text(52, 274, 'День рождения', { size: 19, weight: 900 })}${text(220, 274, '5', { size: 18, weight: 900, fill: C.primary })}`, { rx: 14, fill: C.secondarySoft, stroke: C.secondary })}
-        ${card(28, 322, 254, 76, `${text(52, 368, 'Новый год', { size: 19, weight: 900 })}${text(228, 368, '7', { size: 18, fill: C.inkMuted })}`, { rx: 14 })}
-        ${card(28, 416, 254, 76, `${text(52, 462, 'Коллегам', { size: 19, weight: 900 })}${text(228, 462, '2', { size: 18, fill: C.inkMuted })}`, { rx: 14 })}
-      `, { shadow: true })}
-      ${giftCard(350, 130, 380, gifts[0], 0)}
-      ${giftCard(770, 130, 380, gifts[1], 1)}
-      ${giftCard(350, 470, 380, gifts[5], 5)}
-      ${card(770, 470, 380, 310, `${text(804, 546, 'Пустой список', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}${text(804, 594, ['Когда список пустой, показываем CTA', 'в каталог без фиктивных рекомендаций.'], { size: 17, fill: C.inkMuted })}${button(804, 674, 180, 'Открыть каталог', 'secondary')}`, { shadow: true })}
+      ${heading(0, 58, 'Сохранённые идеи подарков.', 46)}
+      ${button(1002, 8, 198, 'Новый список', 'primary')}
+      ${panel(0, 140, 318, 574, `
+        ${text(28, 58, 'Списки', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${panel(28, 96, 262, 74, `${text(24, 46, 'День рождения', { size: 19, weight: 900 })}${text(224, 46, '5', { size: 18, weight: 900, fill: C.primary })}`, { rx: 14, fill: C.secondarySoft, stroke: C.secondary, shadow: false })}
+        ${panel(28, 188, 262, 74, `${text(24, 46, 'Новый год', { size: 19, weight: 900 })}${text(224, 46, '7', { size: 18, fill: C.inkMuted })}`, { rx: 14, shadow: false })}
+        ${panel(28, 280, 262, 74, `${text(24, 46, 'Коллегам', { size: 19, weight: 900 })}${text(224, 46, '2', { size: 18, fill: C.inkMuted })}`, { rx: 14, shadow: false })}
+      `)}
+      ${giftCard(356, 140, 392, gifts[0], 0, { height: 252, imageH: 100 })}
+      ${giftCard(808, 140, 392, gifts[1], 1, { height: 252, imageH: 100 })}
+      ${giftCard(356, 430, 392, gifts[5], 5, { height: 252, imageH: 100 })}
+      ${panel(808, 430, 392, 252, `
+        ${text(32, 58, 'Пустой список', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${text(32, 108, ['Когда список пустой, показываем CTA', 'в каталог без фиктивных рекомендаций.'], { size: 16, fill: C.inkMuted, lineHeight: 22 })}
+        ${button(32, 174, 178, 'Открыть каталог', 'secondary')}
+      `)}
     </g>`, { signedIn: true, active: 'Wishlist' });
 }
 
 function integrations() {
   return shell('11 Integrations VK final mockup', `
-    <g transform="translate(130 118)">
+    <g transform="translate(${X} 122)">
       ${eyebrow(0, 0, 'ИНТЕГРАЦИИ')}
-      ${title(0, 58, 'VK интересы как planned state.', 48)}
-      ${card(0, 140, 1180, 438, `
-        ${circle(58, 76, 40, { fill: '#dbe7ff', stroke: '#8aa0d8' })}
-        ${text(124, 84, 'VK Connect', { size: 34, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${chip(990, 58, 'planned', 104, 'muted')}
-        ${text(124, 132, ['Экран показывает будущий entry point, но connect/sync actions заблокированы,', 'потому что в OpenAPI и backend-коде нет VK HTTP endpoints.'], { size: 18, fill: C.inkMuted })}
-        ${button(124, 226, 180, 'Подключить VK', 'disabled', { opacity: 0.72 })}
-        ${button(324, 226, 220, 'Синхронизировать', 'disabled', { opacity: 0.72 })}
-        ${card(124, 326, 820, 70, `${text(150, 370, 'Gap зафиксирован: нет endpoint для OAuth connect, status и sync interests.', { size: 17, fill: C.danger, weight: 900 })}`, { rx: 16, fill: C.dangerSoft, stroke: '#e1b7af' })}
-      `, { shadow: true })}
+      ${heading(0, 58, 'VK интересы как planned state.', 46)}
+      ${panel(0, 150, CONTENT, 430, `
+        ${circle(60, 76, 40, { fill: '#dbe7ff', stroke: '#8aa0d8', strokeWidth: 1 })}
+        ${text(124, 82, 'VK Connect', { size: 34, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${chip(1010, 58, 'planned', 104, 'muted')}
+        ${text(124, 132, ['Экран показывает будущий entry point. Connect и sync actions заблокированы,', 'потому что в OpenAPI и backend-коде нет VK HTTP endpoints.'], { size: 17, fill: C.inkMuted, lineHeight: 24 })}
+        ${button(124, 224, 180, 'Подключить VK', 'disabled', { opacity: 0.72 })}
+        ${button(324, 224, 220, 'Синхронизировать', 'disabled', { opacity: 0.72 })}
+        ${banner(124, 322, 836, ['Gap: нет endpoint для OAuth connect, status', 'и sync interests.'], 'danger')}
+      `)}
     </g>`, { signedIn: true, active: 'Интеграции' });
 }
 
 function adminImport() {
   return shell('12 Admin import final mockup', `
-    <g transform="translate(130 116)">
+    <g transform="translate(${X} 118)">
       ${eyebrow(0, 0, 'ADMIN')}
-      ${title(0, 58, 'Импорт каталога подарков.', 48)}
-      ${card(0, 132, 710, 520, `
-        ${rect(42, 52, 626, 234, { rx: 24, fill: C.muted, stroke: C.border, strokeWidth: 2 })}
-        ${text(264, 154, 'Перетащите CSV или XLSX', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700, anchor: 'middle' })}
-        ${text(355, 196, 'Файл не отправляется до подтверждения', { size: 16, fill: C.inkMuted, anchor: 'middle' })}
-        ${button(250, 226, 210, 'Выбрать файл', 'secondary')}
-        ${input(42, 332, 300, 'Source label', 'marketplace_april.csv', {})}
-        ${button(372, 346, 210, 'Запустить импорт', 'primary')}
-      `, { shadow: true })}
-      ${card(760, 132, 420, 520, `
-        ${text(792, 194, 'Последний job', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${chip(792, 226, 'processing', 120, 'green')}
-        ${text(792, 294, 'Записей обработано', { size: 16, fill: C.inkMuted })}
-        ${text(792, 340, '1 248 / 1 540', { size: 42, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${rect(792, 382, 320, 12, { rx: 999, fill: C.muted })}
-        ${rect(792, 382, 238, 12, { rx: 999, fill: C.primary })}
-        ${button(792, 442, 200, 'Открыть статус', 'ghost')}
-      `, { shadow: true })}
+      ${heading(0, 58, 'Импорт каталога подарков.', 46)}
+      ${panel(0, 142, 720, 520, `
+        ${rect(42, 48, 636, 236, { rx: 22, fill: C.muted, stroke: C.border, strokeWidth: 2 })}
+        ${text(360, 146, 'Перетащите CSV или XLSX', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700, anchor: 'middle' })}
+        ${text(360, 188, 'Файл не отправляется до подтверждения', { size: 16, fill: C.inkMuted, anchor: 'middle' })}
+        ${button(255, 222, 210, 'Выбрать файл', 'secondary')}
+        ${input(42, 334, 320, 'Source label', 'marketplace_april.csv')}
+        ${button(392, 348, 214, 'Запустить импорт', 'primary')}
+      `)}
+      ${panel(780, 142, 420, 520, `
+        ${text(32, 62, 'Последний job', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${chip(32, 94, 'processing', 120, 'green')}
+        ${text(32, 168, 'Записей обработано', { size: 16, fill: C.inkMuted })}
+        ${text(32, 216, '1 248 / 1 540', { size: 42, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${rect(32, 260, 320, 12, { rx: 999, fill: C.muted })}
+        ${rect(32, 260, 238, 12, { rx: 999, fill: C.primary })}
+        ${button(32, 322, 198, 'Открыть статус', 'ghost')}
+      `)}
     </g>`, { signedIn: true, active: 'Admin' });
 }
 
 function importStatus() {
   return shell('13 Import status errors final mockup', `
-    <g transform="translate(130 116)">
+    <g transform="translate(${X} 118)">
       ${eyebrow(0, 0, 'IMPORT JOB')}
-      ${title(0, 58, 'Статус импорта и ошибки.', 48)}
-      ${card(0, 130, 1180, 178, `
-        ${chip(34, 42, 'completed_with_errors', 206)}
-        ${text(34, 112, '1 502 обработано', { size: 32, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${text(390, 112, '38 ошибок', { size: 32, family: 'Fraunces, Georgia, serif', weight: 700, fill: C.danger })}
-        ${text(720, 112, 'Файл: marketplace_april.csv', { size: 18, fill: C.inkMuted })}
-      `, { shadow: true })}
-      ${card(0, 354, 1180, 458, `
-        ${text(34, 412, 'Ошибки импорта', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${line(34, 458, 1146, 458)}
-        ${text(34, 502, 'Строка', { size: 15, weight: 900, fill: C.inkMuted })}${text(170, 502, 'Поле', { size: 15, weight: 900, fill: C.inkMuted })}${text(330, 502, 'Сообщение', { size: 15, weight: 900, fill: C.inkMuted })}
-        ${line(34, 526, 1146, 526)}
-        ${text(34, 574, '24', { size: 17 })}${text(170, 574, 'price', { size: 17 })}${text(330, 574, 'Цена должна быть положительным числом', { size: 17, fill: C.inkMuted })}
-        ${line(34, 604, 1146, 604)}
-        ${text(34, 652, '41', { size: 17 })}${text(170, 652, 'store_link', { size: 17 })}${text(330, 652, 'Некорректный URL магазина', { size: 17, fill: C.inkMuted })}
-        ${line(34, 682, 1146, 682)}
-        ${text(34, 730, '77', { size: 17 })}${text(170, 730, 'category', { size: 17 })}${text(330, 730, 'Категория не найдена', { size: 17, fill: C.inkMuted })}
-      `, { shadow: true })}
+      ${heading(0, 58, 'Статус импорта и ошибки.', 46)}
+      ${panel(0, 134, CONTENT, 172, `
+        ${chip(34, 38, 'completed_with_errors', 200)}
+        ${text(34, 110, '1 502 обработано', { size: 31, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${text(386, 110, '38 ошибок', { size: 31, family: 'Fraunces, Georgia, serif', weight: 700, fill: C.danger })}
+        ${text(720, 110, 'Файл: marketplace_april.csv', { size: 18, fill: C.inkMuted })}
+      `)}
+      ${panel(0, 350, CONTENT, 456, `
+        ${text(34, 58, 'Ошибки импорта', { size: 30, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${line(34, 104, 1166, 104)}
+        ${text(34, 148, 'Строка', { size: 15, weight: 900, fill: C.inkMuted })}
+        ${text(170, 148, 'Поле', { size: 15, weight: 900, fill: C.inkMuted })}
+        ${text(330, 148, 'Сообщение', { size: 15, weight: 900, fill: C.inkMuted })}
+        ${line(34, 172, 1166, 172)}
+        ${text(34, 220, '24', { size: 17 })}
+        ${text(170, 220, 'price', { size: 17 })}
+        ${text(330, 220, 'Цена должна быть положительным числом', { size: 17, fill: C.inkMuted })}
+        ${line(34, 250, 1166, 250)}
+        ${text(34, 298, '41', { size: 17 })}
+        ${text(170, 298, 'store_link', { size: 17 })}
+        ${text(330, 298, 'Некорректный URL магазина', { size: 17, fill: C.inkMuted })}
+        ${line(34, 328, 1166, 328)}
+        ${text(34, 376, '77', { size: 17 })}
+        ${text(170, 376, 'category', { size: 17 })}
+        ${text(330, 376, 'Категория не найдена', { size: 17, fill: C.inkMuted })}
+      `)}
     </g>`, { signedIn: true, active: 'Admin' });
 }
 
 function states() {
   return shell('14 System states final mockup', `
-    <g transform="translate(130 116)">
+    <g transform="translate(${X} 118)">
       ${eyebrow(0, 0, 'SYSTEM STATES')}
-      ${title(0, 58, 'Loading, empty, error и success.', 48)}
-      ${card(0, 130, 360, 260, `
-        ${text(28, 188, 'Loading', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${rect(28, 226, 304, 18, { rx: 999, fill: C.muted })}
-        ${rect(28, 264, 240, 18, { rx: 999, fill: '#f8efe2' })}
-        ${rect(28, 302, 304, 72, { rx: 18, fill: C.muted })}
-      `, { shadow: true })}
-      ${card(410, 130, 360, 260, `
-        ${text(438, 188, 'Empty', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${text(438, 238, ['Каталог ничего не вернул.', 'Предлагаем сбросить фильтры.'], { size: 17, fill: C.inkMuted })}
-        ${button(438, 312, 170, 'Сбросить', 'secondary')}
-      `, { shadow: true })}
-      ${card(820, 130, 360, 260, `
-        ${text(848, 188, 'Error', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${card(848, 226, 280, 72, `${text(868, 268, 'Не удалось загрузить данные', { size: 16, fill: C.danger, weight: 900 })}`, { rx: 12, fill: C.dangerSoft, stroke: '#e1b7af' })}
-        ${button(848, 324, 180, 'Повторить', 'primary')}
-      `, { shadow: true })}
-      ${card(0, 438, 360, 260, `
-        ${text(28, 496, 'Success', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${card(28, 534, 300, 70, `${text(50, 576, 'Письмо отправлено', { size: 16, fill: C.success, weight: 900 })}`, { rx: 12, fill: C.successSoft, stroke: '#b9d3be' })}
-      `, { shadow: true })}
-      ${card(410, 438, 360, 260, `
-        ${text(438, 496, 'Unauthorized', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${text(438, 546, ['Для wishlist и подборок', 'нужно войти в аккаунт.'], { size: 17, fill: C.inkMuted })}
-        ${button(438, 620, 150, 'Войти', 'primary')}
-      `, { shadow: true })}
-      ${card(820, 438, 360, 260, `
-        ${text(848, 496, 'Not found', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
-        ${text(848, 546, ['Страница или подарок', 'не найдены.'], { size: 17, fill: C.inkMuted })}
-        ${button(848, 620, 190, 'В каталог', 'secondary')}
-      `, { shadow: true })}
-      ${card(0, 748, 1180, 84, `${text(30, 802, 'Все состояния используют те же banner, empty-state, skeleton и button паттерны, что текущий frontend Slice 1.', { size: 17, fill: C.inkMuted, weight: 800 })}`, { rx: 18 })}
+      ${heading(0, 58, 'Loading, empty, error и success.', 46)}
+      ${panel(0, 136, 374, 252, `
+        ${text(28, 58, 'Loading', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${rect(28, 96, 308, 18, { rx: 999, fill: C.muted })}
+        ${rect(28, 132, 246, 18, { rx: 999, fill: C.surfaceAlt })}
+        ${rect(28, 168, 308, 58, { rx: 16, fill: C.muted })}
+      `)}
+      ${panel(413, 136, 374, 252, `
+        ${text(28, 58, 'Empty', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${text(28, 108, ['Каталог ничего не вернул.', 'Предлагаем сбросить фильтры.'], { size: 16, fill: C.inkMuted, lineHeight: 22 })}
+        ${button(28, 174, 156, 'Сбросить', 'secondary')}
+      `)}
+      ${panel(826, 136, 374, 252, `
+        ${text(28, 58, 'Error', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${banner(28, 94, 304, 'Не удалось загрузить данные', 'danger')}
+        ${button(28, 174, 164, 'Повторить', 'primary')}
+      `)}
+      ${panel(0, 428, 374, 252, `
+        ${text(28, 58, 'Success', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${banner(28, 96, 304, 'Письмо отправлено', 'success')}
+      `)}
+      ${panel(413, 428, 374, 252, `
+        ${text(28, 58, 'Unauthorized', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${text(28, 108, ['Для wishlist и подборок', 'нужно войти в аккаунт.'], { size: 16, fill: C.inkMuted, lineHeight: 22 })}
+        ${button(28, 174, 136, 'Войти', 'primary')}
+      `)}
+      ${panel(826, 428, 374, 252, `
+        ${text(28, 58, 'Not found', { size: 28, family: 'Fraunces, Georgia, serif', weight: 700 })}
+        ${text(28, 108, ['Страница или подарок', 'не найдены.'], { size: 16, fill: C.inkMuted, lineHeight: 22 })}
+        ${button(28, 174, 158, 'В каталог', 'secondary')}
+      `)}
+      ${banner(0, 730, CONTENT, ['Все состояния используют текущие banner, empty-state, skeleton', 'и button паттерны из frontend Slice 1.'], 'info')}
     </g>`);
 }
 
@@ -601,12 +667,15 @@ const groups = mockups.reduce((acc, [file, label, group]) => {
 }, {});
 
 const previewSections = Object.entries(groups)
-  .map(([group, items]) => `<section class="preview-section">
-    <h2>${esc(group)}</h2>
+  .map(([group, items]) => `<section class="preview-section" id="${esc(group.toLowerCase().replaceAll(' ', '-'))}">
+    <div class="section-heading">
+      <span>${esc(group)}</span>
+      <small>${items.length} screen${items.length > 1 ? 's' : ''}</small>
+    </div>
     <div class="mockup-grid">
       ${items.map((item) => `<article class="mockup-card">
         <div class="mockup-card__header">
-          <span>${esc(item.label)}</span>
+          <span>${esc(item.file.replace('.svg', ''))} · ${esc(item.label)}</span>
           <a href="mockups/${esc(item.file)}" target="_blank" rel="noreferrer">Open SVG</a>
         </div>
         <img src="mockups/${esc(item.file)}" alt="${esc(item.label)} mockup" loading="lazy" />
@@ -645,19 +714,18 @@ writeFileSync(
         color: var(--ink);
         font-family: Manrope, "Segoe UI", sans-serif;
       }
+      a { color: inherit; }
       header {
-        max-width: 1180px;
+        max-width: 1220px;
         margin: 0 auto;
-        padding: 44px 24px 28px;
+        padding: 46px 24px 30px;
       }
       h1, h2 {
         margin: 0;
         font-family: Fraunces, Georgia, serif;
-        letter-spacing: -0.03em;
       }
-      h1 { max-width: 820px; font-size: clamp(42px, 6vw, 82px); line-height: 0.95; }
-      h2 { font-size: 34px; }
-      p { max-width: 720px; color: var(--ink-muted); font-size: 18px; line-height: 1.55; }
+      h1 { max-width: 920px; font-size: clamp(42px, 6vw, 78px); line-height: 0.96; }
+      p { max-width: 800px; color: var(--ink-muted); font-size: 18px; line-height: 1.55; }
       .toolbar {
         display: flex;
         flex-wrap: wrap;
@@ -667,32 +735,49 @@ writeFileSync(
       .pill {
         border: 1px solid var(--border);
         border-radius: 999px;
-        background: rgba(255,253,248,0.86);
+        background: rgba(255,253,248,0.88);
         padding: 10px 14px;
         color: var(--ink-muted);
-        font-weight: 700;
+        font-weight: 800;
       }
       main {
         display: grid;
-        gap: 48px;
-        max-width: 1180px;
+        gap: 58px;
+        max-width: 1220px;
         margin: 0 auto;
-        padding: 0 24px 72px;
+        padding: 0 24px 78px;
       }
       .preview-section {
         display: grid;
         gap: 18px;
       }
+      .section-heading {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid rgba(216, 200, 176, 0.75);
+        padding-bottom: 12px;
+      }
+      .section-heading span {
+        font-family: Fraunces, Georgia, serif;
+        font-size: 34px;
+        font-weight: 700;
+      }
+      .section-heading small {
+        color: var(--ink-muted);
+        font-weight: 800;
+      }
       .mockup-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 22px;
+        gap: 24px;
       }
       .mockup-card {
         overflow: hidden;
         border: 1px solid rgba(216, 200, 176, 0.82);
         border-radius: 24px;
-        background: rgba(255,253,248,0.94);
+        background: rgba(255,253,248,0.96);
         box-shadow: var(--shadow);
       }
       .mockup-card__header {
@@ -702,25 +787,31 @@ writeFileSync(
         gap: 16px;
         border-bottom: 1px solid rgba(216, 200, 176, 0.72);
         padding: 14px 18px;
-        font-weight: 800;
+        font-weight: 900;
       }
-      .mockup-card__header a { color: var(--primary); text-decoration: none; }
+      .mockup-card__header a {
+        color: var(--primary);
+        text-decoration: none;
+        white-space: nowrap;
+      }
       img {
         display: block;
         width: 100%;
         background: var(--surface-muted);
       }
-      @media (max-width: 860px) {
+      @media (max-width: 900px) {
         .mockup-grid { grid-template-columns: 1fr; }
+        .section-heading { align-items: start; flex-direction: column; }
       }
     </style>
   </head>
   <body>
     <header>
-      <h1>Final site mockups for Gift Suggestion</h1>
+      <h1>Gift Suggestion final site mockups</h1>
       <p>Статичные Figma-ready SVG макеты, собранные по текущим frontend токенам и UI-паттернам: тёплый фон, акцент #C65A1E, secondary #245C4A, rounded cards, e-commerce сетка и auth form patterns.</p>
       <div class="toolbar">
-        <span class="pill">Desktop SVG 1440x1024</span>
+        <span class="pill">14 desktop screens</span>
+        <span class="pill">1440x1024 SVG</span>
         <span class="pill">Figma import ready</span>
         <span class="pill">No backend runtime</span>
       </div>
@@ -748,6 +839,7 @@ The mockups follow the current Slice 1 frontend visual language:
 - Surface cards: \`#fffdf8\`
 - Primary action: \`#c65a1e\`
 - Secondary action: \`#245c4a\`
+- Accent: \`#cbae63\`
 - Borders: \`#d8c8b0\`
 - Editorial commerce tone with serif headings, rounded cards, catalog grids, gift cards, auth form blocks, banners and skeleton states.
 
@@ -755,7 +847,9 @@ Typography mirrors the frontend CSS intent:
 
 - Headings: \`Fraunces, Georgia, serif\`
 - Body/UI: \`Manrope, Segoe UI, sans-serif\`
-- Numeric emphasis follows the current compact UI treatment.
+- Numeric emphasis uses compact, high-contrast UI text.
+
+The quality pass keeps each screen inside a fixed \`1440x1024\` SVG frame, with no external images, fonts, local file links or backend calls.
 
 ## Covered Screens
 
@@ -785,8 +879,8 @@ services/frontend/design/index.html
 1. Create or open the Figma page named \`Frontend Final Mockups\`.
 2. Create the sections from \`figma-layout-spec.md\`.
 3. Drag SVG files from \`services/frontend/design/mockups/\` onto the Figma canvas.
-4. Place frames in the specified order and use each SVG file name as the frame caption.
-5. For mobile review, create \`390x844\` companion frames using the layout notes in the spec.
+4. Keep each imported SVG at \`1440x1024\`.
+5. Place frames in the specified order and use each SVG file name as the frame caption.
 
 SVG files are pure static artifacts, so they can be opened in a browser and imported into Figma without running the app.
 
@@ -837,6 +931,8 @@ Canvas order:
 - Mobile companion frames: \`390x844\`
 - Section spacing: \`160px\` horizontal, \`140px\` vertical
 - Caption spacing below imported SVG: \`24px\`
+
+Every SVG has \`width="1440"\`, \`height="1024"\` and \`viewBox="0 0 1440 1024"\`.
 
 ## Desktop Frame Order
 
@@ -927,4 +1023,4 @@ The mockups intentionally preserve backend limitations:
   'utf8',
 );
 
-console.log(`Rendered ${mockups.length} mockups into ${mockupsDir}`);
+console.log(`Rendered ${mockups.length} polished mockups into ${mockupsDir}`);
