@@ -6,7 +6,8 @@ info:
     Backend API gateway for the Gift Suggestion Web Service.
     The specification is maintained manually and currently covers health,
     auth/user foundation, catalog read endpoints, wishlist endpoints,
-    admin catalog import endpoints, recommendation endpoints, and tracking endpoints.
+    admin catalog import endpoints, recommendation endpoints, tracking endpoints,
+    and VK integration scaffold endpoints.
 servers:
   - url: http://localhost:8080
 tags:
@@ -18,6 +19,7 @@ tags:
   - name: admin-import
   - name: recommendation
   - name: tracking
+  - name: vk-integration
 paths:
   /health/live:
     get:
@@ -766,6 +768,137 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: client_event_id is reused for another payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/integrations/vk/connection:
+    get:
+      tags: [vk-integration]
+      summary: Get current VK connection
+      description: |
+        Returns the current user's VK integration state. If the user never linked VK,
+        the endpoint still returns `200` with `state=disconnected`.
+      operationId: getCurrentVKConnection
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: VK connection state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VKConnectionEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: VK integration is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    put:
+      tags: [vk-integration]
+      summary: Connect or update current VK connection
+      operationId: connectVK
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectVKRequest'
+      responses:
+        '200':
+          description: VK connection updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VKConnectionEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Another active VK account is already linked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: VK integration is disabled or token storage is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [vk-integration]
+      summary: Disconnect current VK connection
+      operationId: disconnectVK
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: VK connection disconnected or already absent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VKConnectionEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: VK integration is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/integrations/vk/connection/sync-interests:
+    post:
+      tags: [vk-integration]
+      summary: Sync interests from VK
+      description: |
+        Starts a synchronous interests import for the current user using the stored VK credential metadata.
+      operationId: syncVKInterests
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Interests sync completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VKConnectionEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Connection is not ready or consent/token metadata is invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: VK integration is disabled or external import path is unavailable
           content:
             application/json:
               schema:
@@ -1666,6 +1799,178 @@ components:
           properties:
             event:
               $ref: '#/components/schemas/TrackingEvent'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    ConnectVKRequest:
+      type: object
+      required: [provider_user_id, consent]
+      properties:
+        provider_user_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        consent:
+          $ref: '#/components/schemas/VKConnectionConsentRequest'
+        credential:
+          $ref: '#/components/schemas/VKConnectionCredentialRequest'
+        profile:
+          $ref: '#/components/schemas/VKConnectionProfileRequest'
+      additionalProperties: false
+    VKConnectionConsentRequest:
+      type: object
+      required: [granted, version, obtained_at]
+      properties:
+        granted:
+          type: boolean
+          const: true
+        version:
+          type: string
+          minLength: 1
+          maxLength: 32
+        obtained_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    VKConnectionCredentialRequest:
+      type: object
+      properties:
+        access_token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        scopes:
+          type: array
+          items:
+            type: string
+            maxLength: 64
+      additionalProperties: false
+    VKConnectionProfileRequest:
+      type: object
+      properties:
+        screen_name:
+          type: string
+          maxLength: 64
+        profile_url:
+          type: string
+          format: uri
+      additionalProperties: false
+    VKConnectionConsent:
+      type: object
+      required: [state, granted]
+      properties:
+        state:
+          type: string
+          enum: [pending, granted, revoked]
+        granted:
+          type: boolean
+        version:
+          type: string
+        obtained_at:
+          type: string
+          format: date-time
+        revoked_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    VKConnectionProfile:
+      type: object
+      properties:
+        provider_user_id:
+          type: string
+        screen_name:
+          type: string
+        profile_url:
+          type: string
+          format: uri
+      additionalProperties: false
+    VKConnectionCredential:
+      type: object
+      required: [configured, scopes]
+      properties:
+        configured:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+        scopes:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+    VKImportedInterest:
+      type: object
+      required: [name, normalized_name, source_label, position, imported_at]
+      properties:
+        name:
+          type: string
+        normalized_name:
+          type: string
+        source_label:
+          type: string
+        position:
+          type: integer
+          minimum: 1
+        imported_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    VKConnectionSync:
+      type: object
+      required: [last_status, imported_interests_count]
+      properties:
+        last_synced_at:
+          type: string
+          format: date-time
+        last_status:
+          type: string
+          enum: [idle, succeeded, failed]
+        last_error_code:
+          type: string
+        imported_interests_count:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    VKConnection:
+      type: object
+      required: [provider, state, feature_enabled, consent, profile, credential, sync, imported_interests]
+      properties:
+        provider:
+          type: string
+          const: vk
+        state:
+          type: string
+          enum: [connected, disconnected, sync_required, error]
+        feature_enabled:
+          type: boolean
+        consent:
+          $ref: '#/components/schemas/VKConnectionConsent'
+        profile:
+          $ref: '#/components/schemas/VKConnectionProfile'
+        credential:
+          $ref: '#/components/schemas/VKConnectionCredential'
+        sync:
+          $ref: '#/components/schemas/VKConnectionSync'
+        imported_interests:
+          type: array
+          items:
+            $ref: '#/components/schemas/VKImportedInterest'
+      additionalProperties: false
+    VKConnectionEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [connection]
+          properties:
+            connection:
+              $ref: '#/components/schemas/VKConnection'
           additionalProperties: false
         meta:
           $ref: '#/components/schemas/Meta'

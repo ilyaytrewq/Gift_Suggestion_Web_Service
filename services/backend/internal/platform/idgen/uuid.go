@@ -9,6 +9,7 @@ import (
 	recommendationdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/domain"
 	trackingdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/tracking/domain"
 	userdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/domain"
+	vkintegrationdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/domain"
 	wishlistdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/domain"
 )
 
@@ -48,6 +49,10 @@ func (UUIDGenerator) NewRecommendationResultID() (recommendationdomain.ResultID,
 
 func (UUIDGenerator) NewTrackingEventID() (trackingdomain.EventID, error) {
 	return trackingdomain.NewEventID(uuid.NewString())
+}
+
+func (UUIDGenerator) NewVKConnectionID() (vkintegrationdomain.ConnectionID, error) {
+	return vkintegrationdomain.NewConnectionID(uuid.NewString())
 }
 
 func (UUIDGenerator) NewWishlistID() (wishlistdomain.WishlistID, error) {

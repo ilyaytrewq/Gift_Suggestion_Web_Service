@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -33,6 +34,11 @@ import (
 	userhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/delivery/http"
 	userpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/infra/postgres"
 	userusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/usecase"
+	vkintegrationhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/delivery/http"
+	vkintegrationcrypto "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/infra/crypto"
+	vkintegrationpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/infra/postgres"
+	vkintegrationvk "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/infra/vk"
+	vkintegrationusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/usecase"
 	wishlisthttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/delivery/http"
 	wishlistpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/infra/postgres"
 	wishlistusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/usecase"
@@ -230,6 +236,16 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	if err != nil {
 		return nil, err
 	}
+	vkIntegrationHandler, err := newVKIntegrationHandler(
+		database,
+		authMiddleware,
+		cfg.VK,
+		userRepository,
+		uuidGenerator,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	router := transporthttp.NewRouter(
 		log,
@@ -241,6 +257,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		importHandler,
 		recommendationHandler,
 		trackingHandler,
+		vkIntegrationHandler,
 	)
 
 	return &App{
@@ -358,6 +375,47 @@ func newTrackingHandler(
 	}
 
 	return trackinghttp.NewHandler(trackingService, authMiddleware)
+}
+
+func newVKIntegrationHandler(
+	database *sql.DB,
+	authMiddleware gin.HandlerFunc,
+	cfg config.VKConfig,
+	userRepository *userpostgres.Repository,
+	uuidGenerator idgen.UUIDGenerator,
+) (*vkintegrationhttp.Handler, error) {
+	connectionRepository := vkintegrationpostgres.NewRepository(database)
+	importer := vkintegrationvk.NewClient(cfg)
+
+	var tokenProtector vkintegrationusecase.TokenProtector = vkintegrationcrypto.NewDisabledProtector()
+	if strings.TrimSpace(cfg.TokenEncryptionKey) != "" {
+		protector, err := vkintegrationcrypto.NewAESGCMProtector(cfg.TokenEncryptionKey)
+		if err != nil {
+			return nil, apperrors.Wrap(
+				apperrors.KindInternal,
+				"vk_token_protector_init_failed",
+				"failed to initialize vk token protector",
+				err,
+			)
+		}
+		tokenProtector = protector
+	}
+
+	vkIntegrationService, err := vkintegrationusecase.NewService(
+		connectionRepository,
+		userRepository,
+		tokenProtector,
+		importer,
+		uuidGenerator,
+		cfg.Enabled,
+		cfg.RequestTimeout,
+		clock.Real{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return vkintegrationhttp.NewHandler(vkIntegrationService, authMiddleware)
 }
 
 func (a *App) Start(ctx context.Context) error {
