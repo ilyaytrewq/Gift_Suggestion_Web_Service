@@ -75,6 +75,8 @@ services:
       dockerfile: services/frontend/Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    environment:
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:5173}
     depends_on:
       backend:
         condition: service_healthy

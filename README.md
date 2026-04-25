@@ -20,6 +20,8 @@ Default local URLs:
 - Frontend: `http://localhost:5173`
 - PostgreSQL: `localhost:5432`
 
+The frontend container also prints the public URL on startup, so it is visible in `docker compose up` output and `docker compose logs frontend`.
+
 Backend migrations run on startup when `DB_MIGRATIONS_ENABLED=true`.
 ML ranking is disabled by default in compose (`ML_GRPC_ENABLED=false`), so recommendations use backend fallback ranking.
 VK integration is disabled by default (`VK_ENABLED=false`) and is implemented as a safe scaffold.
