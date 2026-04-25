@@ -355,6 +355,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/vk/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get current VK connection
+         * @description Returns the current user's VK integration state. If the user never linked VK,
+         *     the endpoint still returns `200` with `state=disconnected`.
+         */
+        get: operations["getCurrentVKConnection"];
+        /** Connect or update current VK connection */
+        put: operations["connectVK"];
+        post?: never;
+        /** Disconnect current VK connection */
+        delete: operations["disconnectVK"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/vk/connection/sync-interests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync interests from VK
+         * @description Starts a synchronous interests import for the current user using the stored VK credential metadata.
+         */
+        post: operations["syncVKInterests"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -732,6 +775,88 @@ export interface components {
             status: "ok";
             data: {
                 event: components["schemas"]["TrackingEvent"];
+            };
+            meta: components["schemas"]["Meta"];
+        };
+        ConnectVKRequest: {
+            provider_user_id: string;
+            consent: components["schemas"]["VKConnectionConsentRequest"];
+            credential?: components["schemas"]["VKConnectionCredentialRequest"];
+            profile?: components["schemas"]["VKConnectionProfileRequest"];
+        };
+        VKConnectionConsentRequest: {
+            /** @constant */
+            granted: true;
+            version: string;
+            /** Format: date-time */
+            obtained_at: string;
+        };
+        VKConnectionCredentialRequest: {
+            access_token?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            scopes?: string[];
+        };
+        VKConnectionProfileRequest: {
+            screen_name?: string;
+            /** Format: uri */
+            profile_url?: string;
+        };
+        VKConnectionConsent: {
+            /** @enum {string} */
+            state: "pending" | "granted" | "revoked";
+            granted: boolean;
+            version?: string;
+            /** Format: date-time */
+            obtained_at?: string;
+            /** Format: date-time */
+            revoked_at?: string;
+        };
+        VKConnectionProfile: {
+            provider_user_id?: string;
+            screen_name?: string;
+            /** Format: uri */
+            profile_url?: string;
+        };
+        VKConnectionCredential: {
+            configured: boolean;
+            /** Format: date-time */
+            expires_at?: string;
+            scopes: string[];
+        };
+        VKImportedInterest: {
+            name: string;
+            normalized_name: string;
+            source_label: string;
+            position: number;
+            /** Format: date-time */
+            imported_at: string;
+        };
+        VKConnectionSync: {
+            /** Format: date-time */
+            last_synced_at?: string;
+            /** @enum {string} */
+            last_status: "idle" | "succeeded" | "failed";
+            last_error_code?: string;
+            imported_interests_count: number;
+        };
+        VKConnection: {
+            /** @constant */
+            provider: "vk";
+            /** @enum {string} */
+            state: "connected" | "disconnected" | "sync_required" | "error";
+            feature_enabled: boolean;
+            consent: components["schemas"]["VKConnectionConsent"];
+            profile: components["schemas"]["VKConnectionProfile"];
+            credential: components["schemas"]["VKConnectionCredential"];
+            sync: components["schemas"]["VKConnectionSync"];
+            imported_interests: components["schemas"]["VKImportedInterest"][];
+        };
+        VKConnectionEnvelope: {
+            /** @constant */
+            status: "ok";
+            data: {
+                connection: components["schemas"]["VKConnection"];
             };
             meta: components["schemas"]["Meta"];
         };
@@ -1851,6 +1976,189 @@ export interface operations {
             };
             /** @description client_event_id is reused for another payload */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getCurrentVKConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description VK connection state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VKConnectionEnvelope"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description VK integration is disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    connectVK: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectVKRequest"];
+            };
+        };
+        responses: {
+            /** @description VK connection updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VKConnectionEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Another active VK account is already linked */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description VK integration is disabled or token storage is unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    disconnectVK: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description VK connection disconnected or already absent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VKConnectionEnvelope"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description VK integration is disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    syncVKInterests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Interests sync completed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VKConnectionEnvelope"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Connection is not ready or consent/token metadata is invalid */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description VK integration is disabled or external import path is unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

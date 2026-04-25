@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -11,26 +12,45 @@ import (
 	projectmigrations "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/migrations"
 )
 
-func RunMigrations(db *sql.DB) error {
-	driver, err := migratepostgres.WithInstance(db, &migratepostgres.Config{
+func RunMigrations(ctx context.Context, db *sql.DB) error {
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+
+	driver, err := migratepostgres.WithConnection(ctx, conn, &migratepostgres.Config{
 		MigrationsTable: "schema_migrations",
 	})
 	if err != nil {
+		if closeErr := conn.Close(); closeErr != nil {
+			return errors.Join(err, closeErr)
+		}
+
 		return err
 	}
 
 	sourceDriver, err := iofs.New(projectmigrations.Files, ".")
 	if err != nil {
+		if closeErr := driver.Close(); closeErr != nil {
+			return errors.Join(err, closeErr)
+		}
+
 		return err
 	}
 
 	migrator, err := migrate.NewWithInstance("iofs", sourceDriver, "postgres", driver)
 	if err != nil {
+		if closeErr := driver.Close(); closeErr != nil {
+			return errors.Join(err, closeErr)
+		}
+
 		return err
 	}
 
 	if err := migrator.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return err
+		sourceErr, databaseErr := migrator.Close()
+
+		return errors.Join(err, sourceErr, databaseErr)
 	}
 
 	sourceErr, databaseErr := migrator.Close()

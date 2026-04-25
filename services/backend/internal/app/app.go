@@ -102,7 +102,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	}
 
 	if cfg.Database.MigrationsEnabled {
-		if err := postgres.RunMigrations(database); err != nil {
+		if err := postgres.RunMigrations(ctx, database); err != nil {
 			closeDatabaseWithLog(log, database, "failed to close database after migration error")
 
 			return nil, apperrors.Wrap(

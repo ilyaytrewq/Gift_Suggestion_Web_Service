@@ -67,7 +67,7 @@ services/frontend/src/
 ## Known backend gaps
 
 - recommendation flow пока `auth-only`
-- VK HTTP endpoints отсутствуют в текущем OpenAPI
+- VK HTTP endpoints уже есть в итоговом OpenAPI как safe scaffold; frontend UI-flow еще не подключен
 - recommendation contract не содержит `gender`
 - gift detail содержит один `store_link`, а не список магазинов
 - refine/filter recommendation results сервером пока не поддержан
