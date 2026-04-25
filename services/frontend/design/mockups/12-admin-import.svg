@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024" role="img" aria-label="12 Admin import final mockup">
+  <defs>
+    <radialGradient id="warmGlow" cx="0.08" cy="0.04" r="0.68">
+      <stop offset="0" stop-color="#cbae63" stop-opacity="0.34"/>
+      <stop offset="0.46" stop-color="#f6f1e8" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#f6f1e8"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#4d3319" flood-opacity="0.11"/>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="1440" height="1024" rx="0" fill="url(#warmGlow)"/>
+  <g>
+    <rect x="0" y="0" width="1440" height="76" rx="0" fill="#f6f1e8" stroke="#d8c8b0" stroke-width="1" opacity="0.94"/>
+    <text x="130" y="48" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="25" font-weight="800"><tspan x="130" dy="0">Gift Suggestion</tspan></text>
+    <text x="788" y="47" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="700"><tspan x="788" dy="0">Каталог</tspan></text>
+    <text x="872" y="47" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="700"><tspan x="872" dy="0">Как это работает</tspan></text>
+    <g>
+    <rect x="1055" y="22" width="170" height="34" rx="999" fill="#efe6d6" stroke="#d8c8b0"/>
+    <text x="1071" y="44" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800"><tspan x="1071" dy="0">maria@example.com</tspan></text>
+  </g><g opacity="1">
+    <rect x="1240" y="16" width="70" height="44" rx="999" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
+    <text x="1275" y="45" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800" text-anchor="middle">Профиль</text>
+  </g>
+  </g>
+  
+    <g transform="translate(130 116)">
+      <text x="0" y="0" fill="#c65a1e" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800"><tspan x="0" dy="0">ADMIN</tspan></text>
+      <text x="0" y="58" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="48" font-weight="700"><tspan x="0" dy="0">Импорт каталога подарков.</tspan></text>
+      <g>
+    <rect x="0" y="132" width="710" height="520" rx="28" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1" filter="url(#shadow)"/>
+    
+        <rect x="42" y="52" width="626" height="234" rx="24" fill="#efe6d6" stroke="#d8c8b0" stroke-width="2"/>
+        <text x="264" y="154" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="30" font-weight="700" text-anchor="middle"><tspan x="264" dy="0">Перетащите CSV или XLSX</tspan></text>
+        <text x="355" y="196" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500" text-anchor="middle"><tspan x="355" dy="0">Файл не отправляется до подтверждения</tspan></text>
+        <g opacity="1">
+    <rect x="250" y="226" width="210" height="52" rx="999" fill="#245c4a" stroke="transparent" stroke-width="1"/>
+    <text x="355" y="259" fill="#ffffff" font-family="Manrope, Segoe UI, sans-serif" font-size="17" font-weight="800" text-anchor="middle">Выбрать файл</text>
+  </g>
+        <g>
+    <text x="42" y="332" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="15" font-weight="800"><tspan x="42" dy="0">Source label</tspan></text>
+    <rect x="42" y="346" width="300" height="54" rx="12" fill="#fffdf8" stroke="#d8c8b0"/>
+    <text x="60" y="380" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="60" dy="0">marketplace_april.csv</tspan></text>
+  </g>
+        <g opacity="1">
+    <rect x="372" y="346" width="210" height="52" rx="999" fill="#c65a1e" stroke="transparent" stroke-width="1"/>
+    <text x="477" y="379" fill="#ffffff" font-family="Manrope, Segoe UI, sans-serif" font-size="17" font-weight="800" text-anchor="middle">Запустить импорт</text>
+  </g>
+      
+  </g>
+      <g>
+    <rect x="760" y="132" width="420" height="520" rx="28" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1" filter="url(#shadow)"/>
+    
+        <text x="792" y="194" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="30" font-weight="700"><tspan x="792" dy="0">Последний job</tspan></text>
+        <g>
+    <rect x="792" y="226" width="120" height="34" rx="999" fill="#dbe9e2"/>
+    <text x="808" y="248" fill="#245c4a" font-family="Manrope, Segoe UI, sans-serif" font-size="14" font-weight="800"><tspan x="808" dy="0">processing</tspan></text>
+  </g>
+        <text x="792" y="294" fill="#625746" font-family="Manrope, Segoe UI, sans-serif" font-size="16" font-weight="500"><tspan x="792" dy="0">Записей обработано</tspan></text>
+        <text x="792" y="340" fill="#1f1a14" font-family="Fraunces, Georgia, serif" font-size="42" font-weight="700"><tspan x="792" dy="0">1 248 / 1 540</tspan></text>
+        <rect x="792" y="382" width="320" height="12" rx="999" fill="#efe6d6"/>
+        <rect x="792" y="382" width="238" height="12" rx="999" fill="#c65a1e"/>
+        <g opacity="1">
+    <rect x="792" y="442" width="200" height="52" rx="999" fill="#fffdf8" stroke="#d8c8b0" stroke-width="1"/>
+    <text x="892" y="475" fill="#1f1a14" font-family="Manrope, Segoe UI, sans-serif" font-size="17" font-weight="800" text-anchor="middle">Открыть статус</text>
+  </g>
+      
+  </g>
+    </g>
+</svg>
