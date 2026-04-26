@@ -343,6 +343,8 @@ func mustTrackingUser(t *testing.T) *userdomain.User {
 		time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
 		time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
 		nil,
+		nil,
+		nil,
 	)
 	if err != nil {
 		t.Fatalf("RestoreUser() error = %v", err)

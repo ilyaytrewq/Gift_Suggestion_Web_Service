@@ -8,7 +8,7 @@ export function Footer(): JSX.Element {
       <Container className="site-footer__inner">
         <div>
           <strong>Gift Suggestion</strong>
-          <p>Подбор идей подарков, который не сводится к безликим фильтрам маркетплейса.</p>
+          <p>Сервис, который помогает быстрее находить удачные идеи для подарка.</p>
         </div>
         <div className="site-footer__links">
           <Link to="/catalog">Каталог идей</Link>

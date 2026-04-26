@@ -11,15 +11,14 @@ export function LoginPage(): JSX.Element {
   return (
     <Container className="auth-page">
       <section className="auth-page__intro">
-        <p className="eyebrow">Login</p>
-        <h1>Войти и продолжить подбор.</h1>
+        <p className="eyebrow">Вход</p>
+        <h1>Войдите в аккаунт.</h1>
         <p>
-          Slice 1 поднимает foundation для auth: login, register, password reset
-          request и bootstrap через refresh cookie.
+          Так вы сможете быстрее вернуться к подбору и управлять данными профиля.
         </p>
         {wasRegistered ? (
           <Notice tone="success">
-            Аккаунт создан. Теперь можно войти с теми же реквизитами.
+            Аккаунт создан. Теперь можно войти.
           </Notice>
         ) : null}
       </section>

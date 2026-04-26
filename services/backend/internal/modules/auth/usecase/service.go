@@ -13,37 +13,55 @@ import (
 )
 
 type Service struct {
-	userRepo              UserRepository
-	sessionRepo           SessionRepository
-	passwordResetRepo     PasswordResetRepository
-	accessTokenManager    AccessTokenManager
-	refreshTokenGenerator TokenGenerator
-	resetTokenGenerator   TokenGenerator
-	userIDGenerator       UserIDGenerator
-	sessionIDGenerator    SessionIDGenerator
-	resetTokenIDGenerator PasswordResetTokenIDGenerator
-	clock                 Clock
-	refreshTokenTTL       time.Duration
-	resetTokenTTL         time.Duration
+	userRepo                     UserRepository
+	registrationRepo             RegistrationRepository
+	emailVerificationRepo        EmailVerificationRepository
+	sessionRepo                  SessionRepository
+	passwordResetRepo            PasswordResetRepository
+	accessTokenManager           AccessTokenManager
+	refreshTokenGenerator        TokenGenerator
+	verificationTokenGenerator   TokenGenerator
+	resetTokenGenerator          TokenGenerator
+	emailNotifier                AuthEmailNotifier
+	logger                       Logger
+	userIDGenerator              UserIDGenerator
+	sessionIDGenerator           SessionIDGenerator
+	verificationTokenIDGenerator EmailVerificationTokenIDGenerator
+	resetTokenIDGenerator        PasswordResetTokenIDGenerator
+	clock                        Clock
+	refreshTokenTTL              time.Duration
+	verificationTokenTTL         time.Duration
+	resetTokenTTL                time.Duration
 }
 
 func NewService(
 	userRepo UserRepository,
+	registrationRepo RegistrationRepository,
+	emailVerificationRepo EmailVerificationRepository,
 	sessionRepo SessionRepository,
 	passwordResetRepo PasswordResetRepository,
 	accessTokenManager AccessTokenManager,
 	refreshTokenGenerator TokenGenerator,
+	verificationTokenGenerator TokenGenerator,
 	resetTokenGenerator TokenGenerator,
+	emailNotifier AuthEmailNotifier,
+	logger Logger,
 	userIDGenerator UserIDGenerator,
 	sessionIDGenerator SessionIDGenerator,
+	verificationTokenIDGenerator EmailVerificationTokenIDGenerator,
 	resetTokenIDGenerator PasswordResetTokenIDGenerator,
 	refreshTokenTTL time.Duration,
+	verificationTokenTTL time.Duration,
 	resetTokenTTL time.Duration,
 	clock Clock,
 ) (*Service, error) {
 	switch {
 	case userRepo == nil:
 		return nil, ErrNilUserRepository
+	case registrationRepo == nil:
+		return nil, ErrNilRegistrationRepo
+	case emailVerificationRepo == nil:
+		return nil, ErrNilEmailVerificationRepo
 	case sessionRepo == nil:
 		return nil, ErrNilSessionRepository
 	case passwordResetRepo == nil:
@@ -52,12 +70,20 @@ func NewService(
 		return nil, ErrNilAccessTokenManager
 	case refreshTokenGenerator == nil:
 		return nil, ErrNilRefreshTokenGenerator
+	case verificationTokenGenerator == nil:
+		return nil, ErrNilVerificationTokenGenerator
 	case resetTokenGenerator == nil:
 		return nil, ErrNilResetTokenGenerator
+	case emailNotifier == nil:
+		return nil, ErrNilEmailNotifier
+	case logger == nil:
+		return nil, ErrNilLogger
 	case userIDGenerator == nil:
 		return nil, ErrNilUserIDGenerator
 	case sessionIDGenerator == nil:
 		return nil, ErrNilSessionIDGenerator
+	case verificationTokenIDGenerator == nil:
+		return nil, ErrNilVerificationTokenIDGenerator
 	case resetTokenIDGenerator == nil:
 		return nil, ErrNilResetTokenIDGenerator
 	case clock == nil:
@@ -65,18 +91,25 @@ func NewService(
 	}
 
 	return &Service{
-		userRepo:              userRepo,
-		sessionRepo:           sessionRepo,
-		passwordResetRepo:     passwordResetRepo,
-		accessTokenManager:    accessTokenManager,
-		refreshTokenGenerator: refreshTokenGenerator,
-		resetTokenGenerator:   resetTokenGenerator,
-		userIDGenerator:       userIDGenerator,
-		sessionIDGenerator:    sessionIDGenerator,
-		resetTokenIDGenerator: resetTokenIDGenerator,
-		clock:                 clock,
-		refreshTokenTTL:       refreshTokenTTL,
-		resetTokenTTL:         resetTokenTTL,
+		userRepo:                     userRepo,
+		registrationRepo:             registrationRepo,
+		emailVerificationRepo:        emailVerificationRepo,
+		sessionRepo:                  sessionRepo,
+		passwordResetRepo:            passwordResetRepo,
+		accessTokenManager:           accessTokenManager,
+		refreshTokenGenerator:        refreshTokenGenerator,
+		verificationTokenGenerator:   verificationTokenGenerator,
+		resetTokenGenerator:          resetTokenGenerator,
+		emailNotifier:                emailNotifier,
+		logger:                       logger,
+		userIDGenerator:              userIDGenerator,
+		sessionIDGenerator:           sessionIDGenerator,
+		verificationTokenIDGenerator: verificationTokenIDGenerator,
+		resetTokenIDGenerator:        resetTokenIDGenerator,
+		clock:                        clock,
+		refreshTokenTTL:              refreshTokenTTL,
+		verificationTokenTTL:         verificationTokenTTL,
+		resetTokenTTL:                resetTokenTTL,
 	}, nil
 }
 
@@ -138,7 +171,28 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (RegisterOu
 		}
 	}
 
-	if err := s.userRepo.Save(ctx, &user); err != nil {
+	verificationTokenID, err := s.verificationTokenIDGenerator.NewEmailVerificationTokenID()
+	if err != nil {
+		return RegisterOutput{}, err
+	}
+
+	rawVerificationToken, verificationTokenHash, err := s.verificationTokenGenerator.NewToken()
+	if err != nil {
+		return RegisterOutput{}, err
+	}
+
+	verificationToken, err := authdomain.NewEmailVerificationToken(
+		verificationTokenID,
+		user.ID(),
+		verificationTokenHash,
+		s.clock.Now(),
+		s.clock.Now().Add(s.verificationTokenTTL),
+	)
+	if err != nil {
+		return RegisterOutput{}, err
+	}
+
+	if err := s.registrationRepo.SaveUserWithVerificationToken(ctx, &user, &verificationToken); err != nil {
 		if errors.Is(err, userdomain.ErrUserExists) {
 			return RegisterOutput{}, apperrors.New(
 				apperrors.KindConflict,
@@ -150,15 +204,22 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (RegisterOu
 		return RegisterOutput{}, err
 	}
 
+	s.logEmailDeliveryError(
+		"failed to send registration verification email",
+		&user,
+		s.emailNotifier.SendVerificationEmail(ctx, &user, rawVerificationToken),
+	)
+
 	return RegisterOutput{
 		User: userusecase.Profile{
-			ID:          user.ID().String(),
-			Email:       user.Email().String(),
-			Role:        string(user.Role()),
-			DisplayName: user.DisplayName(),
-			CreatedAt:   user.CreatedAt(),
-			UpdatedAt:   user.UpdatedAt(),
-			LastLoginAt: user.LastLoginAt(),
+			ID:            user.ID().String(),
+			Email:         user.Email().String(),
+			EmailVerified: user.IsEmailVerified(),
+			Role:          string(user.Role()),
+			DisplayName:   user.DisplayName(),
+			CreatedAt:     user.CreatedAt(),
+			UpdatedAt:     user.UpdatedAt(),
+			LastLoginAt:   user.LastLoginAt(),
 		},
 	}, nil
 }
@@ -205,13 +266,14 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginOutput, err
 	}
 
 	output.User = userusecase.Profile{
-		ID:          user.ID().String(),
-		Email:       user.Email().String(),
-		Role:        string(user.Role()),
-		DisplayName: user.DisplayName(),
-		CreatedAt:   user.CreatedAt(),
-		UpdatedAt:   user.UpdatedAt(),
-		LastLoginAt: user.LastLoginAt(),
+		ID:            user.ID().String(),
+		Email:         user.Email().String(),
+		EmailVerified: user.IsEmailVerified(),
+		Role:          string(user.Role()),
+		DisplayName:   user.DisplayName(),
+		CreatedAt:     user.CreatedAt(),
+		UpdatedAt:     user.UpdatedAt(),
+		LastLoginAt:   user.LastLoginAt(),
 	}
 
 	return output, nil
@@ -344,7 +406,7 @@ func (s *Service) RequestPasswordReset(ctx context.Context, input RequestPasswor
 		return AcceptedOutput{}, err
 	}
 
-	_, resetTokenHash, err := s.resetTokenGenerator.NewToken()
+	rawResetToken, resetTokenHash, err := s.resetTokenGenerator.NewToken()
 	if err != nil {
 		return AcceptedOutput{}, err
 	}
@@ -362,6 +424,83 @@ func (s *Service) RequestPasswordReset(ctx context.Context, input RequestPasswor
 
 	if err := s.passwordResetRepo.Save(ctx, &resetToken); err != nil {
 		return AcceptedOutput{}, err
+	}
+
+	s.logEmailDeliveryError(
+		"failed to send password reset email",
+		user,
+		s.emailNotifier.SendPasswordResetEmail(ctx, user, rawResetToken),
+	)
+
+	return AcceptedOutput{Accepted: true}, nil
+}
+
+func (s *Service) ConfirmEmailVerification(ctx context.Context, input ConfirmEmailVerificationInput) (AcceptedOutput, error) {
+	rawToken := strings.TrimSpace(input.Token)
+	if rawToken == "" {
+		return AcceptedOutput{}, apperrors.New(
+			apperrors.KindValidation,
+			"invalid_email_verification_token",
+			"verification token is required",
+		)
+	}
+
+	if err := s.emailVerificationRepo.Consume(ctx, s.verificationTokenGenerator.Hash(rawToken), s.clock.Now()); err != nil {
+		switch {
+		case errors.Is(err, authdomain.ErrEmailVerificationTokenNotFound),
+			errors.Is(err, authdomain.ErrEmailVerificationTokenExpired),
+			errors.Is(err, authdomain.ErrEmailVerificationTokenUsed):
+			return AcceptedOutput{}, apperrors.New(
+				apperrors.KindValidation,
+				"invalid_email_verification_token",
+				"verification token is invalid or expired",
+			)
+		default:
+			return AcceptedOutput{}, err
+		}
+	}
+
+	return AcceptedOutput{Accepted: true}, nil
+}
+
+func (s *Service) ConfirmPasswordReset(ctx context.Context, input ConfirmPasswordResetInput) (AcceptedOutput, error) {
+	rawToken := strings.TrimSpace(input.Token)
+	if rawToken == "" {
+		return AcceptedOutput{}, apperrors.New(
+			apperrors.KindValidation,
+			"invalid_reset_token",
+			"reset token is required",
+		)
+	}
+
+	password, err := userdomain.NewPassword(input.NewPassword)
+	if err != nil {
+		return AcceptedOutput{}, apperrors.Wrap(
+			apperrors.KindValidation,
+			"invalid_password",
+			"password does not satisfy constraints",
+			err,
+		)
+	}
+
+	passwordHash, err := userdomain.NewPasswordHash(password)
+	if err != nil {
+		return AcceptedOutput{}, err
+	}
+
+	if err := s.passwordResetRepo.Consume(ctx, s.resetTokenGenerator.Hash(rawToken), passwordHash.String(), s.clock.Now()); err != nil {
+		switch {
+		case errors.Is(err, authdomain.ErrPasswordResetTokenNotFound),
+			errors.Is(err, authdomain.ErrPasswordResetTokenExpired),
+			errors.Is(err, authdomain.ErrPasswordResetTokenUsed):
+			return AcceptedOutput{}, apperrors.New(
+				apperrors.KindValidation,
+				"invalid_reset_token",
+				"reset token is invalid or expired",
+			)
+		default:
+			return AcceptedOutput{}, err
+		}
 	}
 
 	return AcceptedOutput{Accepted: true}, nil
@@ -458,4 +597,20 @@ func (s *Service) createSession(ctx context.Context, user *userdomain.User) (Log
 			ExpiresIn:    int64(s.accessTokenManager.TokenTTL().Seconds()),
 		},
 	}, nil
+}
+
+func (s *Service) logEmailDeliveryError(message string, user *userdomain.User, err error) {
+	if err == nil || user == nil {
+		return
+	}
+
+	s.logger.Error(
+		message,
+		"user_id",
+		user.ID().String(),
+		"email",
+		user.Email().String(),
+		"error",
+		err,
+	)
 }

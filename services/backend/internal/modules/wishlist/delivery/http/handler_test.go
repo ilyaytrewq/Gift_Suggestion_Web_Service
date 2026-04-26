@@ -24,7 +24,7 @@ const (
 	testHandlerGiftID     = "550e8400-e29b-41d4-a716-446655440104"
 )
 
-func TestHandlerCreateWishlistRequiresAuthorization(t *testing.T) {
+func TestHandlerCurrentWishlistRequiresAuthorization(t *testing.T) {
 	t.Parallel()
 
 	gin.SetMode(gin.TestMode)
@@ -37,8 +37,7 @@ func TestHandlerCreateWishlistRequiresAuthorization(t *testing.T) {
 	router := gin.New()
 	handler.Register(router.Group("/api/v1"))
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/wishlists", bytes.NewBufferString(`{"name":"Birthday Ideas"}`))
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wishlist", nil)
 	recorder := httptest.NewRecorder()
 
 	router.ServeHTTP(recorder, req)
@@ -48,7 +47,98 @@ func TestHandlerCreateWishlistRequiresAuthorization(t *testing.T) {
 	}
 }
 
-func TestHandlerListWishlistsRejectsUnknownQueryParam(t *testing.T) {
+func TestHandlerGetCurrentWishlistSuccess(t *testing.T) {
+	t.Parallel()
+
+	gin.SetMode(gin.TestMode)
+
+	service := &stubWishlistService{
+		getOutput: wishlistusecase.GetWishlistOutput{
+			Wishlist: wishlistusecase.Wishlist{
+				ID:        testHandlerWishlistID,
+				Name:      "Список желаний",
+				ItemCount: 0,
+				CreatedAt: time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+	handler, err := NewHandler(service, authhttp.NewMiddleware(stubAuthorizer{
+		actor: authusecase.Actor{UserID: testHandlerUserID, SessionID: testHandlerSessionID, Role: "user"},
+	}))
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	router := gin.New()
+	handler.Register(router.Group("/api/v1"))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wishlist", nil)
+	req.Header.Set("Authorization", "Bearer access-token")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	if service.getInput.UserID != testHandlerUserID {
+		t.Fatalf("GetWishlist() user id = %q, want %q", service.getInput.UserID, testHandlerUserID)
+	}
+	if service.getInput.WishlistID != "" {
+		t.Fatalf("GetWishlist() wishlist id = %q, want empty", service.getInput.WishlistID)
+	}
+}
+
+func TestHandlerAddCurrentWishlistItemReturnsOKWhenGiftAlreadySaved(t *testing.T) {
+	t.Parallel()
+
+	gin.SetMode(gin.TestMode)
+
+	handler, err := NewHandler(&stubWishlistService{
+		addOutput: wishlistusecase.AddWishlistItemOutput{
+			AlreadyInWishlist: true,
+			Item: wishlistusecase.WishlistItem{
+				ID:        "550e8400-e29b-41d4-a716-446655440105",
+				CreatedAt: time.Date(2026, 4, 19, 11, 0, 0, 0, time.UTC),
+				Gift: wishlistusecase.GiftPreview{
+					ID:          testHandlerGiftID,
+					Name:        "LEGO Set",
+					Description: "Creative building set",
+					Price:       "129.99",
+					StoreLink:   "https://example.com/gifts/lego",
+					CreatedAt:   time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
+					UpdatedAt:   time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
+				},
+			},
+		},
+	}, authhttp.NewMiddleware(stubAuthorizer{
+		actor: authusecase.Actor{UserID: testHandlerUserID, SessionID: testHandlerSessionID, Role: "user"},
+	}))
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	router := gin.New()
+	handler.Register(router.Group("/api/v1"))
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/wishlist/items",
+		bytes.NewBufferString(`{"gift_id":"`+testHandlerGiftID+`"}`),
+	)
+	req.Header.Set("Authorization", "Bearer access-token")
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+}
+
+func TestHandlerCompatibilityListRejectsUnknownQueryParam(t *testing.T) {
 	t.Parallel()
 
 	gin.SetMode(gin.TestMode)
@@ -82,23 +172,14 @@ func TestHandlerListWishlistsRejectsUnknownQueryParam(t *testing.T) {
 	}
 }
 
-func TestHandlerCreateWishlistSuccess(t *testing.T) {
+func TestHandlerDeleteCurrentWishlistSuccess(t *testing.T) {
 	t.Parallel()
 
 	gin.SetMode(gin.TestMode)
 
-	service := &stubWishlistService{
-		createOutput: wishlistusecase.CreateWishlistOutput{
-			Wishlist: wishlistusecase.Wishlist{
-				ID:        testHandlerWishlistID,
-				Name:      "Birthday Ideas",
-				ItemCount: 0,
-				CreatedAt: time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
-				UpdatedAt: time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
-			},
-		},
-	}
-	handler, err := NewHandler(service, authhttp.NewMiddleware(stubAuthorizer{
+	handler, err := NewHandler(&stubWishlistService{
+		deleteOutput: wishlistusecase.DeleteWishlistOutput{Deleted: true},
+	}, authhttp.NewMiddleware(stubAuthorizer{
 		actor: authusecase.Actor{UserID: testHandlerUserID, SessionID: testHandlerSessionID, Role: "user"},
 	}))
 	if err != nil {
@@ -108,25 +189,18 @@ func TestHandlerCreateWishlistSuccess(t *testing.T) {
 	router := gin.New()
 	handler.Register(router.Group("/api/v1"))
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/wishlists", bytes.NewBufferString(`{"name":"Birthday Ideas"}`))
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist", nil)
 	req.Header.Set("Authorization", "Bearer access-token")
-	req.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 
 	router.ServeHTTP(recorder, req)
 
-	if recorder.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d", recorder.Code)
-	}
-	if service.createInput.UserID != testHandlerUserID {
-		t.Fatalf("CreateWishlist() user id = %q, want %q", service.createInput.UserID, testHandlerUserID)
-	}
-	if service.createInput.Name != "Birthday Ideas" {
-		t.Fatalf("CreateWishlist() name = %q, want %q", service.createInput.Name, "Birthday Ideas")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
 	}
 }
 
-func TestHandlerAddWishlistItemReturnsValidationError(t *testing.T) {
+func TestHandlerCompatibilityAddWishlistItemReturnsValidationError(t *testing.T) {
 	t.Parallel()
 
 	gin.SetMode(gin.TestMode)
@@ -159,34 +233,6 @@ func TestHandlerAddWishlistItemReturnsValidationError(t *testing.T) {
 	}
 }
 
-func TestHandlerDeleteWishlistSuccess(t *testing.T) {
-	t.Parallel()
-
-	gin.SetMode(gin.TestMode)
-
-	handler, err := NewHandler(&stubWishlistService{
-		deleteOutput: wishlistusecase.DeleteWishlistOutput{Deleted: true},
-	}, authhttp.NewMiddleware(stubAuthorizer{
-		actor: authusecase.Actor{UserID: testHandlerUserID, SessionID: testHandlerSessionID, Role: "user"},
-	}))
-	if err != nil {
-		t.Fatalf("NewHandler() error = %v", err)
-	}
-
-	router := gin.New()
-	handler.Register(router.Group("/api/v1"))
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlists/"+testHandlerWishlistID, nil)
-	req.Header.Set("Authorization", "Bearer access-token")
-	recorder := httptest.NewRecorder()
-
-	router.ServeHTTP(recorder, req)
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", recorder.Code)
-	}
-}
-
 type stubWishlistService struct {
 	createOutput wishlistusecase.CreateWishlistOutput
 	createErr    error
@@ -194,18 +240,23 @@ type stubWishlistService struct {
 
 	listOutput wishlistusecase.ListWishlistsOutput
 	listErr    error
+	listInput  wishlistusecase.ListWishlistsInput
 
 	getOutput wishlistusecase.GetWishlistOutput
 	getErr    error
+	getInput  wishlistusecase.GetWishlistInput
 
 	addOutput wishlistusecase.AddWishlistItemOutput
 	addErr    error
+	addInput  wishlistusecase.AddWishlistItemInput
 
 	removeOutput wishlistusecase.RemoveWishlistItemOutput
 	removeErr    error
+	removeInput  wishlistusecase.RemoveWishlistItemInput
 
 	deleteOutput wishlistusecase.DeleteWishlistOutput
 	deleteErr    error
+	deleteInput  wishlistusecase.DeleteWishlistInput
 }
 
 func (s *stubWishlistService) CreateWishlist(_ context.Context, input wishlistusecase.CreateWishlistInput) (wishlistusecase.CreateWishlistOutput, error) {
@@ -213,23 +264,28 @@ func (s *stubWishlistService) CreateWishlist(_ context.Context, input wishlistus
 	return s.createOutput, s.createErr
 }
 
-func (s *stubWishlistService) ListWishlists(context.Context, wishlistusecase.ListWishlistsInput) (wishlistusecase.ListWishlistsOutput, error) {
+func (s *stubWishlistService) ListWishlists(_ context.Context, input wishlistusecase.ListWishlistsInput) (wishlistusecase.ListWishlistsOutput, error) {
+	s.listInput = input
 	return s.listOutput, s.listErr
 }
 
-func (s *stubWishlistService) GetWishlist(context.Context, wishlistusecase.GetWishlistInput) (wishlistusecase.GetWishlistOutput, error) {
+func (s *stubWishlistService) GetWishlist(_ context.Context, input wishlistusecase.GetWishlistInput) (wishlistusecase.GetWishlistOutput, error) {
+	s.getInput = input
 	return s.getOutput, s.getErr
 }
 
-func (s *stubWishlistService) AddWishlistItem(context.Context, wishlistusecase.AddWishlistItemInput) (wishlistusecase.AddWishlistItemOutput, error) {
+func (s *stubWishlistService) AddWishlistItem(_ context.Context, input wishlistusecase.AddWishlistItemInput) (wishlistusecase.AddWishlistItemOutput, error) {
+	s.addInput = input
 	return s.addOutput, s.addErr
 }
 
-func (s *stubWishlistService) RemoveWishlistItem(context.Context, wishlistusecase.RemoveWishlistItemInput) (wishlistusecase.RemoveWishlistItemOutput, error) {
+func (s *stubWishlistService) RemoveWishlistItem(_ context.Context, input wishlistusecase.RemoveWishlistItemInput) (wishlistusecase.RemoveWishlistItemOutput, error) {
+	s.removeInput = input
 	return s.removeOutput, s.removeErr
 }
 
-func (s *stubWishlistService) DeleteWishlist(context.Context, wishlistusecase.DeleteWishlistInput) (wishlistusecase.DeleteWishlistOutput, error) {
+func (s *stubWishlistService) DeleteWishlist(_ context.Context, input wishlistusecase.DeleteWishlistInput) (wishlistusecase.DeleteWishlistOutput, error) {
+	s.deleteInput = input
 	return s.deleteOutput, s.deleteErr
 }
 

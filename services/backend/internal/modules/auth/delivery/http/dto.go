@@ -14,3 +14,12 @@ type loginRequest struct {
 type passwordResetRequest struct {
 	Email string `json:"email"`
 }
+
+type emailVerificationConfirmRequest struct {
+	Token string `json:"token"`
+}
+
+type passwordResetConfirmRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}

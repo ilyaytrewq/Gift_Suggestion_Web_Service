@@ -10,16 +10,16 @@ import { Container } from '../../../shared/ui/layout/container';
 
 const valueProps = [
   {
-    title: 'Объяснимые рекомендации',
-    text: 'В следующих срезах мастер подбора будет выдавать не просто список, а понятные причины выбора.',
+    title: 'Быстрый старт',
+    text: 'Начните с каталога или короткой анкеты и сразу получите подходящие идеи.',
   },
   {
     title: 'Каталог из разных магазинов',
-    text: 'Уже сейчас можно просматривать идеи и уходить на покупку по реальной ссылке магазина.',
+    text: 'Сравнивайте варианты и переходите к покупке по прямой ссылке.',
   },
   {
-    title: 'Подготовка под wishlist',
-    text: 'Структура Slice 1 уже учитывает будущую работу со списками желаний без переделки catalog flow.',
+    title: 'Подбор под человека',
+    text: 'Фильтры и рекомендации помогают искать подарок под повод, интересы и бюджет.',
   },
 ];
 
@@ -50,12 +50,11 @@ export function HomePage(): JSX.Element {
       <section className="hero">
         <Container className="hero__inner">
           <div className="hero__content">
-            <p className="eyebrow">Gift Suggestion Web Service</p>
+            <p className="eyebrow">Сервис подбора подарков</p>
             <h1>Подобрать подарок без бесконечного скролла маркетплейсов.</h1>
             <p className="hero__description">
-              Slice 1 запускает public MVP: каталог идей, карточки подарков и
-              auth foundation. Персональный мастер подбора уже доступен: открыть
-              его можно по кнопке ниже.
+              Выберите повод, бюджет или интересы получателя и получите
+              подходящие варианты без лишнего поиска.
             </p>
             <div className="hero__actions">
               <Link className={buttonClassName({ size: 'lg' })} to="/recommendation">
@@ -72,16 +71,16 @@ export function HomePage(): JSX.Element {
 
           <div className="hero__panel">
             <div className="metric-card">
-              <strong>Каталог</strong>
-              <span>Поиск, категории и карточки подарков уже доступны.</span>
+              <strong>Каталог идей</strong>
+              <span>Смотрите подарки по категориям, цене и названию.</span>
             </div>
             <div className="metric-card">
-              <strong>Auth foundation</strong>
-              <span>Login, register и password reset request подключены к backend API.</span>
+              <strong>Личный кабинет</strong>
+              <span>Сохраняйте данные аккаунта и возвращайтесь к подбору позже.</span>
             </div>
             <div className="metric-card">
-              <strong>Без выдуманного API</strong>
-              <span>UI Slice 1 строится только на существующих OpenAPI-ручках.</span>
+              <strong>Покупка в пару кликов</strong>
+              <span>Открывайте карточку подарка и переходите сразу в магазин.</span>
             </div>
           </div>
         </Container>
@@ -119,7 +118,7 @@ export function HomePage(): JSX.Element {
           {previewGiftsQuery.isError ? (
             <ErrorBanner
               error={previewGiftsQuery.error}
-              title="Не удалось загрузить превью каталога"
+              title="Не удалось загрузить подборку"
             />
           ) : null}
 

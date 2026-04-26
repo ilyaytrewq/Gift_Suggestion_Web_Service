@@ -40,6 +40,13 @@ func NewHandler(service service, authMiddleware gin.HandlerFunc) (*Handler, erro
 }
 
 func (h *Handler) Register(root gin.IRouter) {
+	wishlist := root.Group("/wishlist")
+	wishlist.Use(h.authMiddleware)
+	wishlist.GET("", h.getCurrentWishlist)
+	wishlist.POST("/items", h.addCurrentWishlistItem)
+	wishlist.DELETE("/items/:gift_id", h.removeCurrentWishlistItem)
+	wishlist.DELETE("", h.deleteCurrentWishlist)
+
 	wishlists := root.Group("/wishlists")
 	wishlists.Use(h.authMiddleware)
 	wishlists.POST("", h.createWishlist)
@@ -48,6 +55,91 @@ func (h *Handler) Register(root gin.IRouter) {
 	wishlists.POST("/:wishlist_id/items", h.addWishlistItem)
 	wishlists.DELETE("/:wishlist_id/items/:gift_id", h.removeWishlistItem)
 	wishlists.DELETE("/:wishlist_id", h.deleteWishlist)
+}
+
+func (h *Handler) getCurrentWishlist(c *gin.Context) {
+	actor, ok := authhttp.ActorFromContext(c)
+	if !ok {
+		httpapi.Fail(c, authhttp.UnauthorizedError())
+		return
+	}
+
+	output, err := h.service.GetWishlist(c.Request.Context(), wishlistusecase.GetWishlistInput{
+		UserID: actor.UserID,
+	})
+	if err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	httpapi.Success(c, http.StatusOK, output)
+}
+
+func (h *Handler) addCurrentWishlistItem(c *gin.Context) {
+	actor, ok := authhttp.ActorFromContext(c)
+	if !ok {
+		httpapi.Fail(c, authhttp.UnauthorizedError())
+		return
+	}
+
+	var request addWishlistItemRequest
+	if err := httpapi.DecodeJSON(c, &request); err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	output, err := h.service.AddWishlistItem(c.Request.Context(), wishlistusecase.AddWishlistItemInput{
+		UserID: actor.UserID,
+		GiftID: request.GiftID,
+	})
+	if err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	status := http.StatusCreated
+	if output.AlreadyInWishlist {
+		status = http.StatusOK
+	}
+
+	httpapi.Success(c, status, output)
+}
+
+func (h *Handler) removeCurrentWishlistItem(c *gin.Context) {
+	actor, ok := authhttp.ActorFromContext(c)
+	if !ok {
+		httpapi.Fail(c, authhttp.UnauthorizedError())
+		return
+	}
+
+	output, err := h.service.RemoveWishlistItem(c.Request.Context(), wishlistusecase.RemoveWishlistItemInput{
+		UserID: actor.UserID,
+		GiftID: c.Param("gift_id"),
+	})
+	if err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	httpapi.Success(c, http.StatusOK, output)
+}
+
+func (h *Handler) deleteCurrentWishlist(c *gin.Context) {
+	actor, ok := authhttp.ActorFromContext(c)
+	if !ok {
+		httpapi.Fail(c, authhttp.UnauthorizedError())
+		return
+	}
+
+	output, err := h.service.DeleteWishlist(c.Request.Context(), wishlistusecase.DeleteWishlistInput{
+		UserID: actor.UserID,
+	})
+	if err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	httpapi.Success(c, http.StatusOK, output)
 }
 
 func (h *Handler) createWishlist(c *gin.Context) {

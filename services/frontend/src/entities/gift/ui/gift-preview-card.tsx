@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 
+import { WishlistSaveButton } from '../../../features/wishlist/ui/wishlist-save-button';
 import type { CatalogGift } from '../../../shared/api/contracts';
 import { formatPrice } from '../../../shared/lib/format';
 import { buttonClassName } from '../../../shared/ui/button/button-class-name';
@@ -46,15 +47,16 @@ export function GiftPreviewCard({
 
         <div className="gift-card__actions">
           <Link className={buttonClassName()} to={`/catalog/${gift.id}`} state={{ from: location.pathname + location.search }}>
-            Открыть карточку
+            Подробнее
           </Link>
+          <WishlistSaveButton giftID={gift.id} />
           <a
             className={buttonClassName({ variant: 'ghost' })}
             href={gift.store_link}
             rel="noreferrer"
             target="_blank"
           >
-            Купить
+            В магазин
           </a>
         </div>
       </div>

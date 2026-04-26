@@ -37,15 +37,14 @@ export function PasswordResetRequestForm(): JSX.Element {
       {mutation.isError ? <ErrorBanner error={mutation.error} /> : null}
       {mutation.isSuccess ? (
         <Notice tone="success">
-          Если аккаунт с таким email существует, письмо на восстановление уже
-          запрошено.
+          Если такой аккаунт существует, мы отправим письмо с инструкциями.
         </Notice>
       ) : null}
 
       <Field
         error={form.formState.errors.email?.message}
-        hint="Backend принимает только email и отвечает статусом accepted."
-        label="Email"
+        hint="Укажите email, который использовали при регистрации."
+        label="Электронная почта"
       >
         <Input
           autoComplete="email"

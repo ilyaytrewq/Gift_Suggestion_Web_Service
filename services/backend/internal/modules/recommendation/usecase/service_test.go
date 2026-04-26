@@ -10,7 +10,6 @@ import (
 	recommendationdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/domain"
 	userdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/domain"
 	wishlistdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/domain"
-	wishlistusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/usecase"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/apperrors"
 )
 
@@ -123,8 +122,8 @@ func TestServiceRecommendAllowsGuestSession(t *testing.T) {
 	if ranker.input.UserID != "" {
 		t.Fatalf("Rank() user id = %q, want empty for guest flow", ranker.input.UserID)
 	}
-	if wishlistReader.listWishlistsCalls != 0 {
-		t.Fatalf("expected wishlist context to be skipped for guest flow, got %d calls", wishlistReader.listWishlistsCalls)
+	if wishlistReader.getWishlistCalls != 0 {
+		t.Fatalf("expected wishlist context to be skipped for guest flow, got %d calls", wishlistReader.getWishlistCalls)
 	}
 	if output.Recommendation.Source != "fallback" {
 		t.Fatalf("Recommend() source = %q, want %q", output.Recommendation.Source, "fallback")
@@ -431,15 +430,15 @@ func (r fakeUserReader) GetByID(context.Context, userdomain.UserID) (*userdomain
 }
 
 type fakeWishlistReader struct {
-	records                []wishlistusecase.WishlistSummaryRecord
+	wishlist               *wishlistdomain.Wishlist
 	items                  map[string][]wishlistdomain.WishlistItem
-	listWishlistsCalls     int
+	getWishlistCalls       int
 	listWishlistItemsCalls int
 }
 
-func (r *fakeWishlistReader) ListWishlistsByUser(context.Context, userdomain.UserID, int, int) ([]wishlistusecase.WishlistSummaryRecord, int, error) {
-	r.listWishlistsCalls++
-	return r.records, len(r.records), nil
+func (r *fakeWishlistReader) GetWishlistByUserID(context.Context, userdomain.UserID) (*wishlistdomain.Wishlist, error) {
+	r.getWishlistCalls++
+	return r.wishlist, nil
 }
 
 func (r *fakeWishlistReader) ListWishlistItems(_ context.Context, wishlistID wishlistdomain.WishlistID) ([]wishlistdomain.WishlistItem, error) {
@@ -519,6 +518,8 @@ func mustRecommendationUser(t *testing.T) *userdomain.User {
 		"Tester",
 		time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
 		time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
+		nil,
+		nil,
 		nil,
 	)
 	if err != nil {

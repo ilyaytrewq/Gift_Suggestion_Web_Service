@@ -9,8 +9,9 @@ func TestLoadFromLookupDefaults(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := LoadFromLookup(mapLookup(map[string]string{
-		"DB_DSN":          "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
-		"AUTH_JWT_SECRET": "very-secret-key-123",
+		"DB_DSN":           "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
+		"AUTH_JWT_SECRET":  "very-secret-key-123",
+		"EMAIL_FROM_EMAIL": "noreply@example.com",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -43,8 +44,17 @@ func TestLoadFromLookupDefaults(t *testing.T) {
 	if cfg.VK.RequestTimeout != defaultVKRequestTimeout {
 		t.Fatalf("expected default vk request timeout %s, got %s", defaultVKRequestTimeout, cfg.VK.RequestTimeout)
 	}
+	if cfg.Email.Provider != defaultEmailProvider {
+		t.Fatalf("expected default email provider %q, got %q", defaultEmailProvider, cfg.Email.Provider)
+	}
+	if cfg.Email.SendTimeout != defaultEmailSendTimeout {
+		t.Fatalf("expected default email send timeout %s, got %s", defaultEmailSendTimeout, cfg.Email.SendTimeout)
+	}
 	if cfg.Auth.RefreshCookieName != defaultRefreshCookieName {
 		t.Fatalf("expected default refresh cookie name %q, got %q", defaultRefreshCookieName, cfg.Auth.RefreshCookieName)
+	}
+	if cfg.Auth.EmailVerificationTTL != defaultVerificationTTL {
+		t.Fatalf("expected default email verification ttl %s, got %s", defaultVerificationTTL, cfg.Auth.EmailVerificationTTL)
 	}
 }
 
@@ -80,6 +90,11 @@ func TestLoadFromLookupValidatesValues(t *testing.T) {
 		"VK_ENABLED":                 "true",
 		"VK_REQUEST_TIMEOUT":         "4s",
 		"VK_TOKEN_ENCRYPTION_KEY":    "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+		"EMAIL_ENABLED":              "true",
+		"EMAIL_PROVIDER":             "smtp",
+		"EMAIL_FROM_EMAIL":           "noreply@example.com",
+		"SMTP_HOST":                  "smtp.example.com",
+		"SMTP_PORT":                  "587",
 	}))
 	if err == nil {
 		t.Fatal("expected invalid HTTP_PORT to fail")
@@ -90,39 +105,51 @@ func TestLoadFromLookupReadsExplicitValues(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := LoadFromLookup(mapLookup(map[string]string{
-		"APP_NAME":                   "gift-svc",
-		"APP_ENV":                    "production",
-		"LOG_LEVEL":                  "warn",
-		"HTTP_HOST":                  "127.0.0.1",
-		"HTTP_PORT":                  "9090",
-		"HTTP_READ_TIMEOUT":          "6s",
-		"HTTP_WRITE_TIMEOUT":         "11s",
-		"HTTP_IDLE_TIMEOUT":          "61s",
-		"HTTP_SHUTDOWN_TIMEOUT":      "12s",
-		"DB_DSN":                     "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
-		"AUTH_JWT_SECRET":            "very-secret-key-123",
-		"DB_MAX_OPEN_CONNS":          "12",
-		"DB_MAX_IDLE_CONNS":          "6",
-		"DB_CONN_MAX_LIFETIME":       "45m",
-		"DB_PING_TIMEOUT":            "3s",
-		"DB_MIGRATIONS_ENABLED":      "false",
-		"IMPORT_MAX_FILE_SIZE_BYTES": "2097152",
-		"ML_GRPC_ENABLED":            "true",
-		"ML_GRPC_ADDR":               "localhost:50051",
-		"ML_GRPC_DIAL_TIMEOUT":       "7s",
-		"ML_GRPC_REQUEST_TIMEOUT":    "2500ms",
-		"ML_GRPC_MAX_RETRIES":        "1",
-		"VK_ENABLED":                 "true",
-		"VK_REQUEST_TIMEOUT":         "4s",
-		"VK_TOKEN_ENCRYPTION_KEY":    "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
-		"AUTH_JWT_ISSUER":            "gift-api",
-		"AUTH_JWT_AUDIENCE":          "gift-web",
-		"AUTH_ACCESS_TTL":            "20m",
-		"AUTH_REFRESH_TTL":           "168h",
-		"AUTH_PASSWORD_RESET_TTL":    "45m",
-		"AUTH_REFRESH_COOKIE_NAME":   "gift_refresh",
-		"AUTH_REFRESH_COOKIE_PATH":   "/api/v1/auth",
-		"AUTH_REFRESH_COOKIE_SECURE": "true",
+		"APP_NAME":                    "gift-svc",
+		"APP_ENV":                     "production",
+		"LOG_LEVEL":                   "warn",
+		"HTTP_HOST":                   "127.0.0.1",
+		"HTTP_PORT":                   "9090",
+		"HTTP_READ_TIMEOUT":           "6s",
+		"HTTP_WRITE_TIMEOUT":          "11s",
+		"HTTP_IDLE_TIMEOUT":           "61s",
+		"HTTP_SHUTDOWN_TIMEOUT":       "12s",
+		"DB_DSN":                      "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
+		"AUTH_JWT_SECRET":             "very-secret-key-123",
+		"DB_MAX_OPEN_CONNS":           "12",
+		"DB_MAX_IDLE_CONNS":           "6",
+		"DB_CONN_MAX_LIFETIME":        "45m",
+		"DB_PING_TIMEOUT":             "3s",
+		"DB_MIGRATIONS_ENABLED":       "false",
+		"IMPORT_MAX_FILE_SIZE_BYTES":  "2097152",
+		"ML_GRPC_ENABLED":             "true",
+		"ML_GRPC_ADDR":                "localhost:50051",
+		"ML_GRPC_DIAL_TIMEOUT":        "7s",
+		"ML_GRPC_REQUEST_TIMEOUT":     "2500ms",
+		"ML_GRPC_MAX_RETRIES":         "1",
+		"VK_ENABLED":                  "true",
+		"VK_REQUEST_TIMEOUT":          "4s",
+		"VK_TOKEN_ENCRYPTION_KEY":     "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+		"EMAIL_ENABLED":               "true",
+		"EMAIL_PROVIDER":              "smtp",
+		"EMAIL_FROM_EMAIL":            "noreply@example.com",
+		"EMAIL_FROM_NAME":             "Gift Suggestion",
+		"EMAIL_SEND_TIMEOUT":          "8s",
+		"FRONTEND_BASE_URL":           "http://localhost:5173",
+		"SMTP_HOST":                   "smtp.example.com",
+		"SMTP_PORT":                   "2525",
+		"SMTP_USERNAME":               "mailer",
+		"SMTP_PASSWORD":               "secret",
+		"SMTP_USE_TLS":                "true",
+		"AUTH_JWT_ISSUER":             "gift-api",
+		"AUTH_JWT_AUDIENCE":           "gift-web",
+		"AUTH_ACCESS_TTL":             "20m",
+		"AUTH_REFRESH_TTL":            "168h",
+		"AUTH_PASSWORD_RESET_TTL":     "45m",
+		"AUTH_EMAIL_VERIFICATION_TTL": "72h",
+		"AUTH_REFRESH_COOKIE_NAME":    "gift_refresh",
+		"AUTH_REFRESH_COOKIE_PATH":    "/api/v1/auth",
+		"AUTH_REFRESH_COOKIE_SECURE":  "true",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -161,8 +188,26 @@ func TestLoadFromLookupReadsExplicitValues(t *testing.T) {
 	if cfg.VK.TokenEncryptionKey == "" {
 		t.Fatal("expected vk token encryption key to be loaded")
 	}
+	if !cfg.Email.Enabled {
+		t.Fatal("expected email to be enabled")
+	}
+	if cfg.Email.Provider != "smtp" {
+		t.Fatalf("expected email provider smtp, got %s", cfg.Email.Provider)
+	}
+	if cfg.Email.SMTP.Port != 2525 {
+		t.Fatalf("expected smtp port 2525, got %d", cfg.Email.SMTP.Port)
+	}
+	if cfg.Email.SendTimeout != 8*time.Second {
+		t.Fatalf("expected email send timeout 8s, got %s", cfg.Email.SendTimeout)
+	}
+	if cfg.Email.FrontendBaseURL != "http://localhost:5173" {
+		t.Fatalf("unexpected frontend base url: %s", cfg.Email.FrontendBaseURL)
+	}
 	if cfg.Auth.JWTIssuer != "gift-api" {
 		t.Fatalf("expected auth issuer gift-api, got %s", cfg.Auth.JWTIssuer)
+	}
+	if cfg.Auth.EmailVerificationTTL != 72*time.Hour {
+		t.Fatalf("expected auth email verification ttl 72h, got %s", cfg.Auth.EmailVerificationTTL)
 	}
 	if !cfg.Auth.RefreshCookieSecure {
 		t.Fatal("expected refresh cookie secure to be true")
@@ -173,9 +218,10 @@ func TestLoadFromLookupAllowsVKWithoutEncryptionKey(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := LoadFromLookup(mapLookup(map[string]string{
-		"DB_DSN":          "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
-		"AUTH_JWT_SECRET": "very-secret-key-123",
-		"VK_ENABLED":      "true",
+		"DB_DSN":           "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
+		"AUTH_JWT_SECRET":  "very-secret-key-123",
+		"EMAIL_FROM_EMAIL": "noreply@example.com",
+		"VK_ENABLED":       "true",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -195,6 +241,7 @@ func TestLoadFromLookupRejectsInvalidVKEncryptionKey(t *testing.T) {
 	_, err := LoadFromLookup(mapLookup(map[string]string{
 		"DB_DSN":                  "postgres://gift:gift@localhost:5432/gift_suggestion?sslmode=disable",
 		"AUTH_JWT_SECRET":         "very-secret-key-123",
+		"EMAIL_FROM_EMAIL":        "noreply@example.com",
 		"VK_TOKEN_ENCRYPTION_KEY": "invalid",
 	}))
 	if err == nil {

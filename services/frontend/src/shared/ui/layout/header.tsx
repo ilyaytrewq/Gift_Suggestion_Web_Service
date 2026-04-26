@@ -44,6 +44,9 @@ export function Header(): JSX.Element {
           </a>
           {auth.user ? (
             <div className="site-header__actions">
+              <Link className="site-header__link" to="/wishlist">
+                Список желаний
+              </Link>
               <span className="site-header__user">
                 {auth.user.display_name || auth.user.email}
               </span>
@@ -62,7 +65,7 @@ export function Header(): JSX.Element {
                 Войти
               </Link>
               <Link className={buttonClassName({ variant: 'secondary' })} to="/register">
-                Регистрация
+                Создать аккаунт
               </Link>
             </div>
           )}

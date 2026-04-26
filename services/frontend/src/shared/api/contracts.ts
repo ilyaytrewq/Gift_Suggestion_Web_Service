@@ -77,3 +77,22 @@ export type RecommendationRequest = JsonBody<
 export type RecommendationResponse = JsonResponse<
   paths['/api/v1/recommendations']['post']['responses']['200']
 >;
+
+export type Wishlist = components['schemas']['Wishlist'];
+export type WishlistItem = components['schemas']['WishlistItem'];
+
+export type GetCurrentWishlistResponse = JsonResponse<
+  paths['/api/v1/wishlist']['get']['responses']['200']
+>;
+export type DeleteCurrentWishlistResponse = JsonResponse<
+  paths['/api/v1/wishlist']['delete']['responses']['200']
+>;
+export type AddCurrentWishlistItemRequest = JsonBody<
+  paths['/api/v1/wishlist/items']['post']
+>;
+export type AddCurrentWishlistItemResponse = JsonResponse<
+  paths['/api/v1/wishlist/items']['post']['responses']['200']
+>;
+export type RemoveCurrentWishlistItemResponse = JsonResponse<
+  paths['/api/v1/wishlist/items/{gift_id}']['delete']['responses']['200']
+>;

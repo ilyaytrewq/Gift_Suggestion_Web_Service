@@ -123,6 +123,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm password reset */
+        post: operations["confirmPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/email-verification/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm email verification */
+        post: operations["confirmEmailVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me": {
         parameters: {
             query?: never;
@@ -199,12 +233,72 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List current user wishlists */
-        get: operations["listWishlists"];
+        /**
+         * List current user wishlists (deprecated)
+         * @deprecated
+         * @description Deprecated compatibility endpoint. Returns zero or one wishlist for the current user.
+         */
+        get: operations["listWishlistsCompat"];
         put?: never;
-        /** Create wishlist */
-        post: operations["createWishlist"];
+        /**
+         * Create current user wishlist (deprecated)
+         * @deprecated
+         * @description Deprecated compatibility endpoint. Creates the single personal wishlist if it does not exist yet.
+         */
+        post: operations["createWishlistCompat"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wishlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get my wishlist */
+        get: operations["getCurrentWishlist"];
+        put?: never;
+        post?: never;
+        /** Delete my wishlist */
+        delete: operations["deleteCurrentWishlist"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wishlist/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add gift to my wishlist */
+        post: operations["addCurrentWishlistItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wishlist/items/{gift_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove gift from my wishlist */
+        delete: operations["removeCurrentWishlistItem"];
         options?: never;
         head?: never;
         patch?: never;
@@ -217,12 +311,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get current user wishlist with items */
-        get: operations["getWishlist"];
+        /**
+         * Get current user wishlist with items (deprecated)
+         * @deprecated
+         * @description Deprecated compatibility endpoint. The path wishlist_id must match the current user's single wishlist.
+         */
+        get: operations["getWishlistCompat"];
         put?: never;
         post?: never;
-        /** Delete current user wishlist */
-        delete: operations["deleteWishlist"];
+        /**
+         * Delete current user wishlist (deprecated)
+         * @deprecated
+         * @description Deprecated compatibility endpoint. The path wishlist_id must match the current user's single wishlist.
+         */
+        delete: operations["deleteWishlistCompat"];
         options?: never;
         head?: never;
         patch?: never;
@@ -237,8 +339,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add gift to current user wishlist */
-        post: operations["addWishlistItem"];
+        /**
+         * Add gift to current user wishlist (deprecated)
+         * @deprecated
+         * @description Deprecated compatibility endpoint. The path wishlist_id must match the current user's single wishlist.
+         */
+        post: operations["addWishlistItemCompat"];
         delete?: never;
         options?: never;
         head?: never;
@@ -255,8 +361,12 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Remove gift from current user wishlist */
-        delete: operations["removeWishlistItem"];
+        /**
+         * Remove gift from current user wishlist (deprecated)
+         * @deprecated
+         * @description Deprecated compatibility endpoint. The path wishlist_id must match the current user's single wishlist.
+         */
+        delete: operations["removeWishlistItemCompat"];
         options?: never;
         head?: never;
         patch?: never;
@@ -458,6 +568,7 @@ export interface components {
             id: string;
             /** Format: email */
             email: string;
+            email_verified: boolean;
             role: string;
             display_name: string;
             /** Format: date-time */
@@ -481,6 +592,13 @@ export interface components {
         PasswordResetRequest: {
             /** Format: email */
             email: string;
+        };
+        PasswordResetConfirmRequest: {
+            token: string;
+            new_password: string;
+        };
+        EmailVerificationConfirmRequest: {
+            token: string;
         };
         UpdateProfileRequest: {
             profile: {
@@ -603,6 +721,7 @@ export interface components {
             meta: components["schemas"]["Meta"];
         };
         CreateWishlistRequest: {
+            /** @description Deprecated compatibility field. Personal wishlist name is normalized server-side. */
             name: string;
         };
         AddWishlistItemRequest: {
@@ -619,6 +738,7 @@ export interface components {
         WishlistSummary: {
             /** Format: uuid */
             id: string;
+            /** @description Personal wishlist display name. */
             name: string;
             item_count: number;
             /** Format: date-time */
@@ -629,6 +749,7 @@ export interface components {
         Wishlist: {
             /** Format: uuid */
             id: string;
+            /** @description Personal wishlist display name. */
             name: string;
             item_count: number;
             items: components["schemas"]["WishlistItem"][];
@@ -658,6 +779,7 @@ export interface components {
             /** @constant */
             status: "ok";
             data: {
+                already_in_wishlist: boolean;
                 item: components["schemas"]["WishlistItem"];
             };
             meta: components["schemas"]["Meta"];
@@ -1187,6 +1309,72 @@ export interface operations {
             };
         };
     };
+    confirmPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Password reset confirmed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedEnvelope"];
+                };
+            };
+            /** @description Validation error or invalid token */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    confirmEmailVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailVerificationConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Email verification confirmed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedEnvelope"];
+                };
+            };
+            /** @description Validation error or invalid token */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     getCurrentUser: {
         parameters: {
             query?: never;
@@ -1371,7 +1559,7 @@ export interface operations {
             };
         };
     };
-    listWishlists: {
+    listWishlistsCompat: {
         parameters: {
             query?: {
                 limit?: components["parameters"]["LimitQuery"];
@@ -1412,7 +1600,7 @@ export interface operations {
             };
         };
     };
-    createWishlist: {
+    createWishlistCompat: {
         parameters: {
             query?: never;
             header?: never;
@@ -1461,7 +1649,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description Wishlist name already exists for the current user */
+            /** @description Current user already has a wishlist */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1472,7 +1660,174 @@ export interface operations {
             };
         };
     };
-    getWishlist: {
+    getCurrentWishlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Personal wishlist detail. Created automatically on first access when missing. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishlistEnvelope"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteCurrentWishlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Personal wishlist deleted. If it does not exist, the operation is still successful. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteWishlistEnvelope"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    addCurrentWishlistItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddWishlistItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Gift is already saved in wishlist */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddWishlistItemEnvelope"];
+                };
+            };
+            /** @description Gift added to wishlist */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddWishlistItemEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Gift not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    removeCurrentWishlistItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gift_id: components["parameters"]["GiftIDPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Gift removed from wishlist. If it is absent, the operation is still successful. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemoveWishlistItemEnvelope"];
+                };
+            };
+            /** @description Invalid identifier */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getWishlistCompat: {
         parameters: {
             query?: never;
             header?: never;
@@ -1521,7 +1876,7 @@ export interface operations {
             };
         };
     };
-    deleteWishlist: {
+    deleteWishlistCompat: {
         parameters: {
             query?: never;
             header?: never;
@@ -1570,7 +1925,7 @@ export interface operations {
             };
         };
     };
-    addWishlistItem: {
+    addWishlistItemCompat: {
         parameters: {
             query?: never;
             header?: never;
@@ -1585,6 +1940,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Gift is already saved in wishlist */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddWishlistItemEnvelope"];
+                };
+            };
             /** @description Gift added to wishlist */
             201: {
                 headers: {
@@ -1621,18 +1985,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description Gift already exists in wishlist */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
         };
     };
-    removeWishlistItem: {
+    removeWishlistItemCompat: {
         parameters: {
             query?: never;
             header?: never;
@@ -1664,15 +2019,6 @@ export interface operations {
             };
             /** @description Missing or invalid access token */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Wishlist or wishlist item not found */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -16,6 +16,13 @@ func nullTime(value *time.Time) sql.NullTime {
 	}
 }
 
+func nullString(value string) sql.NullString {
+	return sql.NullString{
+		String: value,
+		Valid:  value != "",
+	}
+}
+
 func nullTimePtr(value sql.NullTime) *time.Time {
 	if !value.Valid {
 		return nil

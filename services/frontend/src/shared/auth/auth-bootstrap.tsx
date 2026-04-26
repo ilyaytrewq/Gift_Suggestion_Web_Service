@@ -55,8 +55,8 @@ export function AuthBootstrap({ children }: PropsWithChildren): JSX.Element {
   if (status === 'bootstrapping') {
     return (
       <PageLoader
-        title="Подготавливаем приложение"
-        description="Проверяем активную сессию и подгружаем базовый контекст."
+        title="Загружаем аккаунт"
+        description="Проверяем вход и подготавливаем данные профиля."
       />
     );
   }

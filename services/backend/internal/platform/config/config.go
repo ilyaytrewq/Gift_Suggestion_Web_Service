@@ -29,11 +29,15 @@ const (
 	defaultMLRequestTimeout  = 2500 * time.Millisecond
 	defaultMLMaxRetries      = 1
 	defaultVKRequestTimeout  = 3 * time.Second
+	defaultEmailProvider     = "noop"
+	defaultSMTPPort          = 587
+	defaultEmailSendTimeout  = 10 * time.Second
 	defaultJWTIssuer         = "gift-suggestion-backend"
 	defaultJWTAudience       = "gift-suggestion-web-service"
 	defaultAccessTokenTTL    = 15 * time.Minute
 	defaultRefreshTokenTTL   = 7 * 24 * time.Hour
 	defaultResetTokenTTL     = 30 * time.Minute
+	defaultVerificationTTL   = 24 * time.Hour
 	defaultRefreshCookieName = "refresh_token"
 	defaultRefreshCookiePath = "/api/v1/auth"
 )
@@ -45,6 +49,7 @@ type Config struct {
 	Import   ImportConfig
 	ML       MLConfig
 	VK       VKConfig
+	Email    EmailConfig
 	Auth     AuthConfig
 }
 
@@ -94,6 +99,24 @@ type VKConfig struct {
 	TokenEncryptionKey string
 }
 
+type EmailConfig struct {
+	Enabled         bool
+	Provider        string
+	FromEmail       string
+	FromName        string
+	FrontendBaseURL string
+	SendTimeout     time.Duration
+	SMTP            SMTPConfig
+}
+
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	UseTLS   bool
+}
+
 type AuthConfig struct {
 	JWTSecret             string
 	JWTIssuer             string
@@ -101,6 +124,7 @@ type AuthConfig struct {
 	AccessTokenTTL        time.Duration
 	RefreshTokenTTL       time.Duration
 	PasswordResetTokenTTL time.Duration
+	EmailVerificationTTL  time.Duration
 	RefreshCookieName     string
 	RefreshCookiePath     string
 	RefreshCookieDomain   string
@@ -145,6 +169,11 @@ func LoadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 		return Config{}, err
 	}
 
+	emailCfg, err := loadEmailConfig(lookup)
+	if err != nil {
+		return Config{}, err
+	}
+
 	authCfg, err := loadAuthConfig(lookup)
 	if err != nil {
 		return Config{}, err
@@ -155,6 +184,7 @@ func LoadFromLookup(lookup func(string) (string, bool)) (Config, error) {
 	cfg.Import = importCfg
 	cfg.ML = mlCfg
 	cfg.VK = vkCfg
+	cfg.Email = emailCfg
 	cfg.Auth = authCfg
 
 	if err := cfg.validate(); err != nil {
@@ -222,6 +252,33 @@ func (cfg Config) validateStorageAndIntegrations() error {
 			return err
 		}
 	}
+	if err := cfg.validateEmail(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cfg Config) validateEmail() error {
+	if cfg.Email.SendTimeout <= 0 {
+		return errors.New("EMAIL_SEND_TIMEOUT must be greater than zero")
+	}
+	if strings.TrimSpace(cfg.Email.FromEmail) == "" {
+		return errors.New("EMAIL_FROM_EMAIL must not be empty")
+	}
+	switch strings.ToLower(cfg.Email.Provider) {
+	case "noop", "smtp":
+	default:
+		return errors.New("EMAIL_PROVIDER must be one of noop, smtp")
+	}
+	if cfg.Email.Enabled && cfg.Email.Provider == "smtp" {
+		if strings.TrimSpace(cfg.Email.SMTP.Host) == "" {
+			return errors.New("SMTP_HOST is required when EMAIL_PROVIDER=smtp and EMAIL_ENABLED=true")
+		}
+		if cfg.Email.SMTP.Port < 1 || cfg.Email.SMTP.Port > 65535 {
+			return errors.New("SMTP_PORT must be between 1 and 65535 when EMAIL_PROVIDER=smtp and EMAIL_ENABLED=true")
+		}
+	}
 
 	return nil
 }
@@ -238,6 +295,9 @@ func (cfg Config) validateAuth() error {
 	}
 	if cfg.Auth.PasswordResetTokenTTL <= 0 {
 		return errors.New("AUTH_PASSWORD_RESET_TTL must be greater than zero")
+	}
+	if cfg.Auth.EmailVerificationTTL <= 0 {
+		return errors.New("AUTH_EMAIL_VERIFICATION_TTL must be greater than zero")
 	}
 
 	return nil
@@ -424,6 +484,41 @@ func loadVKConfig(lookup func(string) (string, bool)) (VKConfig, error) {
 	}, nil
 }
 
+func loadEmailConfig(lookup func(string) (string, bool)) (EmailConfig, error) {
+	enabled, err := boolWithDefault(lookup, "EMAIL_ENABLED", false)
+	if err != nil {
+		return EmailConfig{}, err
+	}
+	sendTimeout, err := durationWithDefault(lookup, "EMAIL_SEND_TIMEOUT", defaultEmailSendTimeout)
+	if err != nil {
+		return EmailConfig{}, err
+	}
+	smtpPort, err := intWithDefault(lookup, "SMTP_PORT", defaultSMTPPort)
+	if err != nil {
+		return EmailConfig{}, err
+	}
+	useTLS, err := boolWithDefault(lookup, "SMTP_USE_TLS", true)
+	if err != nil {
+		return EmailConfig{}, err
+	}
+
+	return EmailConfig{
+		Enabled:         enabled,
+		Provider:        strings.ToLower(stringWithDefault(lookup, "EMAIL_PROVIDER", defaultEmailProvider)),
+		FromEmail:       stringWithDefault(lookup, "EMAIL_FROM_EMAIL", ""),
+		FromName:        stringWithDefault(lookup, "EMAIL_FROM_NAME", ""),
+		FrontendBaseURL: strings.TrimRight(stringWithDefault(lookup, "FRONTEND_BASE_URL", ""), "/"),
+		SendTimeout:     sendTimeout,
+		SMTP: SMTPConfig{
+			Host:     stringWithDefault(lookup, "SMTP_HOST", ""),
+			Port:     smtpPort,
+			Username: stringWithDefault(lookup, "SMTP_USERNAME", ""),
+			Password: stringWithDefault(lookup, "SMTP_PASSWORD", ""),
+			UseTLS:   useTLS,
+		},
+	}, nil
+}
+
 func loadAuthConfig(lookup func(string) (string, bool)) (AuthConfig, error) {
 	jwtSecret, err := requiredString(lookup, "AUTH_JWT_SECRET")
 	if err != nil {
@@ -441,6 +536,10 @@ func loadAuthConfig(lookup func(string) (string, bool)) (AuthConfig, error) {
 	if err != nil {
 		return AuthConfig{}, err
 	}
+	emailVerificationTTL, err := durationWithDefault(lookup, "AUTH_EMAIL_VERIFICATION_TTL", defaultVerificationTTL)
+	if err != nil {
+		return AuthConfig{}, err
+	}
 	refreshCookieSecure, err := boolWithDefault(lookup, "AUTH_REFRESH_COOKIE_SECURE", false)
 	if err != nil {
 		return AuthConfig{}, err
@@ -453,6 +552,7 @@ func loadAuthConfig(lookup func(string) (string, bool)) (AuthConfig, error) {
 		AccessTokenTTL:        accessTokenTTL,
 		RefreshTokenTTL:       refreshTokenTTL,
 		PasswordResetTokenTTL: passwordResetTokenTTL,
+		EmailVerificationTTL:  emailVerificationTTL,
 		RefreshCookieName:     stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_NAME", defaultRefreshCookieName),
 		RefreshCookiePath:     stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_PATH", defaultRefreshCookiePath),
 		RefreshCookieDomain:   stringWithDefault(lookup, "AUTH_REFRESH_COOKIE_DOMAIN", ""),

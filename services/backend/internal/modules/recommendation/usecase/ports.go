@@ -8,7 +8,6 @@ import (
 	recommendationdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/recommendation/domain"
 	userdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/domain"
 	wishlistdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/domain"
-	wishlistusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/usecase"
 )
 
 type CandidateSelection struct {
@@ -35,12 +34,7 @@ type UserReader interface {
 }
 
 type WishlistReader interface {
-	ListWishlistsByUser(
-		ctx context.Context,
-		userID userdomain.UserID,
-		limit int,
-		offset int,
-	) ([]wishlistusecase.WishlistSummaryRecord, int, error)
+	GetWishlistByUserID(ctx context.Context, userID userdomain.UserID) (*wishlistdomain.Wishlist, error)
 	ListWishlistItems(ctx context.Context, wishlistID wishlistdomain.WishlistID) ([]wishlistdomain.WishlistItem, error)
 }
 

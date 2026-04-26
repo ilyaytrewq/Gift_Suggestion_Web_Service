@@ -16,11 +16,12 @@ in/bin/
 /build/
 /target/
 .github/workflows/
+!.github/workflows/
+!.github/workflows/*.yml
 ISSUE.md
 
 # Coverage
 *.cover
-services/backend/AGENTS.md
 coverage.out
 coverage*.out
 

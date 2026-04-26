@@ -200,14 +200,83 @@ func TestHandlerLogoutClearsRefreshCookie(t *testing.T) {
 	}
 }
 
+func TestHandlerConfirmPasswordResetPassesPayloadToService(t *testing.T) {
+	t.Parallel()
+
+	gin.SetMode(gin.TestMode)
+
+	service := &stubAuthService{
+		confirmResetOutput: authusecase.AcceptedOutput{Accepted: true},
+	}
+	handler, err := NewHandler(service, RefreshCookieConfig{Name: "refresh_token", Path: "/api/v1/auth"})
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	router := gin.New()
+	handler.Register(router.Group("/api/v1"))
+
+	body := `{"token":"reset-token","new_password":"AnotherPass1!"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/password-reset/confirm", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	if service.confirmResetInput.Token != "reset-token" {
+		t.Fatalf("ConfirmPasswordReset() token = %q, want %q", service.confirmResetInput.Token, "reset-token")
+	}
+	if service.confirmResetInput.NewPassword != "AnotherPass1!" {
+		t.Fatalf("ConfirmPasswordReset() new password mismatch")
+	}
+}
+
+func TestHandlerConfirmEmailVerificationPassesTokenToService(t *testing.T) {
+	t.Parallel()
+
+	gin.SetMode(gin.TestMode)
+
+	service := &stubAuthService{
+		confirmVerificationOutput: authusecase.AcceptedOutput{Accepted: true},
+	}
+	handler, err := NewHandler(service, RefreshCookieConfig{Name: "refresh_token", Path: "/api/v1/auth"})
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	router := gin.New()
+	handler.Register(router.Group("/api/v1"))
+
+	body := `{"token":"verify-token"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/email-verification/confirm", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	if service.confirmVerificationInput.Token != "verify-token" {
+		t.Fatalf("ConfirmEmailVerification() token = %q, want %q", service.confirmVerificationInput.Token, "verify-token")
+	}
+}
+
 type stubAuthService struct {
-	registerInput  authusecase.RegisterInput
-	registerOutput authusecase.RegisterOutput
-	loginOutput    authusecase.LoginOutput
-	refreshOutput  authusecase.RefreshOutput
-	logoutInput    authusecase.LogoutInput
-	logoutOutput   authusecase.AcceptedOutput
-	resetOutput    authusecase.AcceptedOutput
+	registerInput             authusecase.RegisterInput
+	registerOutput            authusecase.RegisterOutput
+	loginOutput               authusecase.LoginOutput
+	refreshOutput             authusecase.RefreshOutput
+	logoutInput               authusecase.LogoutInput
+	logoutOutput              authusecase.AcceptedOutput
+	resetOutput               authusecase.AcceptedOutput
+	confirmResetInput         authusecase.ConfirmPasswordResetInput
+	confirmResetOutput        authusecase.AcceptedOutput
+	confirmVerificationInput  authusecase.ConfirmEmailVerificationInput
+	confirmVerificationOutput authusecase.AcceptedOutput
 }
 
 func (s *stubAuthService) Register(_ context.Context, input authusecase.RegisterInput) (authusecase.RegisterOutput, error) {
@@ -230,6 +299,16 @@ func (s *stubAuthService) Logout(_ context.Context, input authusecase.LogoutInpu
 
 func (s *stubAuthService) RequestPasswordReset(context.Context, authusecase.RequestPasswordResetInput) (authusecase.AcceptedOutput, error) {
 	return s.resetOutput, nil
+}
+
+func (s *stubAuthService) ConfirmPasswordReset(_ context.Context, input authusecase.ConfirmPasswordResetInput) (authusecase.AcceptedOutput, error) {
+	s.confirmResetInput = input
+	return s.confirmResetOutput, nil
+}
+
+func (s *stubAuthService) ConfirmEmailVerification(_ context.Context, input authusecase.ConfirmEmailVerificationInput) (authusecase.AcceptedOutput, error) {
+	s.confirmVerificationInput = input
+	return s.confirmVerificationOutput, nil
 }
 
 func (s *stubAuthService) Authorize(context.Context, string) (authusecase.Actor, error) {

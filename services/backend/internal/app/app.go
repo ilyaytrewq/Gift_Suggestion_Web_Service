@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	authhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/delivery/http"
+	authemail "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/infra/email"
 	authpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/infra/postgres"
 	authusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/usecase"
 	cataloghttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalog/delivery/http"
@@ -46,6 +47,7 @@ import (
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/authjwt"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/clock"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/config"
+	platformemail "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/email"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/httpserver"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/idgen"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/logger"
@@ -137,27 +139,9 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	userRepository := userpostgres.NewRepository(database)
 	catalogRepository := catalogpostgres.NewRepository(database)
 	wishlistRepository := wishlistpostgres.NewRepository(database)
-	sessionRepository := authpostgres.NewSessionRepository(database)
-	passwordResetRepository := authpostgres.NewPasswordResetRepository(database)
 	uuidGenerator := idgen.UUIDGenerator{}
-	jwtManager := authjwt.NewManager(cfg.Auth)
-	refreshTokenGenerator := randomtoken.NewGenerator(32)
-	resetTokenGenerator := randomtoken.NewGenerator(32)
 
-	authService, err := authusecase.NewService(
-		userRepository,
-		sessionRepository,
-		passwordResetRepository,
-		jwtManager,
-		refreshTokenGenerator,
-		resetTokenGenerator,
-		uuidGenerator,
-		uuidGenerator,
-		uuidGenerator,
-		cfg.Auth.RefreshTokenTTL,
-		cfg.Auth.PasswordResetTokenTTL,
-		clock.Real{},
-	)
+	authService, err := newAuthService(database, cfg, log, userRepository, uuidGenerator)
 	if err != nil {
 		return nil, err
 	}
@@ -293,6 +277,62 @@ func newHealthHandler(database *sql.DB, mlClient *mlgrpc.Client) (*healthhttp.Ha
 	}
 
 	return healthhttp.NewHandler(healthService)
+}
+
+func newAuthService(
+	database *sql.DB,
+	cfg config.Config,
+	log *slog.Logger,
+	userRepository *userpostgres.Repository,
+	uuidGenerator idgen.UUIDGenerator,
+) (*authusecase.Service, error) {
+	registrationRepository := authpostgres.NewRegistrationRepository(database)
+	emailVerificationRepository := authpostgres.NewEmailVerificationRepository(database)
+	sessionRepository := authpostgres.NewSessionRepository(database)
+	passwordResetRepository := authpostgres.NewPasswordResetRepository(database)
+	jwtManager := authjwt.NewManager(cfg.Auth)
+	refreshTokenGenerator := randomtoken.NewGenerator(32)
+	verificationTokenGenerator := randomtoken.NewGenerator(32)
+	resetTokenGenerator := randomtoken.NewGenerator(32)
+
+	emailSender, err := platformemail.NewSender(cfg.Email, log)
+	if err != nil {
+		return nil, err
+	}
+	emailNotifier, err := authemail.NewNotifier(
+		emailSender,
+		log,
+		platformemail.Address{
+			Email: cfg.Email.FromEmail,
+			Name:  cfg.Email.FromName,
+		},
+		cfg.Email.FrontendBaseURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return authusecase.NewService(
+		userRepository,
+		registrationRepository,
+		emailVerificationRepository,
+		sessionRepository,
+		passwordResetRepository,
+		jwtManager,
+		refreshTokenGenerator,
+		verificationTokenGenerator,
+		resetTokenGenerator,
+		emailNotifier,
+		log,
+		uuidGenerator,
+		uuidGenerator,
+		uuidGenerator,
+		uuidGenerator,
+		cfg.Auth.RefreshTokenTTL,
+		cfg.Auth.EmailVerificationTTL,
+		cfg.Auth.PasswordResetTokenTTL,
+		clock.Real{},
+	)
 }
 
 func newCatalogImportHandler(

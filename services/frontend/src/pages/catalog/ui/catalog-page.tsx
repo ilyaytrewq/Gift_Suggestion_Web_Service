@@ -35,10 +35,9 @@ export function CatalogPage(): JSX.Element {
     <Container className="page-stack">
       <section className="section-heading">
         <p className="eyebrow">Каталог идей</p>
-        <h1>Подберите стартовый список подарков по категории, поиску и сортировке.</h1>
+        <h1>Выберите подарок по категории, названию и цене.</h1>
         <p className="page-copy">
-          Slice 1 использует только существующие catalog endpoints. Wishlist,
-          recommendation и дополнительные refine-flow здесь ещё не включены.
+          Используйте поиск и фильтры, чтобы быстро сузить выбор.
         </p>
       </section>
 
@@ -66,11 +65,8 @@ export function CatalogPage(): JSX.Element {
       {giftsQuery.data ? (
         <>
           <div className="catalog-summary">
-            <span>Найдено: {giftsQuery.data.data.page.total}</span>
-            <span>
-              Показаны первые {giftsQuery.data.data.items.length} результатов
-              без пагинации Slice 1
-            </span>
+            <span>Подарков найдено: {giftsQuery.data.data.page.total}</span>
+            <span>Показано: {giftsQuery.data.data.items.length}</span>
           </div>
 
           {giftsQuery.data.data.items.length ? (
@@ -90,7 +86,7 @@ export function CatalogPage(): JSX.Element {
                 </Link>
               }
               description="Попробуйте изменить запрос, сбросить категорию или выбрать другой тип сортировки."
-              title="Каталог ничего не вернул"
+              title="Ничего не найдено"
             />
           )}
         </>

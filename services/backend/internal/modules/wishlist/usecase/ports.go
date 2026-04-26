@@ -17,6 +17,7 @@ type WishlistSummaryRecord struct {
 type WishlistRepository interface {
 	CreateWishlist(ctx context.Context, wishlist *wishlistdomain.Wishlist) error
 	GetWishlistByID(ctx context.Context, id wishlistdomain.WishlistID) (*wishlistdomain.Wishlist, error)
+	GetWishlistByUserID(ctx context.Context, userID userdomain.UserID) (*wishlistdomain.Wishlist, error)
 	ListWishlistsByUser(
 		ctx context.Context,
 		userID userdomain.UserID,
@@ -24,6 +25,11 @@ type WishlistRepository interface {
 		offset int,
 	) ([]WishlistSummaryRecord, int, error)
 	ListWishlistItems(ctx context.Context, wishlistID wishlistdomain.WishlistID) ([]wishlistdomain.WishlistItem, error)
+	GetWishlistItemByGiftID(
+		ctx context.Context,
+		wishlistID wishlistdomain.WishlistID,
+		giftID catalogdomain.GiftID,
+	) (*wishlistdomain.WishlistItem, error)
 	AddWishlistItem(ctx context.Context, item *wishlistdomain.WishlistItem) error
 	RemoveWishlistItem(ctx context.Context, wishlistID wishlistdomain.WishlistID, giftID catalogdomain.GiftID) error
 	DeleteWishlist(ctx context.Context, id wishlistdomain.WishlistID) error

@@ -21,6 +21,8 @@ type service interface {
 	Refresh(ctx context.Context, input authusecase.RefreshInput) (authusecase.RefreshOutput, error)
 	Logout(ctx context.Context, input authusecase.LogoutInput) (authusecase.AcceptedOutput, error)
 	RequestPasswordReset(ctx context.Context, input authusecase.RequestPasswordResetInput) (authusecase.AcceptedOutput, error)
+	ConfirmPasswordReset(ctx context.Context, input authusecase.ConfirmPasswordResetInput) (authusecase.AcceptedOutput, error)
+	ConfirmEmailVerification(ctx context.Context, input authusecase.ConfirmEmailVerificationInput) (authusecase.AcceptedOutput, error)
 	Authorize(ctx context.Context, rawAccessToken string) (authusecase.Actor, error)
 }
 
@@ -57,6 +59,8 @@ func (h *Handler) Register(root gin.IRouter) {
 	authGroup.POST("/refresh", h.refresh)
 	authGroup.POST("/logout", h.logout)
 	authGroup.POST("/password-reset/request", h.requestPasswordReset)
+	authGroup.POST("/password-reset/confirm", h.confirmPasswordReset)
+	authGroup.POST("/email-verification/confirm", h.confirmEmailVerification)
 }
 
 func (h *Handler) register(c *gin.Context) {
@@ -142,6 +146,43 @@ func (h *Handler) requestPasswordReset(c *gin.Context) {
 	}
 
 	httpapi.Success(c, http.StatusAccepted, response)
+}
+
+func (h *Handler) confirmPasswordReset(c *gin.Context) {
+	var request passwordResetConfirmRequest
+	if err := httpapi.DecodeJSON(c, &request); err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	response, err := h.service.ConfirmPasswordReset(c.Request.Context(), authusecase.ConfirmPasswordResetInput{
+		Token:       request.Token,
+		NewPassword: request.NewPassword,
+	})
+	if err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	httpapi.Success(c, http.StatusOK, response)
+}
+
+func (h *Handler) confirmEmailVerification(c *gin.Context) {
+	var request emailVerificationConfirmRequest
+	if err := httpapi.DecodeJSON(c, &request); err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	response, err := h.service.ConfirmEmailVerification(c.Request.Context(), authusecase.ConfirmEmailVerificationInput{
+		Token: request.Token,
+	})
+	if err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	httpapi.Success(c, http.StatusOK, response)
 }
 
 func (h *Handler) logout(c *gin.Context) {

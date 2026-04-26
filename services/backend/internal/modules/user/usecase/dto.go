@@ -7,13 +7,14 @@ import (
 )
 
 type Profile struct {
-	ID          string     `json:"id"`
-	Email       string     `json:"email"`
-	Role        string     `json:"role"`
-	DisplayName string     `json:"display_name"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	ID            string     `json:"id"`
+	Email         string     `json:"email"`
+	EmailVerified bool       `json:"email_verified"`
+	Role          string     `json:"role"`
+	DisplayName   string     `json:"display_name"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	LastLoginAt   *time.Time `json:"last_login_at,omitempty"`
 }
 
 type UpdateProfileInput struct {
@@ -23,12 +24,13 @@ type UpdateProfileInput struct {
 
 func newProfile(user *domain.User) Profile {
 	return Profile{
-		ID:          user.ID().String(),
-		Email:       user.Email().String(),
-		Role:        string(user.Role()),
-		DisplayName: user.DisplayName(),
-		CreatedAt:   user.CreatedAt(),
-		UpdatedAt:   user.UpdatedAt(),
-		LastLoginAt: user.LastLoginAt(),
+		ID:            user.ID().String(),
+		Email:         user.Email().String(),
+		EmailVerified: user.IsEmailVerified(),
+		Role:          string(user.Role()),
+		DisplayName:   user.DisplayName(),
+		CreatedAt:     user.CreatedAt(),
+		UpdatedAt:     user.UpdatedAt(),
+		LastLoginAt:   user.LastLoginAt(),
 	}
 }

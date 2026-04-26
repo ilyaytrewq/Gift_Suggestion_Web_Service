@@ -33,6 +33,15 @@ type RequestPasswordResetInput struct {
 	Email string
 }
 
+type ConfirmEmailVerificationInput struct {
+	Token string
+}
+
+type ConfirmPasswordResetInput struct {
+	Token       string
+	NewPassword string
+}
+
 type AuthPayload struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token,omitempty"`

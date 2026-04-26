@@ -442,6 +442,17 @@ select {
   color: var(--ink-muted);
 }
 
+.wishlist-action {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.wishlist-action__hint {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
 .gift-detail {
   display: grid;
   grid-template-columns: minmax(320px, 1fr) minmax(0, 1fr);
@@ -571,6 +582,13 @@ select {
   border: 1px solid rgba(36, 92, 74, 0.16);
   background: rgba(36, 92, 74, 0.08);
   color: var(--secondary);
+}
+
+.wishlist-empty-actions,
+.wishlist-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .empty-state,

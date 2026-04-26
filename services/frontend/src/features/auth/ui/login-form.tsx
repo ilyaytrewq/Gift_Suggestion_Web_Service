@@ -63,7 +63,7 @@ export function LoginForm(): JSX.Element {
     >
       {mutation.isError ? <ErrorBanner error={mutation.error} /> : null}
 
-      <Field error={form.formState.errors.email?.message} label="Email">
+      <Field error={form.formState.errors.email?.message} label="Электронная почта">
         <Input
           autoComplete="email"
           placeholder="you@example.com"

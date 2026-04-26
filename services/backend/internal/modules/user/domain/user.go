@@ -8,14 +8,16 @@ import (
 )
 
 type User struct {
-	id           UserID
-	email        Email
-	passwordHash PasswordHash
-	role         Role
-	displayName  string
-	createdAt    time.Time
-	updatedAt    time.Time
-	lastLoginAt  *time.Time
+	id                UserID
+	email             Email
+	passwordHash      PasswordHash
+	role              Role
+	displayName       string
+	createdAt         time.Time
+	updatedAt         time.Time
+	lastLoginAt       *time.Time
+	passwordChangedAt *time.Time
+	emailVerifiedAt   *time.Time
 }
 
 func NewUser(id, email, password, role string) (User, error) {
@@ -81,6 +83,8 @@ func RestoreUser(
 	createdAt time.Time,
 	updatedAt time.Time,
 	lastLoginAt *time.Time,
+	passwordChangedAt *time.Time,
+	emailVerifiedAt *time.Time,
 ) (User, error) {
 	uid, err := newUserID(id)
 	if err != nil {
@@ -108,14 +112,16 @@ func RestoreUser(
 	}
 
 	return User{
-		id:           uid,
-		email:        em,
-		passwordHash: hash,
-		role:         rl,
-		displayName:  normalizedDisplayName,
-		createdAt:    createdAt.UTC(),
-		updatedAt:    updatedAt.UTC(),
-		lastLoginAt:  cloneTimePtr(lastLoginAt),
+		id:                uid,
+		email:             em,
+		passwordHash:      hash,
+		role:              rl,
+		displayName:       normalizedDisplayName,
+		createdAt:         createdAt.UTC(),
+		updatedAt:         updatedAt.UTC(),
+		lastLoginAt:       cloneTimePtr(lastLoginAt),
+		passwordChangedAt: cloneTimePtr(passwordChangedAt),
+		emailVerifiedAt:   cloneTimePtr(emailVerifiedAt),
 	}, nil
 }
 
@@ -143,6 +149,39 @@ func (u *User) MarkLoggedIn(at time.Time) {
 	loggedInAt := at.UTC()
 	u.lastLoginAt = &loggedInAt
 	u.updatedAt = loggedInAt
+}
+
+func (u *User) UpdatePassword(password string, changedAt time.Time) error {
+	if u == nil {
+		return ErrUserNotFound
+	}
+
+	psw, err := newPassword(password)
+	if err != nil {
+		return err
+	}
+
+	passwordHash, err := newPasswordHash(psw)
+	if err != nil {
+		return err
+	}
+
+	timestamp := changedAt.UTC()
+	u.passwordHash = passwordHash
+	u.passwordChangedAt = &timestamp
+	u.updatedAt = timestamp
+
+	return nil
+}
+
+func (u *User) MarkEmailVerified(at time.Time) {
+	if u == nil {
+		return
+	}
+
+	timestamp := at.UTC()
+	u.emailVerifiedAt = &timestamp
+	u.updatedAt = timestamp
 }
 
 func (u *User) ID() UserID {
@@ -175,6 +214,18 @@ func (u *User) UpdatedAt() time.Time {
 
 func (u *User) LastLoginAt() *time.Time {
 	return cloneTimePtr(u.lastLoginAt)
+}
+
+func (u *User) PasswordChangedAt() *time.Time {
+	return cloneTimePtr(u.passwordChangedAt)
+}
+
+func (u *User) EmailVerifiedAt() *time.Time {
+	return cloneTimePtr(u.emailVerifiedAt)
+}
+
+func (u *User) IsEmailVerified() bool {
+	return u != nil && u.emailVerifiedAt != nil
 }
 
 func normalizeDisplayName(displayName string) (string, error) {

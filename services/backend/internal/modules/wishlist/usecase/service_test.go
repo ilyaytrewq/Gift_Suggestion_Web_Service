@@ -17,19 +17,18 @@ const (
 	testWishlistID          = "550e8400-e29b-41d4-a716-446655440102"
 	testWishlistItemID      = "550e8400-e29b-41d4-a716-446655440103"
 	testWishlistGiftID      = "550e8400-e29b-41d4-a716-446655440104"
-	testWishlistGiftName    = "LEGO Set"
-	testWishlistName        = "Birthday Ideas"
 	testWishlistStoreLink   = "https://example.com/gifts/lego"
 	testWishlistPrice       = "129.99"
 	testWishlistDescription = "Creative building set"
 )
 
-func TestServiceCreateWishlistSuccess(t *testing.T) {
+func TestServiceGetWishlistCreatesPersonalWishlistOnFirstRead(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC)
+	repo := &fakeWishlistRepo{}
 	service := mustWishlistService(t, wishlistServiceDeps{
-		repo: fakeWishlistRepo{},
+		repo: repo,
 		userReader: fakeUserReader{
 			user: mustWishlistUser(t),
 		},
@@ -39,30 +38,30 @@ func TestServiceCreateWishlistSuccess(t *testing.T) {
 		clock:             fixedWishlistClock{now: now},
 	})
 
-	output, err := service.CreateWishlist(context.Background(), CreateWishlistInput{
+	output, err := service.GetWishlist(context.Background(), GetWishlistInput{
 		UserID: testWishlistUserID,
-		Name:   "  Birthday Ideas  ",
 	})
 	if err != nil {
-		t.Fatalf("CreateWishlist() error = %v", err)
+		t.Fatalf("GetWishlist() error = %v", err)
 	}
 
 	if output.Wishlist.ID != testWishlistID {
-		t.Fatalf("CreateWishlist() id = %q, want %q", output.Wishlist.ID, testWishlistID)
+		t.Fatalf("GetWishlist() id = %q, want %q", output.Wishlist.ID, testWishlistID)
 	}
-	if output.Wishlist.Name != testWishlistName {
-		t.Fatalf("CreateWishlist() name = %q, want %q", output.Wishlist.Name, testWishlistName)
+	if output.Wishlist.Name != personalWishlistName {
+		t.Fatalf("GetWishlist() name = %q, want %q", output.Wishlist.Name, personalWishlistName)
 	}
-	if output.Wishlist.ItemCount != 0 {
-		t.Fatalf("CreateWishlist() item count = %d, want 0", output.Wishlist.ItemCount)
+	if repo.createdWishlist == nil {
+		t.Fatal("GetWishlist() did not create personal wishlist")
 	}
 }
 
-func TestServiceCreateWishlistDuplicateName(t *testing.T) {
+func TestServiceCreateWishlistRejectsSecondWishlist(t *testing.T) {
 	t.Parallel()
 
+	existingWishlist := mustWishlist(t, testWishlistUserID)
 	service := mustWishlistService(t, wishlistServiceDeps{
-		repo: fakeWishlistRepo{createErr: wishlistdomain.ErrWishlistAlreadyExists},
+		repo: &fakeWishlistRepo{wishlistByUser: &existingWishlist},
 		userReader: fakeUserReader{
 			user: mustWishlistUser(t),
 		},
@@ -74,7 +73,7 @@ func TestServiceCreateWishlistDuplicateName(t *testing.T) {
 
 	_, err := service.CreateWishlist(context.Background(), CreateWishlistInput{
 		UserID: testWishlistUserID,
-		Name:   testWishlistName,
+		Name:   "Что угодно",
 	})
 	if err == nil {
 		t.Fatal("CreateWishlist() expected conflict error")
@@ -84,46 +83,17 @@ func TestServiceCreateWishlistDuplicateName(t *testing.T) {
 	if appErr.Kind() != apperrors.KindConflict {
 		t.Fatalf("CreateWishlist() kind = %q, want %q", appErr.Kind(), apperrors.KindConflict)
 	}
-	if appErr.Code() != "wishlist_name_exists" {
-		t.Fatalf("CreateWishlist() code = %q, want %q", appErr.Code(), "wishlist_name_exists")
+	if appErr.Code() != "wishlist_already_exists" {
+		t.Fatalf("CreateWishlist() code = %q, want %q", appErr.Code(), "wishlist_already_exists")
 	}
 }
 
-func TestServiceCreateWishlistMissingUser(t *testing.T) {
-	t.Parallel()
-
-	service := mustWishlistService(t, wishlistServiceDeps{
-		repo:              fakeWishlistRepo{},
-		userReader:        fakeUserReader{},
-		giftReader:        fakeGiftReader{},
-		wishlistIDGen:     fakeWishlistIDGenerator{id: testWishlistID},
-		wishlistItemIDGen: fakeWishlistItemIDGenerator{id: testWishlistItemID},
-		clock:             fixedWishlistClock{now: time.Now().UTC()},
-	})
-
-	_, err := service.CreateWishlist(context.Background(), CreateWishlistInput{
-		UserID: testWishlistUserID,
-		Name:   testWishlistName,
-	})
-	if err == nil {
-		t.Fatal("CreateWishlist() expected not found error")
-	}
-
-	appErr := apperrors.From(err)
-	if appErr.Kind() != apperrors.KindNotFound {
-		t.Fatalf("CreateWishlist() kind = %q, want %q", appErr.Kind(), apperrors.KindNotFound)
-	}
-	if appErr.Code() != "user_not_found" {
-		t.Fatalf("CreateWishlist() code = %q, want %q", appErr.Code(), "user_not_found")
-	}
-}
-
-func TestServiceGetWishlistMasksForeignAccess(t *testing.T) {
+func TestServiceGetWishlistMasksForeignAccessByID(t *testing.T) {
 	t.Parallel()
 
 	foreignWishlist := mustWishlist(t, testWishlistOtherUserID)
 	service := mustWishlistService(t, wishlistServiceDeps{
-		repo: fakeWishlistRepo{wishlist: &foreignWishlist},
+		repo: &fakeWishlistRepo{wishlistByID: &foreignWishlist},
 		userReader: fakeUserReader{
 			user: mustWishlistUser(t),
 		},
@@ -155,7 +125,7 @@ func TestServiceAddWishlistItemMissingGift(t *testing.T) {
 
 	existingWishlist := mustWishlist(t, testWishlistUserID)
 	service := mustWishlistService(t, wishlistServiceDeps{
-		repo: fakeWishlistRepo{wishlist: &existingWishlist},
+		repo: &fakeWishlistRepo{wishlistByUser: &existingWishlist},
 		userReader: fakeUserReader{
 			user: mustWishlistUser(t),
 		},
@@ -166,9 +136,8 @@ func TestServiceAddWishlistItemMissingGift(t *testing.T) {
 	})
 
 	_, err := service.AddWishlistItem(context.Background(), AddWishlistItemInput{
-		UserID:     testWishlistUserID,
-		WishlistID: testWishlistID,
-		GiftID:     testWishlistGiftID,
+		UserID: testWishlistUserID,
+		GiftID: testWishlistGiftID,
 	})
 	if err == nil {
 		t.Fatal("AddWishlistItem() expected not found error")
@@ -180,14 +149,16 @@ func TestServiceAddWishlistItemMissingGift(t *testing.T) {
 	}
 }
 
-func TestServiceAddWishlistItemDuplicateGift(t *testing.T) {
+func TestServiceAddWishlistItemDuplicateGiftIsIdempotent(t *testing.T) {
 	t.Parallel()
 
 	existingWishlist := mustWishlist(t, testWishlistUserID)
+	existingItem := mustWishlistItem(t, existingWishlist.ID().String(), testWishlistGiftID, testWishlistItemID)
 	service := mustWishlistService(t, wishlistServiceDeps{
-		repo: fakeWishlistRepo{
-			wishlist: &existingWishlist,
-			addErr:   wishlistdomain.ErrWishlistItemExists,
+		repo: &fakeWishlistRepo{
+			wishlistByUser: &existingWishlist,
+			addErr:         wishlistdomain.ErrWishlistItemExists,
+			itemByGift:     &existingItem,
 		},
 		userReader: fakeUserReader{
 			user: mustWishlistUser(t),
@@ -196,34 +167,31 @@ func TestServiceAddWishlistItemDuplicateGift(t *testing.T) {
 			gift: mustGift(t),
 		},
 		wishlistIDGen:     fakeWishlistIDGenerator{id: testWishlistID},
-		wishlistItemIDGen: fakeWishlistItemIDGenerator{id: testWishlistItemID},
+		wishlistItemIDGen: fakeWishlistItemIDGenerator{id: "550e8400-e29b-41d4-a716-446655440999"},
 		clock:             fixedWishlistClock{now: time.Now().UTC()},
 	})
 
-	_, err := service.AddWishlistItem(context.Background(), AddWishlistItemInput{
-		UserID:     testWishlistUserID,
-		WishlistID: testWishlistID,
-		GiftID:     testWishlistGiftID,
+	output, err := service.AddWishlistItem(context.Background(), AddWishlistItemInput{
+		UserID: testWishlistUserID,
+		GiftID: testWishlistGiftID,
 	})
-	if err == nil {
-		t.Fatal("AddWishlistItem() expected conflict error")
+	if err != nil {
+		t.Fatalf("AddWishlistItem() error = %v", err)
 	}
 
-	appErr := apperrors.From(err)
-	if appErr.Kind() != apperrors.KindConflict {
-		t.Fatalf("AddWishlistItem() kind = %q, want %q", appErr.Kind(), apperrors.KindConflict)
+	if !output.AlreadyInWishlist {
+		t.Fatal("AddWishlistItem() already_in_wishlist = false, want true")
+	}
+	if output.Item.ID != testWishlistItemID {
+		t.Fatalf("AddWishlistItem() item id = %q, want %q", output.Item.ID, testWishlistItemID)
 	}
 }
 
-func TestServiceGetWishlistEmptySuccess(t *testing.T) {
+func TestServiceRemoveWishlistItemReturnsFalseWhenWishlistMissing(t *testing.T) {
 	t.Parallel()
 
-	existingWishlist := mustWishlist(t, testWishlistUserID)
 	service := mustWishlistService(t, wishlistServiceDeps{
-		repo: fakeWishlistRepo{
-			wishlist: &existingWishlist,
-			items:    nil,
-		},
+		repo: &fakeWishlistRepo{},
 		userReader: fakeUserReader{
 			user: mustWishlistUser(t),
 		},
@@ -233,21 +201,45 @@ func TestServiceGetWishlistEmptySuccess(t *testing.T) {
 		clock:             fixedWishlistClock{now: time.Now().UTC()},
 	})
 
-	output, err := service.GetWishlist(context.Background(), GetWishlistInput{
-		UserID:     testWishlistUserID,
-		WishlistID: testWishlistID,
+	output, err := service.RemoveWishlistItem(context.Background(), RemoveWishlistItemInput{
+		UserID: testWishlistUserID,
+		GiftID: testWishlistGiftID,
 	})
 	if err != nil {
-		t.Fatalf("GetWishlist() error = %v", err)
+		t.Fatalf("RemoveWishlistItem() error = %v", err)
 	}
+	if output.Removed {
+		t.Fatal("RemoveWishlistItem() removed = true, want false")
+	}
+}
 
-	if len(output.Wishlist.Items) != 0 {
-		t.Fatalf("GetWishlist() items = %d, want 0", len(output.Wishlist.Items))
+func TestServiceDeleteWishlistReturnsFalseWhenWishlistMissing(t *testing.T) {
+	t.Parallel()
+
+	service := mustWishlistService(t, wishlistServiceDeps{
+		repo: &fakeWishlistRepo{},
+		userReader: fakeUserReader{
+			user: mustWishlistUser(t),
+		},
+		giftReader:        fakeGiftReader{},
+		wishlistIDGen:     fakeWishlistIDGenerator{id: testWishlistID},
+		wishlistItemIDGen: fakeWishlistItemIDGenerator{id: testWishlistItemID},
+		clock:             fixedWishlistClock{now: time.Now().UTC()},
+	})
+
+	output, err := service.DeleteWishlist(context.Background(), DeleteWishlistInput{
+		UserID: testWishlistUserID,
+	})
+	if err != nil {
+		t.Fatalf("DeleteWishlist() error = %v", err)
+	}
+	if output.Deleted {
+		t.Fatal("DeleteWishlist() deleted = true, want false")
 	}
 }
 
 type wishlistServiceDeps struct {
-	repo              fakeWishlistRepo
+	repo              *fakeWishlistRepo
 	userReader        fakeUserReader
 	giftReader        fakeGiftReader
 	wishlistIDGen     fakeWishlistIDGenerator
@@ -279,37 +271,55 @@ type fakeWishlistRepo struct {
 	removeErr error
 	deleteErr error
 
-	wishlist    *wishlistdomain.Wishlist
-	listRecords []WishlistSummaryRecord
-	listTotal   int
-	items       []wishlistdomain.WishlistItem
+	createdWishlist *wishlistdomain.Wishlist
+	wishlistByID    *wishlistdomain.Wishlist
+	wishlistByUser  *wishlistdomain.Wishlist
+	itemByGift      *wishlistdomain.WishlistItem
+	items           []wishlistdomain.WishlistItem
+	listRecords     []WishlistSummaryRecord
+	listTotal       int
 }
 
-func (r fakeWishlistRepo) CreateWishlist(context.Context, *wishlistdomain.Wishlist) error {
-	return r.createErr
+func (r *fakeWishlistRepo) CreateWishlist(_ context.Context, wishlist *wishlistdomain.Wishlist) error {
+	if r.createErr != nil {
+		return r.createErr
+	}
+
+	created := *wishlist
+	r.createdWishlist = &created
+	r.wishlistByUser = &created
+	return nil
 }
 
-func (r fakeWishlistRepo) GetWishlistByID(context.Context, wishlistdomain.WishlistID) (*wishlistdomain.Wishlist, error) {
-	return r.wishlist, nil
+func (r *fakeWishlistRepo) GetWishlistByID(context.Context, wishlistdomain.WishlistID) (*wishlistdomain.Wishlist, error) {
+	return r.wishlistByID, nil
 }
 
-func (r fakeWishlistRepo) ListWishlistsByUser(context.Context, userdomain.UserID, int, int) ([]WishlistSummaryRecord, int, error) {
+func (r *fakeWishlistRepo) GetWishlistByUserID(context.Context, userdomain.UserID) (*wishlistdomain.Wishlist, error) {
+	return r.wishlistByUser, nil
+}
+
+func (r *fakeWishlistRepo) ListWishlistsByUser(context.Context, userdomain.UserID, int, int) ([]WishlistSummaryRecord, int, error) {
 	return r.listRecords, r.listTotal, nil
 }
 
-func (r fakeWishlistRepo) ListWishlistItems(context.Context, wishlistdomain.WishlistID) ([]wishlistdomain.WishlistItem, error) {
+func (r *fakeWishlistRepo) ListWishlistItems(context.Context, wishlistdomain.WishlistID) ([]wishlistdomain.WishlistItem, error) {
 	return r.items, nil
 }
 
-func (r fakeWishlistRepo) AddWishlistItem(context.Context, *wishlistdomain.WishlistItem) error {
+func (r *fakeWishlistRepo) GetWishlistItemByGiftID(context.Context, wishlistdomain.WishlistID, catalogdomain.GiftID) (*wishlistdomain.WishlistItem, error) {
+	return r.itemByGift, nil
+}
+
+func (r *fakeWishlistRepo) AddWishlistItem(context.Context, *wishlistdomain.WishlistItem) error {
 	return r.addErr
 }
 
-func (r fakeWishlistRepo) RemoveWishlistItem(context.Context, wishlistdomain.WishlistID, catalogdomain.GiftID) error {
+func (r *fakeWishlistRepo) RemoveWishlistItem(context.Context, wishlistdomain.WishlistID, catalogdomain.GiftID) error {
 	return r.removeErr
 }
 
-func (r fakeWishlistRepo) DeleteWishlist(context.Context, wishlistdomain.WishlistID) error {
+func (r *fakeWishlistRepo) DeleteWishlist(context.Context, wishlistdomain.WishlistID) error {
 	return r.deleteErr
 }
 
@@ -369,16 +379,13 @@ func mustWishlistUser(t *testing.T) *userdomain.User {
 	return &user
 }
 
-func mustWishlist(
-	t *testing.T,
-	userID string,
-) wishlistdomain.Wishlist {
+func mustWishlist(t *testing.T, userID string) wishlistdomain.Wishlist {
 	t.Helper()
 
 	wishlist, err := wishlistdomain.RestoreWishlist(
 		testWishlistID,
 		userID,
-		testWishlistName,
+		personalWishlistName,
 		time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
 		time.Date(2026, 4, 19, 10, 0, 0, 0, time.UTC),
 	)
@@ -389,6 +396,22 @@ func mustWishlist(
 	return wishlist
 }
 
+func mustWishlistItem(t *testing.T, wishlistID, giftID, itemID string) wishlistdomain.WishlistItem {
+	t.Helper()
+
+	item, err := wishlistdomain.RestoreWishlistItem(
+		itemID,
+		wishlistID,
+		giftID,
+		time.Date(2026, 4, 19, 11, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("RestoreWishlistItem() error = %v", err)
+	}
+
+	return item
+}
+
 func mustGift(t *testing.T) *catalogdomain.Gift {
 	t.Helper()
 
@@ -396,7 +419,7 @@ func mustGift(t *testing.T) *catalogdomain.Gift {
 		testWishlistGiftID,
 		nil,
 		nil,
-		testWishlistGiftName,
+		"LEGO Set",
 		testWishlistDescription,
 		testWishlistPrice,
 		testWishlistStoreLink,

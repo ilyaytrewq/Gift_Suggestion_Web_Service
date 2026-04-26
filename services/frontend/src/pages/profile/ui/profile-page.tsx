@@ -31,6 +31,14 @@ const profileSchema = z.object({
 
 type ProfileSchema = z.infer<typeof profileSchema>;
 
+function getRoleLabel(role: string): string | null {
+  if (role === 'admin') {
+    return 'Администратор';
+  }
+
+  return null;
+}
+
 export function ProfilePage(): JSX.Element {
   const auth = useAuth();
   const form = useForm<ProfileSchema>({
@@ -74,10 +82,10 @@ export function ProfilePage(): JSX.Element {
     return (
       <Container className="profile-page">
         <section className="profile-card">
-          <p className="eyebrow">Account</p>
-          <h1>Личные данные доступны после входа.</h1>
+          <p className="eyebrow">Профиль</p>
+          <h1>Войдите, чтобы открыть профиль.</h1>
           <p className="page-copy">
-            Войдите в аккаунт, чтобы открыть профиль, проверить email и изменить имя.
+            После входа здесь можно проверить email и изменить имя.
           </p>
           <Link className={buttonClassName()} to="/login">
             Войти
@@ -91,7 +99,7 @@ export function ProfilePage(): JSX.Element {
     return (
       <PageLoader
         title="Загружаем профиль"
-        description="Получаем актуальные данные аккаунта."
+        description="Обновляем данные аккаунта."
       />
     );
   }
@@ -101,7 +109,7 @@ export function ProfilePage(): JSX.Element {
       <Container className="profile-page">
         <ErrorBanner
           error={query.error}
-          title="Не удалось загрузить личные данные"
+          title="Не удалось открыть профиль"
         />
       </Container>
     );
@@ -111,7 +119,7 @@ export function ProfilePage(): JSX.Element {
     return (
       <Container className="profile-page">
         <Notice>
-          Профиль пока недоступен. Попробуйте обновить страницу или войти заново.
+          Не удалось загрузить профиль. Попробуйте войти ещё раз.
         </Notice>
       </Container>
     );
@@ -122,22 +130,24 @@ export function ProfilePage(): JSX.Element {
       <section className="profile-card">
         <div className="profile-card__header">
           <div>
-            <p className="eyebrow">Account</p>
+            <p className="eyebrow">Профиль</p>
             <h1>Личные данные</h1>
             <p className="page-copy">
-              Здесь можно проверить данные аккаунта и обновить отображаемое имя.
+              Проверьте данные аккаунта и обновите имя, если нужно.
             </p>
           </div>
-          <span className="chip chip--muted">{user.role}</span>
+          {getRoleLabel(user.role) ? (
+            <span className="chip chip--muted">{getRoleLabel(user.role)}</span>
+          ) : null}
         </div>
 
         <dl className="profile-list">
           <div>
-            <dt>Email</dt>
+            <dt>Электронная почта</dt>
             <dd>{user.email}</dd>
           </div>
           <div>
-            <dt>Создан</dt>
+            <dt>Дата регистрации</dt>
             <dd>{formatDateTime(user.created_at)}</dd>
           </div>
           <div>
@@ -160,7 +170,7 @@ export function ProfilePage(): JSX.Element {
           {mutation.isError ? (
             <ErrorBanner
               error={mutation.error}
-              title="Не удалось обновить профиль"
+              title="Не удалось сохранить изменения"
             />
           ) : null}
           {mutation.isSuccess ? (

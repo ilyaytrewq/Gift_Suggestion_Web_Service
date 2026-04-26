@@ -5,11 +5,13 @@ import { Link } from 'react-router-dom';
 import { z } from 'zod';
 
 import { createRecommendation } from '../../../features/recommendation/api/recommendation';
+import { WishlistSaveButton } from '../../../features/wishlist/ui/wishlist-save-button';
 import { formatPrice } from '../../../shared/lib/format';
 import { Button } from '../../../shared/ui/button/button';
 import { buttonClassName } from '../../../shared/ui/button/button-class-name';
 import { EmptyState } from '../../../shared/ui/feedback/empty-state';
 import { ErrorBanner } from '../../../shared/ui/feedback/error-banner';
+import { Notice } from '../../../shared/ui/feedback/notice';
 import { Field } from '../../../shared/ui/form/field';
 import { Input } from '../../../shared/ui/input/input';
 import { Container } from '../../../shared/ui/layout/container';
@@ -55,12 +57,10 @@ export function RecommendationPage(): JSX.Element {
   return (
     <Container className="page-stack">
       <section className="section-heading">
-        <p className="eyebrow">Recommendation Wizard</p>
+        <p className="eyebrow">Подбор подарка</p>
         <h1>Мастер подбора подарка</h1>
         <p className="page-copy">
-          Заполните параметры и получите персональные рекомендации. Открытие
-          и отправка анкеты доступны без логина. Авторизация остаётся полезной
-          для персонализации по wishlist-контексту.
+          Расскажите немного о получателе, и мы подберём подходящие варианты.
         </p>
       </section>
 
@@ -91,7 +91,7 @@ export function RecommendationPage(): JSX.Element {
           />
         </Field>
 
-        <Field error={form.formState.errors.relationship?.message} label="Кем вам приходится получатель">
+        <Field error={form.formState.errors.relationship?.message} label="Кому подарок">
           <Input
             placeholder="Например: коллега, друг, родственник"
             {...form.register('relationship')}
@@ -116,7 +116,7 @@ export function RecommendationPage(): JSX.Element {
 
         <Field
           error={form.formState.errors.interests?.message}
-          hint="Через запятую, например: спорт, технологии, музыка"
+          hint="Через запятую: спорт, книги, музыка"
           label="Интересы"
         >
           <Input
@@ -135,7 +135,7 @@ export function RecommendationPage(): JSX.Element {
         </Field>
 
         <label className="field">
-          <span className="field__label">Учитывать wishlist-контекст</span>
+          <span className="field__label">Учитывать сохранённые предпочтения</span>
           <input type="checkbox" {...form.register('use_wishlist_context')} />
         </label>
 
@@ -156,10 +156,12 @@ export function RecommendationPage(): JSX.Element {
       {mutation.isSuccess ? (
         mutation.data.data.recommendation.recommendations.length ? (
           <>
+            {mutation.data.data.recommendation.fallback_used ? (
+              <Notice>
+                Мы подобрали варианты на основе доступных данных.
+              </Notice>
+            ) : null}
             <div className="catalog-summary">
-              <span>
-                Статус: {mutation.data.data.recommendation.status}
-              </span>
               <span>
                 Подобрано: {mutation.data.data.recommendation.recommendations.length}
               </span>
@@ -175,15 +177,16 @@ export function RecommendationPage(): JSX.Element {
                     <p>{item.gift.description}</p>
                     <div className="gift-card__actions">
                       <Link className={buttonClassName()} to={`/catalog/${item.gift.id}`}>
-                        Открыть карточку
+                        Подробнее
                       </Link>
+                      <WishlistSaveButton giftID={item.gift.id} />
                       <a
                         className={buttonClassName({ variant: 'ghost' })}
                         href={item.gift.store_link}
                         rel="noreferrer"
                         target="_blank"
                       >
-                        Купить
+                        В магазин
                       </a>
                     </div>
                   </div>

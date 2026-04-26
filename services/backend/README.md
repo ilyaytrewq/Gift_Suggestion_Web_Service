@@ -22,10 +22,17 @@
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 - `POST /api/v1/auth/password-reset/request`
+- `POST /api/v1/auth/password-reset/confirm`
+- `POST /api/v1/auth/email-verification/confirm`
 - `GET /api/v1/users/me`
 - `PATCH /api/v1/users/me`
 
-Password reset пока реализован как foundation: backend сохраняет одноразовый reset-token hash и TTL в БД, но подтверждение reset через отдельный delivery flow еще не выведено наружу.
+Текущий auth/email scope:
+
+- регистрация создаёт пользователя в статусе `email_verified=false`, сохраняет одноразовый verification token hash и инициирует отправку verification email;
+- password reset request сохраняет одноразовый reset-token hash и инициирует отправку reset email;
+- verification/reset tokens никогда не возвращаются в API response и не логируются;
+- `confirm` endpoints принимают raw token, хэшируют его в backend и атомарно завершают verification/reset flow.
 
 ## Catalog read API
 
@@ -199,8 +206,48 @@ HTTP contracts ведутся в OpenAPI-формате в файле:
 services/backend/docs/openapi/backend.yaml
 ```
 
-Сейчас спецификация покрывает health, auth/user foundation, catalog read, wishlist, admin catalog import, recommendation и tracking endpoints.
-После `feature/vk-connections` она также покрывает auth-only VK integration scaffold.
+Сейчас спецификация покрывает health, auth/user foundation, email verification, password reset confirm, catalog read, wishlist, admin catalog import, recommendation, tracking и VK integration scaffold endpoints.
+
+## Email delivery
+
+Reusable email infrastructure:
+
+- generic sender infrastructure: `internal/platform/email`
+- auth-specific notifier/templates: `internal/modules/auth/infra/email`
+- SMTP details остаются в config/env и не протаскиваются в use-case слой
+- dev/test режим использует `noop` sender и не выводит токены в логи
+
+Сценарии, которые используют email уже сейчас:
+
+- registration email verification
+- password reset request
+
+Обязательные env для рабочего SMTP режима:
+
+- `EMAIL_ENABLED=true`
+- `EMAIL_PROVIDER=smtp`
+- `EMAIL_FROM_EMAIL`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USERNAME`
+- `SMTP_PASSWORD`
+- `FRONTEND_BASE_URL`
+
+Дополнительные env:
+
+- `EMAIL_FROM_NAME`
+- `EMAIL_SEND_TIMEOUT`
+- `SMTP_USE_TLS`
+- `AUTH_EMAIL_VERIFICATION_TTL`
+- `AUTH_PASSWORD_RESET_TTL`
+
+Сценарии, оставленные на будущее:
+
+- уведомление о смене пароля
+- уведомление о входе с нового устройства
+- подтверждение смены email
+- admin/system import notifications
+- onboarding/welcome email
 
 ## Локальный запуск backend
 

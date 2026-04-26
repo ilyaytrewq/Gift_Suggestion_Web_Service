@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 
 	catalogdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalog/domain"
 	userdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/domain"
@@ -11,8 +12,9 @@ import (
 )
 
 const (
-	defaultLimit = 20
-	maxLimit     = 100
+	defaultLimit         = 20
+	maxLimit             = 100
+	personalWishlistName = "Список желаний"
 )
 
 type Service struct {
@@ -63,22 +65,25 @@ func (s *Service) CreateWishlist(ctx context.Context, input CreateWishlistInput)
 		return CreateWishlistOutput{}, err
 	}
 
-	wishlistID, err := s.wishlistIDGen.NewWishlistID()
+	existingWishlist, err := s.repo.GetWishlistByUserID(ctx, userID)
 	if err != nil {
 		return CreateWishlistOutput{}, err
 	}
-
-	wishlist, err := wishlistdomain.NewWishlist(wishlistID, userID, input.Name, s.clock.Now())
-	if err != nil {
-		return CreateWishlistOutput{}, mapWishlistValidationError(err)
+	if existingWishlist != nil {
+		return CreateWishlistOutput{}, apperrors.New(
+			apperrors.KindConflict,
+			"wishlist_already_exists",
+			"wishlist already exists",
+		)
 	}
 
-	if err := s.repo.CreateWishlist(ctx, &wishlist); err != nil {
+	wishlist, err := s.createPersonalWishlist(ctx, userID)
+	if err != nil {
 		if errors.Is(err, wishlistdomain.ErrWishlistAlreadyExists) {
 			return CreateWishlistOutput{}, apperrors.New(
 				apperrors.KindConflict,
-				"wishlist_name_exists",
-				"wishlist name already exists",
+				"wishlist_already_exists",
+				"wishlist already exists",
 			)
 		}
 
@@ -86,7 +91,7 @@ func (s *Service) CreateWishlist(ctx context.Context, input CreateWishlistInput)
 	}
 
 	return CreateWishlistOutput{
-		Wishlist: newWishlist(wishlist, nil),
+		Wishlist: newWishlist(*wishlist, nil),
 	}, nil
 }
 
@@ -131,31 +136,18 @@ func (s *Service) GetWishlist(ctx context.Context, input GetWishlistInput) (GetW
 		return GetWishlistOutput{}, err
 	}
 
-	wishlist, err := s.loadOwnedWishlist(ctx, userID, input.WishlistID)
+	wishlist, err := s.resolveWishlistForRead(ctx, userID, input.WishlistID)
 	if err != nil {
 		return GetWishlistOutput{}, err
 	}
 
-	items, err := s.repo.ListWishlistItems(ctx, wishlist.ID())
+	items, err := s.loadWishlistItems(ctx, wishlist.ID())
 	if err != nil {
 		return GetWishlistOutput{}, err
-	}
-
-	outputItems := make([]WishlistItem, 0, len(items))
-	for _, item := range items {
-		gift, err := s.giftReader.GetGift(ctx, item.GiftID())
-		if err != nil {
-			return GetWishlistOutput{}, err
-		}
-		if gift == nil {
-			continue
-		}
-
-		outputItems = append(outputItems, newWishlistItem(item, *gift))
 	}
 
 	return GetWishlistOutput{
-		Wishlist: newWishlist(*wishlist, outputItems),
+		Wishlist: newWishlist(*wishlist, items),
 	}, nil
 }
 
@@ -165,7 +157,7 @@ func (s *Service) AddWishlistItem(ctx context.Context, input AddWishlistItemInpu
 		return AddWishlistItemOutput{}, err
 	}
 
-	wishlist, err := s.loadOwnedWishlist(ctx, userID, input.WishlistID)
+	wishlist, err := s.resolveWishlistForWrite(ctx, userID, input.WishlistID)
 	if err != nil {
 		return AddWishlistItemOutput{}, err
 	}
@@ -181,30 +173,36 @@ func (s *Service) AddWishlistItem(ctx context.Context, input AddWishlistItemInpu
 	}
 
 	item := wishlistdomain.NewWishlistItem(itemID, wishlist.ID(), giftID, s.clock.Now())
+	alreadyInWishlist := false
 	if err := s.repo.AddWishlistItem(ctx, &item); err != nil {
 		if errors.Is(err, wishlistdomain.ErrWishlistItemExists) {
-			return AddWishlistItemOutput{}, apperrors.New(
-				apperrors.KindConflict,
-				"wishlist_item_exists",
-				"gift is already added to wishlist",
-			)
-		}
+			existingItem, getErr := s.repo.GetWishlistItemByGiftID(ctx, wishlist.ID(), giftID)
+			if getErr != nil {
+				return AddWishlistItemOutput{}, getErr
+			}
+			if existingItem == nil {
+				return AddWishlistItemOutput{}, apperrors.New(
+					apperrors.KindInternal,
+					"wishlist_item_inconsistent",
+					"wishlist item is inconsistent",
+				)
+			}
 
-		return AddWishlistItemOutput{}, err
+			item = *existingItem
+			alreadyInWishlist = true
+		} else {
+			return AddWishlistItemOutput{}, err
+		}
 	}
 
 	return AddWishlistItemOutput{
-		Item: newWishlistItem(item, *gift),
+		AlreadyInWishlist: alreadyInWishlist,
+		Item:              newWishlistItem(item, *gift),
 	}, nil
 }
 
 func (s *Service) RemoveWishlistItem(ctx context.Context, input RemoveWishlistItemInput) (RemoveWishlistItemOutput, error) {
 	userID, err := s.ensureUserExists(ctx, input.UserID)
-	if err != nil {
-		return RemoveWishlistItemOutput{}, err
-	}
-
-	wishlist, err := s.loadOwnedWishlist(ctx, userID, input.WishlistID)
 	if err != nil {
 		return RemoveWishlistItemOutput{}, err
 	}
@@ -219,13 +217,17 @@ func (s *Service) RemoveWishlistItem(ctx context.Context, input RemoveWishlistIt
 		)
 	}
 
+	wishlist, err := s.resolveWishlistForDeleteItem(ctx, userID, input.WishlistID)
+	if err != nil {
+		return RemoveWishlistItemOutput{}, err
+	}
+	if wishlist == nil {
+		return RemoveWishlistItemOutput{Removed: false}, nil
+	}
+
 	if err := s.repo.RemoveWishlistItem(ctx, wishlist.ID(), giftID); err != nil {
 		if errors.Is(err, wishlistdomain.ErrWishlistItemNotFound) {
-			return RemoveWishlistItemOutput{}, apperrors.New(
-				apperrors.KindNotFound,
-				"wishlist_item_not_found",
-				"wishlist item not found",
-			)
+			return RemoveWishlistItemOutput{Removed: false}, nil
 		}
 
 		return RemoveWishlistItemOutput{}, err
@@ -240,18 +242,17 @@ func (s *Service) DeleteWishlist(ctx context.Context, input DeleteWishlistInput)
 		return DeleteWishlistOutput{}, err
 	}
 
-	wishlist, err := s.loadOwnedWishlist(ctx, userID, input.WishlistID)
+	wishlist, err := s.resolveWishlistForDelete(ctx, userID, input.WishlistID)
 	if err != nil {
 		return DeleteWishlistOutput{}, err
+	}
+	if wishlist == nil {
+		return DeleteWishlistOutput{Deleted: false}, nil
 	}
 
 	if err := s.repo.DeleteWishlist(ctx, wishlist.ID()); err != nil {
 		if errors.Is(err, wishlistdomain.ErrWishlistNotFound) {
-			return DeleteWishlistOutput{}, apperrors.New(
-				apperrors.KindNotFound,
-				"wishlist_not_found",
-				"wishlist not found",
-			)
+			return DeleteWishlistOutput{Deleted: false}, nil
 		}
 
 		return DeleteWishlistOutput{}, err
@@ -314,6 +315,124 @@ func (s *Service) loadOwnedWishlist(
 	}
 
 	return wishlist, nil
+}
+
+func (s *Service) resolveWishlistForRead(
+	ctx context.Context,
+	userID userdomain.UserID,
+	rawWishlistID string,
+) (*wishlistdomain.Wishlist, error) {
+	if strings.TrimSpace(rawWishlistID) != "" {
+		return s.loadOwnedWishlist(ctx, userID, rawWishlistID)
+	}
+
+	return s.getOrCreatePersonalWishlist(ctx, userID)
+}
+
+func (s *Service) resolveWishlistForWrite(
+	ctx context.Context,
+	userID userdomain.UserID,
+	rawWishlistID string,
+) (*wishlistdomain.Wishlist, error) {
+	if strings.TrimSpace(rawWishlistID) != "" {
+		return s.loadOwnedWishlist(ctx, userID, rawWishlistID)
+	}
+
+	return s.getOrCreatePersonalWishlist(ctx, userID)
+}
+
+func (s *Service) resolveWishlistForDeleteItem(
+	ctx context.Context,
+	userID userdomain.UserID,
+	rawWishlistID string,
+) (*wishlistdomain.Wishlist, error) {
+	if strings.TrimSpace(rawWishlistID) != "" {
+		return s.loadOwnedWishlist(ctx, userID, rawWishlistID)
+	}
+
+	return s.repo.GetWishlistByUserID(ctx, userID)
+}
+
+func (s *Service) resolveWishlistForDelete(
+	ctx context.Context,
+	userID userdomain.UserID,
+	rawWishlistID string,
+) (*wishlistdomain.Wishlist, error) {
+	if strings.TrimSpace(rawWishlistID) != "" {
+		return s.loadOwnedWishlist(ctx, userID, rawWishlistID)
+	}
+
+	return s.repo.GetWishlistByUserID(ctx, userID)
+}
+
+func (s *Service) getOrCreatePersonalWishlist(
+	ctx context.Context,
+	userID userdomain.UserID,
+) (*wishlistdomain.Wishlist, error) {
+	wishlist, err := s.repo.GetWishlistByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if wishlist != nil {
+		return wishlist, nil
+	}
+
+	wishlist, err = s.createPersonalWishlist(ctx, userID)
+	if err != nil {
+		if errors.Is(err, wishlistdomain.ErrWishlistAlreadyExists) {
+			return s.repo.GetWishlistByUserID(ctx, userID)
+		}
+
+		return nil, err
+	}
+
+	return wishlist, nil
+}
+
+func (s *Service) createPersonalWishlist(
+	ctx context.Context,
+	userID userdomain.UserID,
+) (*wishlistdomain.Wishlist, error) {
+	wishlistID, err := s.wishlistIDGen.NewWishlistID()
+	if err != nil {
+		return nil, err
+	}
+
+	wishlist, err := wishlistdomain.NewWishlist(wishlistID, userID, personalWishlistName, s.clock.Now())
+	if err != nil {
+		return nil, mapWishlistValidationError(err)
+	}
+
+	if err := s.repo.CreateWishlist(ctx, &wishlist); err != nil {
+		return nil, err
+	}
+
+	return &wishlist, nil
+}
+
+func (s *Service) loadWishlistItems(
+	ctx context.Context,
+	wishlistID wishlistdomain.WishlistID,
+) ([]WishlistItem, error) {
+	items, err := s.repo.ListWishlistItems(ctx, wishlistID)
+	if err != nil {
+		return nil, err
+	}
+
+	outputItems := make([]WishlistItem, 0, len(items))
+	for _, item := range items {
+		gift, err := s.giftReader.GetGift(ctx, item.GiftID())
+		if err != nil {
+			return nil, err
+		}
+		if gift == nil {
+			continue
+		}
+
+		outputItems = append(outputItems, newWishlistItem(item, *gift))
+	}
+
+	return outputItems, nil
 }
 
 func (s *Service) loadGift(

@@ -9,10 +9,21 @@ import (
 )
 
 type UserRepository interface {
-	Save(ctx context.Context, user *userdomain.User) error
 	GetByID(ctx context.Context, id userdomain.UserID) (*userdomain.User, error)
 	GetByEmail(ctx context.Context, email userdomain.Email) (*userdomain.User, error)
 	MarkLastLogin(ctx context.Context, id userdomain.UserID, at time.Time) error
+}
+
+type RegistrationRepository interface {
+	SaveUserWithVerificationToken(
+		ctx context.Context,
+		user *userdomain.User,
+		token *authdomain.EmailVerificationToken,
+	) error
+}
+
+type EmailVerificationRepository interface {
+	Consume(ctx context.Context, tokenHash string, now time.Time) error
 }
 
 type SessionRepository interface {
@@ -23,6 +34,7 @@ type SessionRepository interface {
 
 type PasswordResetRepository interface {
 	Save(ctx context.Context, token *authdomain.PasswordResetToken) error
+	Consume(ctx context.Context, tokenHash, newPasswordHash string, now time.Time) error
 }
 
 type AccessTokenManager interface {
@@ -46,6 +58,19 @@ type SessionIDGenerator interface {
 
 type PasswordResetTokenIDGenerator interface {
 	NewPasswordResetTokenID() (authdomain.PasswordResetTokenID, error)
+}
+
+type EmailVerificationTokenIDGenerator interface {
+	NewEmailVerificationTokenID() (authdomain.EmailVerificationTokenID, error)
+}
+
+type AuthEmailNotifier interface {
+	SendVerificationEmail(ctx context.Context, user *userdomain.User, rawToken string) error
+	SendPasswordResetEmail(ctx context.Context, user *userdomain.User, rawToken string) error
+}
+
+type Logger interface {
+	Error(msg string, args ...any)
 }
 
 type Clock interface {

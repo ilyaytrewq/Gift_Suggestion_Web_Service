@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useParams } from 'react-router-dom';
 
 import { getCatalogGift } from '../../../entities/gift/api/gifts';
+import { WishlistSaveButton } from '../../../features/wishlist/ui/wishlist-save-button';
 import { formatPrice } from '../../../shared/lib/format';
 import { buttonClassName } from '../../../shared/ui/button/button-class-name';
 import { EmptyState } from '../../../shared/ui/feedback/empty-state';
@@ -39,7 +40,7 @@ export function GiftPage(): JSX.Element {
       {giftQuery.isLoading ? <GiftDetailSkeleton /> : null}
 
       {giftQuery.isError ? (
-        <ErrorBanner error={giftQuery.error} title="Не удалось загрузить карточку подарка" />
+        <ErrorBanner error={giftQuery.error} title="Не удалось открыть подарок" />
       ) : null}
 
       {giftQuery.data ? (
@@ -81,8 +82,9 @@ export function GiftPage(): JSX.Element {
                 rel="noreferrer"
                 target="_blank"
               >
-                Перейти к покупке
+                В магазин
               </a>
+              <WishlistSaveButton giftID={giftQuery.data.data.gift.id} size="lg" />
               <Link
                 className={buttonClassName({ size: 'lg', variant: 'secondary' })}
                 to="/catalog"
@@ -91,10 +93,6 @@ export function GiftPage(): JSX.Element {
               </Link>
             </div>
 
-            <div className="gift-detail__note">
-              <strong>Учтённый gap:</strong> backend сейчас отдаёт один `store_link`,
-              поэтому карточка строится вокруг одного purchase CTA, а не списка магазинов.
-            </div>
           </div>
         </section>
       ) : null}
@@ -102,7 +100,7 @@ export function GiftPage(): JSX.Element {
       {!giftId ? (
         <EmptyState
           description="Откройте карточку из каталога, чтобы увидеть детали подарка."
-          title="Идентификатор подарка не передан"
+          title="Подарок не найден"
         />
       ) : null}
     </Container>

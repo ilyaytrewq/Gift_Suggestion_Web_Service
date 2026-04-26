@@ -12,6 +12,7 @@ import { GiftPage } from '../../pages/gift/ui/gift-page';
 import { HomePage } from '../../pages/home/ui/home-page';
 import { NotFoundPage } from '../../pages/not-found/ui/not-found-page';
 import { RecommendationPage } from '../../pages/recommendation/ui/recommendation-page';
+import { WishlistPage } from '../../pages/wishlist/ui/wishlist-page';
 import { AppShell } from '../../shared/ui/layout/app-shell';
 
 export function AppRouter(): JSX.Element {
@@ -23,6 +24,7 @@ export function AppRouter(): JSX.Element {
           <Route element={<CatalogPage />} path="/catalog" />
           <Route element={<GiftPage />} path="/catalog/:giftId" />
           <Route element={<RecommendationPage />} path="/recommendation" />
+          <Route element={<WishlistPage />} path="/wishlist" />
           <Route element={<LoginPage />} path="/login" />
           <Route element={<RegisterPage />} path="/register" />
           <Route element={<PasswordResetPage />} path="/password-reset" />

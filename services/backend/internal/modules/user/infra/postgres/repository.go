@@ -22,8 +22,8 @@ func NewRepository(db *sql.DB) *Repository {
 func (r *Repository) Save(ctx context.Context, user *userdomain.User) error {
 	const query = `
 		INSERT INTO users (
-			id, email, password_hash, role, display_name, created_at, updated_at, last_login_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			id, email, password_hash, role, display_name, created_at, updated_at, last_login_at, password_changed_at, email_verified_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 
 	_, err := r.db.ExecContext(
@@ -37,6 +37,8 @@ func (r *Repository) Save(ctx context.Context, user *userdomain.User) error {
 		user.CreatedAt(),
 		user.UpdatedAt(),
 		nullTime(user.LastLoginAt()),
+		nullTime(user.PasswordChangedAt()),
+		nullTime(user.EmailVerifiedAt()),
 	)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -52,7 +54,7 @@ func (r *Repository) Save(ctx context.Context, user *userdomain.User) error {
 
 func (r *Repository) GetByID(ctx context.Context, id userdomain.UserID) (*userdomain.User, error) {
 	const query = `
-		SELECT id, email, password_hash, role, display_name, created_at, updated_at, last_login_at
+		SELECT id, email, password_hash, role, display_name, created_at, updated_at, last_login_at, password_changed_at, email_verified_at
 		FROM users
 		WHERE id = $1
 	`
@@ -62,7 +64,7 @@ func (r *Repository) GetByID(ctx context.Context, id userdomain.UserID) (*userdo
 
 func (r *Repository) GetByEmail(ctx context.Context, email userdomain.Email) (*userdomain.User, error) {
 	const query = `
-		SELECT id, email, password_hash, role, display_name, created_at, updated_at, last_login_at
+		SELECT id, email, password_hash, role, display_name, created_at, updated_at, last_login_at, password_changed_at, email_verified_at
 		FROM users
 		WHERE email = $1
 	`
@@ -122,16 +124,71 @@ func (r *Repository) MarkLastLogin(ctx context.Context, id userdomain.UserID, at
 	return nil
 }
 
+func (r *Repository) UpdatePassword(ctx context.Context, user *userdomain.User) error {
+	const query = `
+		UPDATE users
+		SET password_hash = $2, password_changed_at = $3, updated_at = $4
+		WHERE id = $1
+	`
+
+	result, err := r.db.ExecContext(
+		ctx,
+		query,
+		user.ID().String(),
+		user.PasswordHash().String(),
+		nullTime(user.PasswordChangedAt()),
+		user.UpdatedAt(),
+	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return userdomain.ErrUserNotFound
+	}
+
+	return nil
+}
+
+func (r *Repository) MarkEmailVerified(ctx context.Context, id userdomain.UserID, at time.Time) error {
+	const query = `
+		UPDATE users
+		SET email_verified_at = COALESCE(email_verified_at, $2), updated_at = $2
+		WHERE id = $1
+	`
+
+	result, err := r.db.ExecContext(ctx, query, id.String(), at.UTC())
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return userdomain.ErrUserNotFound
+	}
+
+	return nil
+}
+
 func (r *Repository) getOne(ctx context.Context, query string, arg any) (*userdomain.User, error) {
 	var (
-		id           string
-		email        string
-		passwordHash string
-		role         string
-		displayName  sql.NullString
-		createdAt    time.Time
-		updatedAt    time.Time
-		lastLoginAt  sql.NullTime
+		id                string
+		email             string
+		passwordHash      string
+		role              string
+		displayName       sql.NullString
+		createdAt         time.Time
+		updatedAt         time.Time
+		lastLoginAt       sql.NullTime
+		passwordChangedAt sql.NullTime
+		emailVerifiedAt   sql.NullTime
 	)
 
 	err := r.db.QueryRowContext(ctx, query, arg).Scan(
@@ -143,6 +200,8 @@ func (r *Repository) getOne(ctx context.Context, query string, arg any) (*userdo
 		&createdAt,
 		&updatedAt,
 		&lastLoginAt,
+		&passwordChangedAt,
+		&emailVerifiedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -160,6 +219,8 @@ func (r *Repository) getOne(ctx context.Context, query string, arg any) (*userdo
 		createdAt,
 		updatedAt,
 		nullTimePtr(lastLoginAt),
+		nullTimePtr(passwordChangedAt),
+		nullTimePtr(emailVerifiedAt),
 	)
 	if err != nil {
 		return nil, err

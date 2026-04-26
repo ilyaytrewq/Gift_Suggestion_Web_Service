@@ -43,7 +43,7 @@ export function RegisterForm(): JSX.Element {
       {mutation.isError ? <ErrorBanner error={mutation.error} /> : null}
       {mutation.isSuccess ? (
         <Notice tone="success">
-          Аккаунт создан. Перенаправляем вас ко входу.
+          Аккаунт создан. Перенаправляем на страницу входа.
         </Notice>
       ) : null}
 
@@ -59,7 +59,7 @@ export function RegisterForm(): JSX.Element {
         />
       </Field>
 
-      <Field error={form.formState.errors.email?.message} label="Email">
+      <Field error={form.formState.errors.email?.message} label="Электронная почта">
         <Input
           autoComplete="email"
           placeholder="you@example.com"

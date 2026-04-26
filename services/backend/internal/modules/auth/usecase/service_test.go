@@ -31,8 +31,24 @@ func TestServiceRegisterSuccess(t *testing.T) {
 
 	clock := fixedClock{now: time.Date(2026, 4, 18, 11, 0, 0, 0, time.UTC)}
 	userRepo := newFakeUserRepository()
+	registrationRepo := newFakeRegistrationRepository()
+	emailVerificationRepo := newFakeEmailVerificationRepository()
+	notifier := &fakeAuthEmailNotifier{}
 
-	service := mustAuthService(t, userRepo, newFakeSessionRepository(), newFakePasswordResetRepository(), clock)
+	service := mustAuthServiceWithDeps(t, authServiceDeps{
+		userRepo:                 userRepo,
+		registrationRepo:         registrationRepo,
+		emailVerificationRepo:    emailVerificationRepo,
+		sessionRepo:              newFakeSessionRepository(),
+		passwordResetRepo:        newFakePasswordResetRepository(),
+		emailNotifier:            notifier,
+		logger:                   &fakeLogger{},
+		clock:                    clock,
+		refreshTokenTTL:          7 * 24 * time.Hour,
+		verificationTokenTTL:     24 * time.Hour,
+		resetTokenTTL:            30 * time.Minute,
+		verificationTokenResults: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+	})
 
 	output, err := service.Register(context.Background(), RegisterInput{
 		Email:       " USER@example.com ",
@@ -49,11 +65,17 @@ func TestServiceRegisterSuccess(t *testing.T) {
 	if output.User.DisplayName != "Alice" {
 		t.Fatalf("Register() display name = %q, want %q", output.User.DisplayName, "Alice")
 	}
-	if len(userRepo.savedUsers) != 1 {
-		t.Fatalf("expected one saved user, got %d", len(userRepo.savedUsers))
+	if len(registrationRepo.savedUsers) != 1 {
+		t.Fatalf("expected one saved user, got %d", len(registrationRepo.savedUsers))
 	}
-	if userRepo.savedUsers[0].PasswordHash().String() == testPassword {
+	if registrationRepo.savedUsers[0].PasswordHash().String() == testPassword {
 		t.Fatal("expected hashed password to differ from plaintext password")
+	}
+	if len(registrationRepo.savedVerificationTokens) != 1 {
+		t.Fatalf("expected one verification token, got %d", len(registrationRepo.savedVerificationTokens))
+	}
+	if len(notifier.verificationCalls) != 1 || notifier.verificationCalls[0].rawToken != "verify-token" {
+		t.Fatalf("expected verification email with raw token, got %+v", notifier.verificationCalls)
 	}
 }
 
@@ -64,7 +86,20 @@ func TestServiceRegisterDuplicateEmail(t *testing.T) {
 	userRepo := newFakeUserRepository()
 	userRepo.usersByEmail[testEmail] = existing
 
-	service := mustAuthService(t, userRepo, newFakeSessionRepository(), newFakePasswordResetRepository(), fixedClock{now: time.Now().UTC()})
+	service := mustAuthServiceWithDeps(t, authServiceDeps{
+		userRepo:                 userRepo,
+		registrationRepo:         newFakeRegistrationRepository(),
+		emailVerificationRepo:    newFakeEmailVerificationRepository(),
+		sessionRepo:              newFakeSessionRepository(),
+		passwordResetRepo:        newFakePasswordResetRepository(),
+		emailNotifier:            &fakeAuthEmailNotifier{},
+		logger:                   &fakeLogger{},
+		clock:                    fixedClock{now: time.Now().UTC()},
+		refreshTokenTTL:          7 * 24 * time.Hour,
+		verificationTokenTTL:     24 * time.Hour,
+		resetTokenTTL:            30 * time.Minute,
+		verificationTokenResults: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+	})
 
 	_, err := service.Register(context.Background(), RegisterInput{
 		Email:    testEmail,
@@ -97,9 +132,11 @@ func TestServiceLoginSuccess(t *testing.T) {
 	resetRepo := newFakePasswordResetRepository()
 
 	service := mustAuthServiceWithDeps(t, authServiceDeps{
-		userRepo:          userRepo,
-		sessionRepo:       sessionRepo,
-		passwordResetRepo: resetRepo,
+		userRepo:              userRepo,
+		registrationRepo:      newFakeRegistrationRepository(),
+		emailVerificationRepo: newFakeEmailVerificationRepository(),
+		sessionRepo:           sessionRepo,
+		passwordResetRepo:     resetRepo,
 		accessTokenManager: &fakeAccessTokenManager{
 			token: testAccessToken,
 			ttl:   15 * time.Minute,
@@ -107,12 +144,18 @@ func TestServiceLoginSuccess(t *testing.T) {
 		refreshTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: testRefreshToken, hash: testRefreshTokenHash}},
 		},
+		verificationTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+		},
 		resetTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
 		},
-		clock:           fixedClock{now: now},
-		refreshTokenTTL: 7 * 24 * time.Hour,
-		resetTokenTTL:   30 * time.Minute,
+		emailNotifier:        &fakeAuthEmailNotifier{},
+		logger:               &fakeLogger{},
+		clock:                fixedClock{now: now},
+		refreshTokenTTL:      7 * 24 * time.Hour,
+		verificationTokenTTL: 24 * time.Hour,
+		resetTokenTTL:        30 * time.Minute,
 	})
 
 	output, err := service.Login(context.Background(), LoginInput{
@@ -157,9 +200,11 @@ func TestServiceRefreshSuccess(t *testing.T) {
 	sessionRepo.sessionsByHash[testRefreshTokenHash] = &session
 
 	service := mustAuthServiceWithDeps(t, authServiceDeps{
-		userRepo:          userRepo,
-		sessionRepo:       sessionRepo,
-		passwordResetRepo: newFakePasswordResetRepository(),
+		userRepo:              userRepo,
+		registrationRepo:      newFakeRegistrationRepository(),
+		emailVerificationRepo: newFakeEmailVerificationRepository(),
+		sessionRepo:           sessionRepo,
+		passwordResetRepo:     newFakePasswordResetRepository(),
 		accessTokenManager: &fakeAccessTokenManager{
 			token: testAccessToken,
 			ttl:   15 * time.Minute,
@@ -167,13 +212,19 @@ func TestServiceRefreshSuccess(t *testing.T) {
 		refreshTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: testNextRefreshToken, hash: testNextRefreshHash}},
 		},
+		verificationTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+		},
 		resetTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
 			hashes:  map[string]string{testRefreshToken: testRefreshTokenHash},
 		},
-		clock:           fixedClock{now: now},
-		refreshTokenTTL: 7 * 24 * time.Hour,
-		resetTokenTTL:   30 * time.Minute,
+		emailNotifier:        &fakeAuthEmailNotifier{},
+		logger:               &fakeLogger{},
+		clock:                fixedClock{now: now},
+		refreshTokenTTL:      7 * 24 * time.Hour,
+		verificationTokenTTL: 24 * time.Hour,
+		resetTokenTTL:        30 * time.Minute,
 	})
 	service.refreshTokenGenerator = &fakeTokenGenerator{
 		results: []tokenResult{{raw: testNextRefreshToken, hash: testNextRefreshHash}},
@@ -212,10 +263,13 @@ func TestServiceRequestPasswordResetStoresHashedToken(t *testing.T) {
 	userRepo.usersByEmail[testEmail] = user
 
 	resetRepo := newFakePasswordResetRepository()
+	notifier := &fakeAuthEmailNotifier{}
 	service := mustAuthServiceWithDeps(t, authServiceDeps{
-		userRepo:          userRepo,
-		sessionRepo:       newFakeSessionRepository(),
-		passwordResetRepo: resetRepo,
+		userRepo:              userRepo,
+		registrationRepo:      newFakeRegistrationRepository(),
+		emailVerificationRepo: newFakeEmailVerificationRepository(),
+		sessionRepo:           newFakeSessionRepository(),
+		passwordResetRepo:     resetRepo,
 		accessTokenManager: &fakeAccessTokenManager{
 			token: testAccessToken,
 			ttl:   15 * time.Minute,
@@ -223,12 +277,18 @@ func TestServiceRequestPasswordResetStoresHashedToken(t *testing.T) {
 		refreshTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: testRefreshToken, hash: testRefreshTokenHash}},
 		},
+		verificationTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+		},
 		resetTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
 		},
-		clock:           fixedClock{now: now},
-		refreshTokenTTL: 7 * 24 * time.Hour,
-		resetTokenTTL:   45 * time.Minute,
+		emailNotifier:        notifier,
+		logger:               &fakeLogger{},
+		clock:                fixedClock{now: now},
+		refreshTokenTTL:      7 * 24 * time.Hour,
+		verificationTokenTTL: 24 * time.Hour,
+		resetTokenTTL:        45 * time.Minute,
 	})
 
 	output, err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: testEmail})
@@ -248,6 +308,81 @@ func TestServiceRequestPasswordResetStoresHashedToken(t *testing.T) {
 	if !resetRepo.savedTokens[0].ExpiresAt().Equal(now.Add(45 * time.Minute)) {
 		t.Fatalf("saved reset token expiry = %v, want %v", resetRepo.savedTokens[0].ExpiresAt(), now.Add(45*time.Minute))
 	}
+	if len(notifier.resetCalls) != 1 || notifier.resetCalls[0].rawToken != testResetToken {
+		t.Fatalf("expected reset email with raw token, got %+v", notifier.resetCalls)
+	}
+}
+
+func TestServiceConfirmEmailVerificationConsumesHashedToken(t *testing.T) {
+	t.Parallel()
+
+	verificationRepo := newFakeEmailVerificationRepository()
+	service := mustAuthServiceWithDeps(t, authServiceDeps{
+		userRepo:              newFakeUserRepository(),
+		registrationRepo:      newFakeRegistrationRepository(),
+		emailVerificationRepo: verificationRepo,
+		sessionRepo:           newFakeSessionRepository(),
+		passwordResetRepo:     newFakePasswordResetRepository(),
+		verificationTokenGenerator: &fakeTokenGenerator{
+			hashes: map[string]string{"verify-token": "verify-token-hash"},
+		},
+		emailNotifier:        &fakeAuthEmailNotifier{},
+		logger:               &fakeLogger{},
+		clock:                fixedClock{now: time.Now().UTC()},
+		refreshTokenTTL:      7 * 24 * time.Hour,
+		verificationTokenTTL: 24 * time.Hour,
+		resetTokenTTL:        30 * time.Minute,
+	})
+
+	output, err := service.ConfirmEmailVerification(context.Background(), ConfirmEmailVerificationInput{Token: "verify-token"})
+	if err != nil {
+		t.Fatalf("ConfirmEmailVerification() error = %v", err)
+	}
+	if !output.Accepted {
+		t.Fatal("ConfirmEmailVerification() accepted = false, want true")
+	}
+	if len(verificationRepo.consumed) != 1 || verificationRepo.consumed[0] != "verify-token-hash" {
+		t.Fatalf("expected consumed verification token hash, got %+v", verificationRepo.consumed)
+	}
+}
+
+func TestServiceConfirmPasswordResetConsumesHashedToken(t *testing.T) {
+	t.Parallel()
+
+	resetRepo := newFakePasswordResetRepository()
+	service := mustAuthServiceWithDeps(t, authServiceDeps{
+		userRepo:              newFakeUserRepository(),
+		registrationRepo:      newFakeRegistrationRepository(),
+		emailVerificationRepo: newFakeEmailVerificationRepository(),
+		sessionRepo:           newFakeSessionRepository(),
+		passwordResetRepo:     resetRepo,
+		resetTokenGenerator: &fakeTokenGenerator{
+			hashes: map[string]string{"reset-token": "reset-token-hash"},
+		},
+		emailNotifier:        &fakeAuthEmailNotifier{},
+		logger:               &fakeLogger{},
+		clock:                fixedClock{now: time.Now().UTC()},
+		refreshTokenTTL:      7 * 24 * time.Hour,
+		verificationTokenTTL: 24 * time.Hour,
+		resetTokenTTL:        30 * time.Minute,
+	})
+
+	output, err := service.ConfirmPasswordReset(context.Background(), ConfirmPasswordResetInput{
+		Token:       "reset-token",
+		NewPassword: testAlternatePassword,
+	})
+	if err != nil {
+		t.Fatalf("ConfirmPasswordReset() error = %v", err)
+	}
+	if !output.Accepted {
+		t.Fatal("ConfirmPasswordReset() accepted = false, want true")
+	}
+	if len(resetRepo.consumed) != 1 || resetRepo.consumed[0].tokenHash != "reset-token-hash" {
+		t.Fatalf("expected consumed reset token hash, got %+v", resetRepo.consumed)
+	}
+	if resetRepo.consumed[0].newPasswordHash == testAlternatePassword {
+		t.Fatal("expected stored password hash to differ from plaintext password")
+	}
 }
 
 func TestServiceLogoutRevokesActiveSession(t *testing.T) {
@@ -260,9 +395,11 @@ func TestServiceLogoutRevokesActiveSession(t *testing.T) {
 	sessionRepo.sessionsByHash[testRefreshTokenHash] = &session
 
 	service := mustAuthServiceWithDeps(t, authServiceDeps{
-		userRepo:          newFakeUserRepository(),
-		sessionRepo:       sessionRepo,
-		passwordResetRepo: newFakePasswordResetRepository(),
+		userRepo:              newFakeUserRepository(),
+		registrationRepo:      newFakeRegistrationRepository(),
+		emailVerificationRepo: newFakeEmailVerificationRepository(),
+		sessionRepo:           sessionRepo,
+		passwordResetRepo:     newFakePasswordResetRepository(),
 		accessTokenManager: &fakeAccessTokenManager{
 			token: testAccessToken,
 			ttl:   15 * time.Minute,
@@ -271,12 +408,18 @@ func TestServiceLogoutRevokesActiveSession(t *testing.T) {
 			results: []tokenResult{{raw: testRefreshToken, hash: testRefreshTokenHash}},
 			hashes:  map[string]string{testRefreshToken: testRefreshTokenHash},
 		},
+		verificationTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+		},
 		resetTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
 		},
-		clock:           fixedClock{now: now},
-		refreshTokenTTL: 7 * 24 * time.Hour,
-		resetTokenTTL:   30 * time.Minute,
+		emailNotifier:        &fakeAuthEmailNotifier{},
+		logger:               &fakeLogger{},
+		clock:                fixedClock{now: now},
+		refreshTokenTTL:      7 * 24 * time.Hour,
+		verificationTokenTTL: 24 * time.Hour,
+		resetTokenTTL:        30 * time.Minute,
 	})
 
 	output, err := service.Logout(context.Background(), LogoutInput{RefreshToken: testRefreshToken})
@@ -335,24 +478,33 @@ func TestServiceLogoutUnknownRefreshTokenAccepted(t *testing.T) {
 }
 
 type authServiceDeps struct {
-	userRepo              *fakeUserRepository
-	sessionRepo           *fakeSessionRepository
-	passwordResetRepo     *fakePasswordResetRepository
-	accessTokenManager    *fakeAccessTokenManager
-	refreshTokenGenerator *fakeTokenGenerator
-	resetTokenGenerator   *fakeTokenGenerator
-	clock                 fixedClock
-	refreshTokenTTL       time.Duration
-	resetTokenTTL         time.Duration
+	userRepo                   *fakeUserRepository
+	registrationRepo           *fakeRegistrationRepository
+	emailVerificationRepo      *fakeEmailVerificationRepository
+	sessionRepo                *fakeSessionRepository
+	passwordResetRepo          *fakePasswordResetRepository
+	accessTokenManager         *fakeAccessTokenManager
+	refreshTokenGenerator      *fakeTokenGenerator
+	verificationTokenGenerator *fakeTokenGenerator
+	resetTokenGenerator        *fakeTokenGenerator
+	emailNotifier              *fakeAuthEmailNotifier
+	logger                     *fakeLogger
+	clock                      fixedClock
+	refreshTokenTTL            time.Duration
+	verificationTokenTTL       time.Duration
+	resetTokenTTL              time.Duration
+	verificationTokenResults   []tokenResult
 }
 
 func mustAuthService(t *testing.T, userRepo *fakeUserRepository, sessionRepo *fakeSessionRepository, resetRepo *fakePasswordResetRepository, clock fixedClock) *Service {
 	t.Helper()
 
 	return mustAuthServiceWithDeps(t, authServiceDeps{
-		userRepo:          userRepo,
-		sessionRepo:       sessionRepo,
-		passwordResetRepo: resetRepo,
+		userRepo:              userRepo,
+		registrationRepo:      newFakeRegistrationRepository(),
+		emailVerificationRepo: newFakeEmailVerificationRepository(),
+		sessionRepo:           sessionRepo,
+		passwordResetRepo:     resetRepo,
 		accessTokenManager: &fakeAccessTokenManager{
 			token: testAccessToken,
 			ttl:   15 * time.Minute,
@@ -361,29 +513,76 @@ func mustAuthService(t *testing.T, userRepo *fakeUserRepository, sessionRepo *fa
 			results: []tokenResult{{raw: testRefreshToken, hash: testRefreshTokenHash}},
 			hashes:  map[string]string{testRefreshToken: testRefreshTokenHash},
 		},
+		verificationTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+		},
 		resetTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
 		},
-		clock:           clock,
-		refreshTokenTTL: 7 * 24 * time.Hour,
-		resetTokenTTL:   30 * time.Minute,
+		emailNotifier:        &fakeAuthEmailNotifier{},
+		logger:               &fakeLogger{},
+		clock:                clock,
+		refreshTokenTTL:      7 * 24 * time.Hour,
+		verificationTokenTTL: 24 * time.Hour,
+		resetTokenTTL:        30 * time.Minute,
 	})
 }
 
 func mustAuthServiceWithDeps(t *testing.T, deps authServiceDeps) *Service {
 	t.Helper()
 
+	if deps.registrationRepo == nil {
+		deps.registrationRepo = newFakeRegistrationRepository()
+	}
+	if deps.emailVerificationRepo == nil {
+		deps.emailVerificationRepo = newFakeEmailVerificationRepository()
+	}
+	if deps.accessTokenManager == nil {
+		deps.accessTokenManager = &fakeAccessTokenManager{token: testAccessToken, ttl: 15 * time.Minute}
+	}
+	if deps.refreshTokenGenerator == nil {
+		deps.refreshTokenGenerator = &fakeTokenGenerator{
+			results: []tokenResult{{raw: testRefreshToken, hash: testRefreshTokenHash}},
+			hashes:  map[string]string{testRefreshToken: testRefreshTokenHash},
+		}
+	}
+	if deps.verificationTokenGenerator == nil {
+		deps.verificationTokenGenerator = &fakeTokenGenerator{
+			results: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+			hashes:  map[string]string{"verify-token": "verify-token-hash"},
+		}
+	}
+	if deps.resetTokenGenerator == nil {
+		deps.resetTokenGenerator = &fakeTokenGenerator{
+			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
+			hashes:  map[string]string{testResetToken: testResetTokenHash},
+		}
+	}
+	if deps.emailNotifier == nil {
+		deps.emailNotifier = &fakeAuthEmailNotifier{}
+	}
+	if deps.logger == nil {
+		deps.logger = &fakeLogger{}
+	}
+
 	service, err := NewService(
 		deps.userRepo,
+		deps.registrationRepo,
+		deps.emailVerificationRepo,
 		deps.sessionRepo,
 		deps.passwordResetRepo,
 		deps.accessTokenManager,
 		deps.refreshTokenGenerator,
+		deps.verificationTokenGenerator,
 		deps.resetTokenGenerator,
+		deps.emailNotifier,
+		deps.logger,
 		fakeUserIDGenerator{id: testUserID},
 		fakeSessionIDGenerator{id: testSessionID},
+		fakeEmailVerificationTokenIDGenerator{id: "550e8400-e29b-41d4-a716-446655440003"},
 		fakePasswordResetTokenIDGenerator{id: testResetTokenID},
 		deps.refreshTokenTTL,
+		deps.verificationTokenTTL,
 		deps.resetTokenTTL,
 		deps.clock,
 	)
@@ -397,7 +596,6 @@ func mustAuthServiceWithDeps(t *testing.T, deps authServiceDeps) *Service {
 type fakeUserRepository struct {
 	usersByID          map[string]*userdomain.User
 	usersByEmail       map[string]*userdomain.User
-	savedUsers         []*userdomain.User
 	markLastLoginCalls []markLastLoginCall
 }
 
@@ -413,13 +611,6 @@ func newFakeUserRepository() *fakeUserRepository {
 	}
 }
 
-func (r *fakeUserRepository) Save(_ context.Context, user *userdomain.User) error {
-	r.savedUsers = append(r.savedUsers, user)
-	r.usersByID[user.ID().String()] = user
-	r.usersByEmail[user.Email().String()] = user
-	return nil
-}
-
 func (r *fakeUserRepository) GetByID(_ context.Context, id userdomain.UserID) (*userdomain.User, error) {
 	return r.usersByID[id.String()], nil
 }
@@ -431,6 +622,39 @@ func (r *fakeUserRepository) GetByEmail(_ context.Context, email userdomain.Emai
 func (r *fakeUserRepository) MarkLastLogin(_ context.Context, id userdomain.UserID, at time.Time) error {
 	r.markLastLoginCalls = append(r.markLastLoginCalls, markLastLoginCall{id: id, at: at.UTC()})
 	return nil
+}
+
+type fakeRegistrationRepository struct {
+	savedUsers              []*userdomain.User
+	savedVerificationTokens []*authdomain.EmailVerificationToken
+}
+
+func newFakeRegistrationRepository() *fakeRegistrationRepository {
+	return &fakeRegistrationRepository{}
+}
+
+func (r *fakeRegistrationRepository) SaveUserWithVerificationToken(
+	_ context.Context,
+	user *userdomain.User,
+	token *authdomain.EmailVerificationToken,
+) error {
+	r.savedUsers = append(r.savedUsers, user)
+	r.savedVerificationTokens = append(r.savedVerificationTokens, token)
+	return nil
+}
+
+type fakeEmailVerificationRepository struct {
+	consumed []string
+	err      error
+}
+
+func newFakeEmailVerificationRepository() *fakeEmailVerificationRepository {
+	return &fakeEmailVerificationRepository{}
+}
+
+func (r *fakeEmailVerificationRepository) Consume(_ context.Context, tokenHash string, _ time.Time) error {
+	r.consumed = append(r.consumed, tokenHash)
+	return r.err
 }
 
 type fakeSessionRepository struct {
@@ -465,6 +689,13 @@ func (r *fakeSessionRepository) Update(_ context.Context, session *authdomain.Se
 
 type fakePasswordResetRepository struct {
 	savedTokens []*authdomain.PasswordResetToken
+	consumed    []consumedReset
+	err         error
+}
+
+type consumedReset struct {
+	tokenHash       string
+	newPasswordHash string
 }
 
 func newFakePasswordResetRepository() *fakePasswordResetRepository {
@@ -474,6 +705,19 @@ func newFakePasswordResetRepository() *fakePasswordResetRepository {
 func (r *fakePasswordResetRepository) Save(_ context.Context, token *authdomain.PasswordResetToken) error {
 	r.savedTokens = append(r.savedTokens, token)
 	return nil
+}
+
+func (r *fakePasswordResetRepository) Consume(
+	_ context.Context,
+	tokenHash string,
+	newPasswordHash string,
+	_ time.Time,
+) error {
+	r.consumed = append(r.consumed, consumedReset{
+		tokenHash:       tokenHash,
+		newPasswordHash: newPasswordHash,
+	})
+	return r.err
 }
 
 type fakeAccessTokenManager struct {
@@ -542,6 +786,51 @@ type fakePasswordResetTokenIDGenerator struct {
 
 func (g fakePasswordResetTokenIDGenerator) NewPasswordResetTokenID() (authdomain.PasswordResetTokenID, error) {
 	return authdomain.NewPasswordResetTokenID(g.id)
+}
+
+type fakeEmailVerificationTokenIDGenerator struct {
+	id string
+}
+
+func (g fakeEmailVerificationTokenIDGenerator) NewEmailVerificationTokenID() (authdomain.EmailVerificationTokenID, error) {
+	return authdomain.NewEmailVerificationTokenID(g.id)
+}
+
+type fakeAuthEmailNotifier struct {
+	verificationCalls []emailCall
+	resetCalls        []emailCall
+	err               error
+}
+
+type emailCall struct {
+	userID   string
+	rawToken string
+}
+
+func (n *fakeAuthEmailNotifier) SendVerificationEmail(
+	_ context.Context,
+	user *userdomain.User,
+	rawToken string,
+) error {
+	n.verificationCalls = append(n.verificationCalls, emailCall{userID: user.ID().String(), rawToken: rawToken})
+	return n.err
+}
+
+func (n *fakeAuthEmailNotifier) SendPasswordResetEmail(
+	_ context.Context,
+	user *userdomain.User,
+	rawToken string,
+) error {
+	n.resetCalls = append(n.resetCalls, emailCall{userID: user.ID().String(), rawToken: rawToken})
+	return n.err
+}
+
+type fakeLogger struct {
+	errors []string
+}
+
+func (l *fakeLogger) Error(msg string, _ ...any) {
+	l.errors = append(l.errors, msg)
 }
 
 type fixedClock struct {

@@ -18,7 +18,6 @@ const (
 	candidateFetchLimit = 400
 	maxRankCandidates   = 200
 	alternativesPerItem = 2
-	wishlistPageLimit   = 100
 )
 
 type Service struct {
@@ -411,32 +410,22 @@ func (s *Service) ensureUserExists(ctx context.Context, rawUserID string) (userd
 
 func (s *Service) loadWishlistGiftIDs(ctx context.Context, userID userdomain.UserID) (map[string]struct{}, error) {
 	result := make(map[string]struct{})
-	offset := 0
 
-	for {
-		records, total, err := s.wishlistReader.ListWishlistsByUser(ctx, userID, wishlistPageLimit, offset)
-		if err != nil {
-			return nil, err
-		}
-		if len(records) == 0 {
-			break
-		}
+	wishlist, err := s.wishlistReader.GetWishlistByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if wishlist == nil {
+		return result, nil
+	}
 
-		for _, record := range records {
-			items, err := s.wishlistReader.ListWishlistItems(ctx, record.Wishlist.ID())
-			if err != nil {
-				return nil, err
-			}
+	items, err := s.wishlistReader.ListWishlistItems(ctx, wishlist.ID())
+	if err != nil {
+		return nil, err
+	}
 
-			for _, item := range items {
-				result[item.GiftID().String()] = struct{}{}
-			}
-		}
-
-		offset += len(records)
-		if offset >= total {
-			break
-		}
+	for _, item := range items {
+		result[item.GiftID().String()] = struct{}{}
 	}
 
 	return result, nil

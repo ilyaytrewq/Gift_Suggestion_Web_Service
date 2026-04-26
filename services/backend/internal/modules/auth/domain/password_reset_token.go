@@ -37,6 +37,55 @@ func NewPasswordResetToken(
 	}, nil
 }
 
+func RestorePasswordResetToken(
+	id string,
+	userID string,
+	tokenHash string,
+	expiresAt time.Time,
+	createdAt time.Time,
+	usedAt *time.Time,
+) (PasswordResetToken, error) {
+	tokenID, err := NewPasswordResetTokenID(id)
+	if err != nil {
+		return PasswordResetToken{}, err
+	}
+
+	uid, err := userdomain.NewUserID(userID)
+	if err != nil {
+		return PasswordResetToken{}, err
+	}
+
+	if tokenHash == "" {
+		return PasswordResetToken{}, ErrResetTokenHashEmpty
+	}
+
+	return PasswordResetToken{
+		id:        tokenID,
+		userID:    uid,
+		tokenHash: tokenHash,
+		expiresAt: expiresAt.UTC(),
+		createdAt: createdAt.UTC(),
+		usedAt:    cloneTimePtr(usedAt),
+	}, nil
+}
+
+func (t *PasswordResetToken) MarkUsed(now time.Time) {
+	if t == nil {
+		return
+	}
+
+	timestamp := now.UTC()
+	t.usedAt = &timestamp
+}
+
+func (t PasswordResetToken) IsExpired(now time.Time) bool {
+	return now.UTC().After(t.expiresAt)
+}
+
+func (t PasswordResetToken) IsUsed() bool {
+	return t.usedAt != nil
+}
+
 func (t PasswordResetToken) ID() PasswordResetTokenID {
 	return t.id
 }

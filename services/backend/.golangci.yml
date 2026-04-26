@@ -61,6 +61,9 @@ linters: # Список активных и отключённых линтер�
           - cyclop     # Не проверять сложность тестов
           - dupl       # Не проверять дублирование в тестах
           - gosec      # Не искать уязвимости в тестах
+      - path: internal/modules/auth/domain/(email_verification_token|password_reset_token)\.go
+        linters:
+          - dupl
 
   settings: # Индивидуальные настройки для конкретных линтеров
 

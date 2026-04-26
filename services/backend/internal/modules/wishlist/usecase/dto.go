@@ -101,7 +101,8 @@ type GetWishlistOutput struct {
 }
 
 type AddWishlistItemOutput struct {
-	Item WishlistItem `json:"item"`
+	AlreadyInWishlist bool         `json:"already_in_wishlist"`
+	Item              WishlistItem `json:"item"`
 }
 
 type RemoveWishlistItemOutput struct {

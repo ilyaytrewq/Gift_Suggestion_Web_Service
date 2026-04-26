@@ -186,6 +186,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/auth/password-reset/confirm:
+    post:
+      tags: [auth]
+      summary: Confirm password reset
+      operationId: confirmPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+      responses:
+        '200':
+          description: Password reset confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedEnvelope'
+        '400':
+          description: Validation error or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/auth/email-verification/confirm:
+    post:
+      tags: [auth]
+      summary: Confirm email verification
+      operationId: confirmEmailVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailVerificationConfirmRequest'
+      responses:
+        '200':
+          description: Email verification confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedEnvelope'
+        '400':
+          description: Validation error or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /api/v1/users/me:
     get:
       tags: [users]
@@ -317,8 +365,10 @@ paths:
   /api/v1/wishlists:
     get:
       tags: [wishlist]
-      summary: List current user wishlists
-      operationId: listWishlists
+      summary: List current user wishlists (deprecated)
+      description: Deprecated compatibility endpoint. Returns zero or one wishlist for the current user.
+      operationId: listWishlistsCompat
+      deprecated: true
       security:
         - bearerAuth: []
       parameters:
@@ -345,8 +395,10 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
     post:
       tags: [wishlist]
-      summary: Create wishlist
-      operationId: createWishlist
+      summary: Create current user wishlist (deprecated)
+      description: Deprecated compatibility endpoint. Creates the single personal wishlist if it does not exist yet.
+      operationId: createWishlistCompat
+      deprecated: true
       security:
         - bearerAuth: []
       requestBody:
@@ -381,7 +433,124 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '409':
-          description: Wishlist name already exists for the current user
+          description: Current user already has a wishlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/wishlist:
+    get:
+      tags: [wishlist]
+      summary: Get my wishlist
+      operationId: getCurrentWishlist
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Personal wishlist detail. Created automatically on first access when missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WishlistEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [wishlist]
+      summary: Delete my wishlist
+      operationId: deleteCurrentWishlist
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Personal wishlist deleted. If it does not exist, the operation is still successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteWishlistEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/wishlist/items:
+    post:
+      tags: [wishlist]
+      summary: Add gift to my wishlist
+      operationId: addCurrentWishlistItem
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddWishlistItemRequest'
+      responses:
+        '200':
+          description: Gift is already saved in wishlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddWishlistItemEnvelope'
+        '201':
+          description: Gift added to wishlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddWishlistItemEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Gift not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/wishlist/items/{gift_id}:
+    delete:
+      tags: [wishlist]
+      summary: Remove gift from my wishlist
+      operationId: removeCurrentWishlistItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GiftIDPath'
+      responses:
+        '200':
+          description: Gift removed from wishlist. If it is absent, the operation is still successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoveWishlistItemEnvelope'
+        '400':
+          description: Invalid identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
           content:
             application/json:
               schema:
@@ -389,8 +558,10 @@ paths:
   /api/v1/wishlists/{wishlist_id}:
     get:
       tags: [wishlist]
-      summary: Get current user wishlist with items
-      operationId: getWishlist
+      summary: Get current user wishlist with items (deprecated)
+      description: Deprecated compatibility endpoint. The path wishlist_id must match the current user's single wishlist.
+      operationId: getWishlistCompat
+      deprecated: true
       security:
         - bearerAuth: []
       parameters:
@@ -422,8 +593,10 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
     delete:
       tags: [wishlist]
-      summary: Delete current user wishlist
-      operationId: deleteWishlist
+      summary: Delete current user wishlist (deprecated)
+      description: Deprecated compatibility endpoint. The path wishlist_id must match the current user's single wishlist.
+      operationId: deleteWishlistCompat
+      deprecated: true
       security:
         - bearerAuth: []
       parameters:
@@ -456,8 +629,10 @@ paths:
   /api/v1/wishlists/{wishlist_id}/items:
     post:
       tags: [wishlist]
-      summary: Add gift to current user wishlist
-      operationId: addWishlistItem
+      summary: Add gift to current user wishlist (deprecated)
+      description: Deprecated compatibility endpoint. The path wishlist_id must match the current user's single wishlist.
+      operationId: addWishlistItemCompat
+      deprecated: true
       security:
         - bearerAuth: []
       parameters:
@@ -471,6 +646,12 @@ paths:
       responses:
         '201':
           description: Gift added to wishlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddWishlistItemEnvelope'
+        '200':
+          description: Gift is already saved in wishlist
           content:
             application/json:
               schema:
@@ -493,17 +674,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-        '409':
-          description: Gift already exists in wishlist
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
   /api/v1/wishlists/{wishlist_id}/items/{gift_id}:
     delete:
       tags: [wishlist]
-      summary: Remove gift from current user wishlist
-      operationId: removeWishlistItem
+      summary: Remove gift from current user wishlist (deprecated)
+      description: Deprecated compatibility endpoint. The path wishlist_id must match the current user's single wishlist.
+      operationId: removeWishlistItemCompat
+      deprecated: true
       security:
         - bearerAuth: []
       parameters:
@@ -524,12 +701,6 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Missing or invalid access token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '404':
-          description: Wishlist or wishlist item not found
           content:
             application/json:
               schema:
@@ -1093,7 +1264,7 @@ components:
       additionalProperties: false
     UserProfile:
       type: object
-      required: [id, email, role, display_name, created_at, updated_at]
+      required: [id, email, email_verified, role, display_name, created_at, updated_at]
       properties:
         id:
           type: string
@@ -1101,6 +1272,8 @@ components:
         email:
           type: string
           format: email
+        email_verified:
+          type: boolean
         role:
           type: string
         display_name:
@@ -1147,6 +1320,24 @@ components:
         email:
           type: string
           format: email
+      additionalProperties: false
+    PasswordResetConfirmRequest:
+      type: object
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 72
+      additionalProperties: false
+    EmailVerificationConfirmRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
       additionalProperties: false
     UpdateProfileRequest:
       type: object
@@ -1405,6 +1596,7 @@ components:
           type: string
           minLength: 1
           maxLength: 120
+          description: Deprecated compatibility field. Personal wishlist name is normalized server-side.
       additionalProperties: false
     AddWishlistItemRequest:
       type: object
@@ -1436,6 +1628,7 @@ components:
           format: uuid
         name:
           type: string
+          description: Personal wishlist display name.
         item_count:
           type: integer
         created_at:
@@ -1454,6 +1647,7 @@ components:
           format: uuid
         name:
           type: string
+          description: Personal wishlist display name.
         item_count:
           type: integer
         items:
@@ -1514,8 +1708,10 @@ components:
           const: ok
         data:
           type: object
-          required: [item]
+          required: [already_in_wishlist, item]
           properties:
+            already_in_wishlist:
+              type: boolean
             item:
               $ref: '#/components/schemas/WishlistItem'
           additionalProperties: false

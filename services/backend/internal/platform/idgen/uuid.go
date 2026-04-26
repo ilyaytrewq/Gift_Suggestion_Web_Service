@@ -27,6 +27,10 @@ func (UUIDGenerator) NewPasswordResetTokenID() (authdomain.PasswordResetTokenID,
 	return authdomain.NewPasswordResetTokenID(uuid.NewString())
 }
 
+func (UUIDGenerator) NewEmailVerificationTokenID() (authdomain.EmailVerificationTokenID, error) {
+	return authdomain.NewEmailVerificationTokenID(uuid.NewString())
+}
+
 func (UUIDGenerator) NewGiftID() (catalogdomain.GiftID, error) {
 	return catalogdomain.NewGiftID(uuid.NewString())
 }

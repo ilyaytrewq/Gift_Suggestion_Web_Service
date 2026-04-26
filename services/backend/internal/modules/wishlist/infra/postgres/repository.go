@@ -55,34 +55,20 @@ func (r *Repository) GetWishlistByID(ctx context.Context, id wishlistdomain.Wish
 		WHERE id = $1
 	`
 
-	var (
-		wishlistID string
-		userID     string
-		name       string
-		createdAt  sql.NullTime
-		updatedAt  sql.NullTime
-	)
+	return scanWishlist(r.db.QueryRowContext(ctx, query, id.String()))
+}
 
-	err := r.db.QueryRowContext(ctx, query, id.String()).Scan(
-		&wishlistID,
-		&userID,
-		&name,
-		&createdAt,
-		&updatedAt,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
+func (r *Repository) GetWishlistByUserID(
+	ctx context.Context,
+	userID userdomain.UserID,
+) (*wishlistdomain.Wishlist, error) {
+	const query = `
+		SELECT id, user_id, name, created_at, updated_at
+		FROM wishlists
+		WHERE user_id = $1
+	`
 
-	wishlist, err := wishlistdomain.RestoreWishlist(wishlistID, userID, name, createdAt.Time, updatedAt.Time)
-	if err != nil {
-		return nil, err
-	}
-
-	return &wishlist, nil
+	return scanWishlist(r.db.QueryRowContext(ctx, query, userID.String()))
 }
 
 func (r *Repository) ListWishlistsByUser(
@@ -212,6 +198,45 @@ func (r *Repository) ListWishlistItems(
 	return items, nil
 }
 
+func (r *Repository) GetWishlistItemByGiftID(
+	ctx context.Context,
+	wishlistID wishlistdomain.WishlistID,
+	giftID catalogdomain.GiftID,
+) (*wishlistdomain.WishlistItem, error) {
+	const query = `
+		SELECT id, wishlist_id, gift_id, created_at
+		FROM wishlist_items
+		WHERE wishlist_id = $1 AND gift_id = $2
+	`
+
+	var (
+		itemID    string
+		listID    string
+		catalogID string
+		createdAt sql.NullTime
+	)
+
+	err := r.db.QueryRowContext(ctx, query, wishlistID.String(), giftID.String()).Scan(
+		&itemID,
+		&listID,
+		&catalogID,
+		&createdAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := wishlistdomain.RestoreWishlistItem(itemID, listID, catalogID, createdAt.Time)
+	if err != nil {
+		return nil, err
+	}
+
+	return &item, nil
+}
+
 func (r *Repository) AddWishlistItem(ctx context.Context, item *wishlistdomain.WishlistItem) error {
 	const query = `
 		INSERT INTO wishlist_items (id, wishlist_id, gift_id, created_at)
@@ -284,4 +309,29 @@ func (r *Repository) DeleteWishlist(ctx context.Context, id wishlistdomain.Wishl
 	}
 
 	return nil
+}
+
+func scanWishlist(row *sql.Row) (*wishlistdomain.Wishlist, error) {
+	var (
+		wishlistID string
+		userID     string
+		name       string
+		createdAt  sql.NullTime
+		updatedAt  sql.NullTime
+	)
+
+	err := row.Scan(&wishlistID, &userID, &name, &createdAt, &updatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	wishlist, err := wishlistdomain.RestoreWishlist(wishlistID, userID, name, createdAt.Time, updatedAt.Time)
+	if err != nil {
+		return nil, err
+	}
+
+	return &wishlist, nil
 }
