@@ -276,6 +276,33 @@ func (r *Repository) InsertGift(ctx context.Context, gift catalogdomain.Gift, so
 	return err
 }
 
+func (r *Repository) InsertOffers(ctx context.Context, offers []catalogdomain.Offer) error {
+	const query = `
+		INSERT INTO gift_offers (id, gift_id, store_name, store_url, price_cents, currency, available, created_at)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (gift_id, store_url) DO NOTHING
+	`
+
+	for _, offer := range offers {
+		_, err := r.db.ExecContext(
+			ctx,
+			query,
+			offer.GiftID().String(),
+			offer.StoreName(),
+			offer.StoreURL(),
+			offer.Price().Cents(),
+			offer.Currency(),
+			offer.Available(),
+			offer.CreatedAt(),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (r *Repository) GetJob(ctx context.Context, id catalogimportdomain.ImportJobID) (*catalogimportdomain.ImportJob, error) {
 	const query = `
 		SELECT

@@ -1,9 +1,14 @@
 import type {
   GetCatalogGiftResponse,
+  GetSimilarGiftsResponse,
   ListCatalogGiftsQuery,
   ListCatalogGiftsResponse,
 } from '../../../shared/api/contracts';
 import { requestJson } from '../../../shared/api/http';
+import {
+  sanitizeItemCategories,
+  sanitizeItemCategory,
+} from '../../../shared/lib/category-visibility';
 
 export function listCatalogGifts(
   query: ListCatalogGiftsQuery = {},
@@ -48,9 +53,37 @@ export function listCatalogGifts(
 
   const suffix = search.size > 0 ? `?${search.toString()}` : '';
 
-  return requestJson<ListCatalogGiftsResponse>(`/api/v1/catalog/gifts${suffix}`);
+  return requestJson<ListCatalogGiftsResponse>(`/api/v1/catalog/gifts${suffix}`).then(
+    (response) => ({
+      ...response,
+      data: {
+        ...response.data,
+        items: sanitizeItemCategories(response.data.items),
+      },
+    }),
+  );
 }
 
 export function getCatalogGift(giftId: string): Promise<GetCatalogGiftResponse> {
-  return requestJson<GetCatalogGiftResponse>(`/api/v1/catalog/gifts/${giftId}`);
+  return requestJson<GetCatalogGiftResponse>(`/api/v1/catalog/gifts/${giftId}`).then(
+    (response) => ({
+      ...response,
+      data: {
+        ...response.data,
+        gift: sanitizeItemCategory(response.data.gift),
+      },
+    }),
+  );
+}
+
+export function getSimilarGifts(giftId: string, limit = 6): Promise<GetSimilarGiftsResponse> {
+  return requestJson<GetSimilarGiftsResponse>(
+    `/api/v1/catalog/gifts/${giftId}/similar?limit=${limit}`,
+  ).then((response) => ({
+    ...response,
+    data: {
+      ...response.data,
+      items: sanitizeItemCategories(response.data.items),
+    },
+  }));
 }

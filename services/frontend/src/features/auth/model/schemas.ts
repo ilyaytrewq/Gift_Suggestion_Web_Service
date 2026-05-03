@@ -22,8 +22,16 @@ export const passwordResetRequestSchema = z.object({
   email: z.string().email('Введите корректный email'),
 });
 
+export const passwordResetConfirmSchema = z.object({
+  new_password: z
+    .string()
+    .min(8, 'Пароль должен содержать минимум 8 символов')
+    .max(72, 'Пароль не должен превышать 72 символа'),
+});
+
 export type LoginSchema = z.infer<typeof loginSchema>;
 export type RegisterSchema = z.infer<typeof registerSchema>;
 export type PasswordResetRequestSchema = z.infer<
   typeof passwordResetRequestSchema
 >;
+export type PasswordResetConfirmSchema = z.infer<typeof passwordResetConfirmSchema>;

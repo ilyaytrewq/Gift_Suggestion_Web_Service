@@ -21,10 +21,11 @@ var allowedGiftQueryParams = map[string]struct{}{
 }
 
 var allowedCategoryQueryParams = map[string]struct{}{
-	"q":      {},
-	"limit":  {},
-	"offset": {},
-	"sort":   {},
+	"q":         {},
+	"limit":     {},
+	"offset":    {},
+	"sort":      {},
+	"has_gifts": {},
 }
 
 func parseListGiftsInput(values url.Values) (catalogusecase.ListGiftsInput, error) {
@@ -75,12 +76,17 @@ func parseListCategoriesInput(values url.Values) (catalogusecase.ListCategoriesI
 	if err != nil {
 		return catalogusecase.ListCategoriesInput{}, err
 	}
+	hasGifts, err := optionalBoolParam(values, "has_gifts")
+	if err != nil {
+		return catalogusecase.ListCategoriesInput{}, err
+	}
 
 	return catalogusecase.ListCategoriesInput{
-		Search: values.Get("q"),
-		Limit:  limit,
-		Offset: offset,
-		Sort:   values.Get("sort"),
+		Search:   values.Get("q"),
+		HasGifts: hasGifts,
+		Limit:    limit,
+		Offset:   offset,
+		Sort:     values.Get("sort"),
 	}, nil
 }
 

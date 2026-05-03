@@ -251,6 +251,12 @@ func (s *Service) processRow(
 		return err
 	}
 
+	if len(record.Offers) > 0 {
+		if err := s.repo.InsertOffers(ctx, record.Offers); err != nil {
+			return err
+		}
+	}
+
 	summary.ImportedRows++
 	job.UpdateProgress(*summary, s.clock.Now())
 	return s.repo.UpdateJob(ctx, job)

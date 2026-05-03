@@ -106,6 +106,14 @@ func (r fakeRepository) ListCategories(context.Context, CategoryFilter) ([]domai
 	return r.categories, r.categoryTotal, nil
 }
 
+func (r fakeRepository) ListOffersByGiftID(context.Context, domain.GiftID) ([]domain.Offer, error) {
+	return nil, nil
+}
+
+func (r fakeRepository) ListSimilarGifts(context.Context, domain.GiftID, *domain.CategoryID, int64, int) ([]domain.Gift, error) {
+	return nil, nil
+}
+
 func mustCategory(t *testing.T, id, name string) domain.Category {
 	t.Helper()
 

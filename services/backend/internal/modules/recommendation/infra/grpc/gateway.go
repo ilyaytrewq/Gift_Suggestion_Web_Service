@@ -69,11 +69,12 @@ func mapRankRequest(input recommendationusecase.RankInput) mlgrpc.RankRequest {
 		UserID:      input.UserID,
 		TopN:        input.TopN,
 		Query: mlgrpc.QueryContext{
-			Occasion:     input.Occasion,
-			Relationship: input.Relationship,
-			Interests:    append([]string(nil), input.Interests...),
-			BudgetCents:  input.BudgetMax.Cents(),
-			RecipientAge: cloneIntPtr(input.RecipientAge),
+			Occasion:        input.Occasion,
+			Relationship:    input.Relationship,
+			Interests:       append([]string(nil), input.Interests...),
+			BudgetCents:     input.BudgetMax.Cents(),
+			RecipientAge:    cloneIntPtr(input.RecipientAge),
+			RecipientGender: derefStringPtr(input.RecipientGender),
 		},
 		Candidates: make([]mlgrpc.Candidate, 0, len(input.Candidates)),
 	}
@@ -215,4 +216,11 @@ func cloneIntPtr(value *int) *int {
 
 	cloned := *value
 	return &cloned
+}
+
+func derefStringPtr(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

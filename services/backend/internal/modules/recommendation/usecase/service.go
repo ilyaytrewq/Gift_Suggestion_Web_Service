@@ -110,6 +110,7 @@ func (s *Service) Recommend(ctx context.Context, input RecommendInput) (Recommen
 		input.Occasion,
 		input.Relationship,
 		input.RecipientAge,
+		input.RecipientGender,
 		input.BudgetMax,
 		input.PreferredCategoryIDs,
 		input.Interests,
@@ -600,6 +601,13 @@ func mapQuestionnaireError(err error) error {
 			"relationship is invalid",
 			err,
 		)
+	case errors.Is(err, recommendationdomain.ErrInvalidGender):
+		return apperrors.Wrap(
+			apperrors.KindValidation,
+			"invalid_recipient_gender",
+			"recipient_gender is invalid; allowed: male, female, other",
+			err,
+		)
 	case errors.Is(err, recommendationdomain.ErrRecipientAgeInvalid), errors.Is(err, catalogdomain.ErrInvalidAgeRestriction):
 		return apperrors.Wrap(
 			apperrors.KindValidation,
@@ -761,15 +769,16 @@ func buildRankInput(
 	candidates []scoredCandidate,
 ) RankInput {
 	input := RankInput{
-		RequestID:    requestID,
-		UserID:       userID,
-		Occasion:     questionnaire.Occasion(),
-		Relationship: questionnaire.Relationship(),
-		RecipientAge: questionnaire.RecipientAge(),
-		BudgetMax:    questionnaire.BudgetMax(),
-		Interests:    questionnaire.Interests(),
-		TopN:         questionnaire.TopN(),
-		Candidates:   make([]RankCandidate, 0, len(candidates)),
+		RequestID:       requestID,
+		UserID:          userID,
+		Occasion:        questionnaire.Occasion(),
+		Relationship:    questionnaire.Relationship(),
+		RecipientAge:    questionnaire.RecipientAge(),
+		RecipientGender: questionnaire.RecipientGender(),
+		BudgetMax:       questionnaire.BudgetMax(),
+		Interests:       questionnaire.Interests(),
+		TopN:            questionnaire.TopN(),
+		Candidates:      make([]RankCandidate, 0, len(candidates)),
 	}
 	for _, candidate := range candidates {
 		input.Candidates = append(input.Candidates, RankCandidate{

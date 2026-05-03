@@ -54,6 +54,20 @@ export type PasswordResetResponse = JsonResponse<
   paths['/api/v1/auth/password-reset/request']['post']['responses']['202']
 >;
 
+export type PasswordResetConfirmRequest = JsonBody<
+  paths['/api/v1/auth/password-reset/confirm']['post']
+>;
+export type PasswordResetConfirmResponse = JsonResponse<
+  paths['/api/v1/auth/password-reset/confirm']['post']['responses']['200']
+>;
+
+export type EmailVerificationConfirmRequest = JsonBody<
+  paths['/api/v1/auth/email-verification/confirm']['post']
+>;
+export type EmailVerificationConfirmResponse = JsonResponse<
+  paths['/api/v1/auth/email-verification/confirm']['post']['responses']['200']
+>;
+
 export type RefreshResponse = JsonResponse<
   paths['/api/v1/auth/refresh']['post']['responses']['200']
 >;
@@ -95,4 +109,26 @@ export type AddCurrentWishlistItemResponse = JsonResponse<
 >;
 export type RemoveCurrentWishlistItemResponse = JsonResponse<
   paths['/api/v1/wishlist/items/{gift_id}']['delete']['responses']['200']
+>;
+
+export type GetSimilarGiftsResponse = JsonResponse<
+  paths['/api/v1/catalog/gifts/{gift_id}/similar']['get']['responses']['200']
+>;
+
+export type ImportJob = components['schemas']['ImportJob'];
+export type CreateImportJobResponse = JsonResponse<
+  paths['/api/v1/admin/import-jobs']['post']['responses']['201']
+>;
+export type GetImportJobResponse = JsonResponse<
+  paths['/api/v1/admin/import-jobs/{job_id}']['get']['responses']['200']
+>;
+export type GetImportJobErrorsResponse = JsonResponse<
+  paths['/api/v1/admin/import-jobs/{job_id}/errors']['get']['responses']['200']
+>;
+
+export type TrackEventRequest = JsonBody<
+  paths['/api/v1/tracking/events']['post']
+>;
+export type TrackEventResponse = JsonResponse<
+  paths['/api/v1/tracking/events']['post']['responses']['200']
 >;

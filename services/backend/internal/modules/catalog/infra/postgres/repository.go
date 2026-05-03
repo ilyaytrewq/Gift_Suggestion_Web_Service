@@ -177,6 +177,109 @@ func (r *Repository) ListCategories(ctx context.Context, filter catalogusecase.C
 	return categories, total, nil
 }
 
+func (r *Repository) ListSimilarGifts(ctx context.Context, giftID catalogdomain.GiftID, categoryID *catalogdomain.CategoryID, priceCents int64, limit int) ([]catalogdomain.Gift, error) {
+	// Same category + price within ±25%, excluding the source gift, ordered by closeness.
+	low := priceCents * 75 / 100
+	high := priceCents * 125 / 100
+
+	args := []any{giftID.String(), low, high, limit}
+	var whereCategory string
+	if categoryID != nil {
+		args = append([]any{giftID.String(), categoryID.String(), low, high, limit}, args[4:]...)
+		args = []any{giftID.String(), categoryID.String(), low, high, limit}
+		whereCategory = "AND g.category_id = $2"
+	}
+
+	var query string
+	if categoryID != nil {
+		query = `
+			SELECT g.id, g.category_id, c.name, g.name, g.description, g.price::text,
+			       g.store_link, g.image, g.age_restriction, g.created_at, g.updated_at
+			FROM gifts g
+			LEFT JOIN categories c ON c.id = g.category_id
+			WHERE g.id <> $1 ` + whereCategory + `
+			  AND g.price BETWEEN $3 AND $4
+			ORDER BY ABS(g.price - $3) ASC, g.created_at DESC
+			LIMIT $5
+		`
+	} else {
+		query = `
+			SELECT g.id, g.category_id, c.name, g.name, g.description, g.price::text,
+			       g.store_link, g.image, g.age_restriction, g.created_at, g.updated_at
+			FROM gifts g
+			LEFT JOIN categories c ON c.id = g.category_id
+			WHERE g.id <> $1
+			  AND g.price BETWEEN $2 AND $3
+			ORDER BY ABS(g.price - $2) ASC, g.created_at DESC
+			LIMIT $4
+		`
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var gifts []catalogdomain.Gift
+	for rows.Next() {
+		gift, err := scanGift(rows)
+		if err != nil {
+			return nil, err
+		}
+		gifts = append(gifts, gift)
+	}
+
+	return gifts, rows.Err()
+}
+
+func (r *Repository) ListOffersByGiftID(ctx context.Context, giftID catalogdomain.GiftID) ([]catalogdomain.Offer, error) {
+	const query = `
+		SELECT id, store_name, store_url, price_cents, currency, available, created_at
+		FROM gift_offers
+		WHERE gift_id = $1
+		ORDER BY created_at ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, giftID.String())
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	var offers []catalogdomain.Offer
+	for rows.Next() {
+		var (
+			id         string
+			storeName  string
+			storeURL   string
+			priceCents int64
+			currency   string
+			available  bool
+			createdAt  sql.NullTime
+		)
+
+		if err = rows.Scan(&id, &storeName, &storeURL, &priceCents, &currency, &available, &createdAt); err != nil {
+			return nil, err
+		}
+
+		offer, err := catalogdomain.RestoreOffer(id, giftID, storeName, storeURL, priceCents, currency, available, createdAt.Time)
+		if err != nil {
+			return nil, err
+		}
+
+		offers = append(offers, offer)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return offers, nil
+}
+
 type rowScanner interface {
 	Scan(dest ...any) error
 }
@@ -293,11 +396,22 @@ func buildGiftWhere(filter catalogusecase.GiftFilter) (string, []any) {
 }
 
 func buildCategoryWhere(filter catalogusecase.CategoryFilter) (string, []any) {
-	if filter.Search == "" {
-		return "", nil
+	var clauses []string
+	var args []any
+
+	if filter.Search != "" {
+		args = append(args, "%"+filter.Search+"%")
+		clauses = append(clauses, fmt.Sprintf("name ILIKE $%d", len(args)))
+	}
+	if filter.HasGifts != nil && *filter.HasGifts {
+		clauses = append(clauses, "EXISTS (SELECT 1 FROM gifts g WHERE g.category_id = categories.id)")
 	}
 
-	return " WHERE name ILIKE $1", []any{"%" + filter.Search + "%"}
+	if len(clauses) == 0 {
+		return "", args
+	}
+
+	return " WHERE " + strings.Join(clauses, " AND "), args
 }
 
 func giftOrderBy(sort catalogusecase.GiftSort) string {

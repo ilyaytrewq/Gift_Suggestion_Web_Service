@@ -326,6 +326,10 @@ func (r *fakeImportRepository) InsertGift(_ context.Context, gift catalogdomain.
 	return nil
 }
 
+func (r *fakeImportRepository) InsertOffers(context.Context, []catalogdomain.Offer) error {
+	return nil
+}
+
 func (r *fakeImportRepository) GetJob(context.Context, catalogimportdomain.ImportJobID) (*catalogimportdomain.ImportJob, error) {
 	return r.job, nil
 }

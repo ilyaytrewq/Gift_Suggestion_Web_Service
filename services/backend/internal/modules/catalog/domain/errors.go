@@ -15,4 +15,6 @@ var (
 	ErrStoreLinkEmpty        = errors.New("store link is empty")
 	ErrInvalidStoreLink      = errors.New("store link has invalid format")
 	ErrInvalidAgeRestriction = errors.New("age restriction is invalid")
+	ErrOfferStoreNameEmpty   = errors.New("offer store name is empty")
+	ErrOfferCurrencyEmpty    = errors.New("offer currency is empty")
 )

@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package gift.ranking.v1;
+
+option go_package = "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/mlgrpc/gen/ranking/v1;rankingv1";
+
+service RankingService {
+  rpc Rank(RankRequest) returns (RankResponse);
+}
+
+message QueryContext {
+  string occasion     = 1;
+  string relationship = 2;
+  repeated string interests = 3;
+  int64 budget_cents  = 4;
+  optional int32 recipient_age = 5;
+  string recipient_gender = 6; // "male", "female", "other", or "" for unspecified
+}
+
+message Candidate {
+  string id              = 1;
+  optional string category_id = 2;
+  string category_name   = 3;
+  int64 price_cents      = 4;
+  optional int32 age_restriction = 5;
+  string title           = 6;
+  string description     = 7;
+  bool already_in_wishlist = 8;
+}
+
+message RankRequest {
+  string selection_id       = 1;
+  string user_id            = 2;
+  int32  top_n              = 3;
+  QueryContext query        = 4;
+  repeated Candidate candidates = 5;
+}
+
+message Explanation {
+  string code = 1;
+  string text = 2;
+}
+
+message RankedItem {
+  string candidate_id                    = 1;
+  double score                           = 2;
+  repeated Explanation explanations      = 3;
+  repeated string alternative_candidate_ids = 4;
+}
+
+message RankResponse {
+  repeated RankedItem items = 1;
+  string model_version      = 2;
+}

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useParams } from 'react-router-dom';
 
-import { getCatalogGift } from '../../../entities/gift/api/gifts';
+import { getCatalogGift, getSimilarGifts } from '../../../entities/gift/api/gifts';
 import { WishlistSaveButton } from '../../../features/wishlist/ui/wishlist-save-button';
 import { formatPrice } from '../../../shared/lib/format';
 import { buttonClassName } from '../../../shared/ui/button/button-class-name';
@@ -23,6 +23,12 @@ export function GiftPage(): JSX.Element {
     queryKey: ['gift', giftId],
   });
 
+  const similarQuery = useQuery({
+    enabled: Boolean(giftId),
+    queryFn: () => getSimilarGifts(giftId ?? ''),
+    queryKey: ['gift-similar', giftId],
+  });
+
   const backHref =
     typeof location.state === 'object' &&
     location.state &&
@@ -30,6 +36,10 @@ export function GiftPage(): JSX.Element {
     typeof location.state.from === 'string'
       ? location.state.from
       : '/catalog';
+
+  const gift = giftQuery.data?.data.gift;
+  const offers = gift?.offers ?? [];
+  const similarGifts = similarQuery.data?.data.items ?? [];
 
   return (
     <Container className="page-stack">
@@ -43,58 +53,131 @@ export function GiftPage(): JSX.Element {
         <ErrorBanner error={giftQuery.error} title="Не удалось открыть подарок" />
       ) : null}
 
-      {giftQuery.data ? (
-        <section className="gift-detail">
-          <div className="gift-detail__media">
-            <img
-              alt={giftQuery.data.data.gift.name}
-              className="gift-detail__image"
-              src={giftQuery.data.data.gift.image ?? FALLBACK_IMAGE}
-            />
-          </div>
-
-          <div className="gift-detail__content">
-            <div className="gift-detail__chips">
-              {giftQuery.data.data.gift.category ? (
-                <span className="chip">
-                  {giftQuery.data.data.gift.category.name}
-                </span>
-              ) : null}
-              {giftQuery.data.data.gift.age_restriction ? (
-                <span className="chip">
-                  {giftQuery.data.data.gift.age_restriction}+
-                </span>
-              ) : null}
+      {gift ? (
+        <>
+          <section className="gift-detail">
+            <div className="gift-detail__media">
+              <img
+                alt={gift.name}
+                className="gift-detail__image"
+                src={gift.image ?? FALLBACK_IMAGE}
+              />
             </div>
 
-            <h1>{giftQuery.data.data.gift.name}</h1>
-            <p className="gift-detail__price">
-              {formatPrice(giftQuery.data.data.gift.price)}
-            </p>
-            <p className="gift-detail__description">
-              {giftQuery.data.data.gift.description}
-            </p>
+            <div className="gift-detail__content">
+              <div className="gift-detail__chips">
+                {gift.category ? (
+                  <span className="chip">{gift.category.name}</span>
+                ) : null}
+                {gift.age_restriction ? (
+                  <span className="chip">{gift.age_restriction}+</span>
+                ) : null}
+              </div>
 
-            <div className="gift-detail__actions">
-              <a
-                className={buttonClassName({ size: 'lg' })}
-                href={giftQuery.data.data.gift.store_link}
-                rel="noreferrer"
-                target="_blank"
-              >
-                В магазин
-              </a>
-              <WishlistSaveButton giftID={giftQuery.data.data.gift.id} size="lg" />
-              <Link
-                className={buttonClassName({ size: 'lg', variant: 'secondary' })}
-                to="/catalog"
-              >
-                Смотреть другие идеи
-              </Link>
+              <h1>{gift.name}</h1>
+              <p className="gift-detail__price">{formatPrice(gift.price)}</p>
+              <p className="gift-detail__description">{gift.description}</p>
+
+              {/* Shops / offers list */}
+              {offers.length > 0 ? (
+                <div>
+                  <h2 style={{ fontSize: '1rem', fontWeight: 600, margin: '1rem 0 0.5rem' }}>
+                    Где купить
+                  </h2>
+                  <div className="gift-offers">
+                    {offers.map((offer) => (
+                      <div
+                        key={offer.id}
+                        className={[
+                          'gift-offer',
+                          offer.available ? '' : 'gift-offer--unavailable',
+                        ].join(' ')}
+                      >
+                        <span className="gift-offer__name">{offer.store_name}</span>
+                        <span className="gift-offer__price">
+                          {formatPrice(offer.price)} {offer.currency}
+                        </span>
+                        {offer.available ? (
+                          <a
+                            className={buttonClassName({ variant: 'secondary' })}
+                            href={offer.store_url}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            Купить
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>
+                            Нет в наличии
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="gift-detail__actions">
+                <a
+                  className={buttonClassName({ size: 'lg' })}
+                  href={gift.store_link}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  В магазин
+                </a>
+                <WishlistSaveButton giftID={gift.id} size="lg" />
+                <Link
+                  className={buttonClassName({ size: 'lg', variant: 'secondary' })}
+                  to="/catalog"
+                >
+                  Смотреть другие идеи
+                </Link>
+              </div>
             </div>
+          </section>
 
-          </div>
-        </section>
+          {/* Similar gifts / alternatives */}
+          {similarGifts.length > 0 && (
+            <section className="page-section">
+              <h2 className="section-heading__title" style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>
+                Альтернативы
+              </h2>
+              <div className="gift-grid">
+                {similarGifts.map((similar) => (
+                  <article className="card gift-card" key={similar.id}>
+                    {similar.image && (
+                      <Link className="gift-card__image-link" to={`/catalog/${similar.id}`}>
+                        <img
+                          alt={similar.name}
+                          className="gift-card__image"
+                          src={similar.image}
+                        />
+                      </Link>
+                    )}
+                    <div className="gift-card__content">
+                      <div className="gift-card__heading">
+                        <h3>{similar.name}</h3>
+                        <strong>{formatPrice(similar.price)}</strong>
+                      </div>
+                      <p>{similar.description}</p>
+                      <div className="gift-card__actions">
+                        <Link
+                          className={buttonClassName()}
+                          state={{ from: location.pathname }}
+                          to={`/catalog/${similar.id}`}
+                        >
+                          Подробнее
+                        </Link>
+                        <WishlistSaveButton giftID={similar.id} />
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       ) : null}
 
       {!giftId ? (

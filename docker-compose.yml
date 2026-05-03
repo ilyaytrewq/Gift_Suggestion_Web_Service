@@ -38,7 +38,7 @@ services:
       DB_PING_TIMEOUT: ${DB_PING_TIMEOUT:-2s}
       DB_MIGRATIONS_ENABLED: ${DB_MIGRATIONS_ENABLED:-true}
       IMPORT_MAX_FILE_SIZE_BYTES: ${IMPORT_MAX_FILE_SIZE_BYTES:-5242880}
-      ML_GRPC_ENABLED: ${ML_GRPC_ENABLED:-false}
+      ML_GRPC_ENABLED: ${ML_GRPC_ENABLED:-true}
       ML_GRPC_ADDR: ${ML_GRPC_ADDR:-ml-service:50051}
       ML_GRPC_DIAL_TIMEOUT: ${ML_GRPC_DIAL_TIMEOUT:-3s}
       ML_GRPC_REQUEST_TIMEOUT: ${ML_GRPC_REQUEST_TIMEOUT:-2500ms}
@@ -77,6 +77,27 @@ services:
       test:
         - CMD-SHELL
         - wget -qO- http://127.0.0.1:8080/health/ready >/dev/null || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  ml-service:
+    build:
+      context: .
+      dockerfile: services/ml/Dockerfile
+    environment:
+      ML_GRPC_PORT: ${ML_GRPC_PORT:-50051}
+      ML_HTTP_PORT: ${ML_HTTP_PORT:-8081}
+      ML_MODEL_PATH: ${ML_MODEL_PATH:-models/lightgbm_v2_1_0.pkl}
+      ML_DB_DSN: ${DB_DSN:-postgres://gift:gift@postgres:5432/gift_suggestion?sslmode=disable}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "50051:50051"
+      - "8081:8081"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/healthz')" || exit 1
       interval: 10s
       timeout: 3s
       retries: 10
