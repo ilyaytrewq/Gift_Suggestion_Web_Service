@@ -398,7 +398,7 @@ func mustTrackingWishlist(t *testing.T, id, userID string) wishlistdomain.Wishli
 func mustTrackingRecommendationRequest(t *testing.T, id, userID string) recommendationdomain.RecommendationRequest {
 	t.Helper()
 
-	questionnaire, err := recommendationdomain.NewQuestionnaire("", "", nil, "100.00", nil, nil, 5, true)
+	questionnaire, err := recommendationdomain.NewQuestionnaire("", "", nil, nil, "100.00", nil, nil, 5, true)
 	if err != nil {
 		t.Fatalf("NewQuestionnaire() error = %v", err)
 	}

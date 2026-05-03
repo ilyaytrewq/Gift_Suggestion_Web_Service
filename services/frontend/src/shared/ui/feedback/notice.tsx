@@ -5,6 +5,6 @@ import { cn } from '../../lib/cn';
 export function Notice({
   children,
   tone = 'info',
-}: PropsWithChildren<{ tone?: 'info' | 'success' }>): JSX.Element {
+}: PropsWithChildren<{ tone?: 'info' | 'success' | 'error' }>): JSX.Element {
   return <div className={cn('banner', `banner--${tone}`)}>{children}</div>;
 }

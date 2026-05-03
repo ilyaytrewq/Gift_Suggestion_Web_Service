@@ -5,12 +5,14 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	catalogdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalog/domain"
 )
 
 type normalizedRecord struct {
 	Gift                catalogdomain.Gift
+	Offers              []catalogdomain.Offer
 	NormalizedName      string
 	NormalizedStoreLink string
 	SourceName          *string
@@ -117,12 +119,83 @@ func (s *Service) normalizeRow(
 		sourceName = normalizeOptionalString(defaultSourceLabel)
 	}
 
+	offers := buildOffers(gift.ID(), gift.Price(), row, s.clock.Now())
+
 	return normalizedRecord{
 		Gift:                gift,
+		Offers:              offers,
 		NormalizedName:      strings.ToLower(gift.Name()),
 		NormalizedStoreLink: strings.ToLower(gift.StoreLink()),
 		SourceName:          sourceName,
 	}, &recordKey, nil, nil
+}
+
+func buildOffers(giftID catalogdomain.GiftID, primaryPrice catalogdomain.Price, row ImportRowRaw, now time.Time) []catalogdomain.Offer {
+	currency := strings.TrimSpace(row.Currency)
+	if currency == "" {
+		currency = "RUB"
+	}
+
+	offers := make([]catalogdomain.Offer, 0, 1+len(row.ExtraOffers))
+
+	primary, err := catalogdomain.RestoreOffer(
+		"",
+		giftID,
+		storeName(row.StoreLink),
+		row.StoreLink,
+		primaryPrice.Cents(),
+		currency,
+		true,
+		now,
+	)
+	if err == nil {
+		offers = append(offers, primary)
+	}
+
+	for _, extra := range row.ExtraOffers {
+		extraCurrency := strings.TrimSpace(extra.Currency)
+		if extraCurrency == "" {
+			extraCurrency = currency
+		}
+
+		var priceCents int64
+		if p, err := catalogdomain.NewPrice(strings.TrimSpace(extra.PriceRaw)); err == nil {
+			priceCents = p.Cents()
+		}
+
+		o, err := catalogdomain.RestoreOffer(
+			"",
+			giftID,
+			extra.StoreName,
+			extra.StoreURL,
+			priceCents,
+			extraCurrency,
+			true,
+			now,
+		)
+		if err == nil {
+			offers = append(offers, o)
+		}
+	}
+
+	return offers
+}
+
+func storeName(storeURL string) string {
+	trimmed := strings.TrimSpace(storeURL)
+	if strings.Contains(trimmed, "wildberries.ru") {
+		return "Wildberries"
+	}
+	if strings.Contains(trimmed, "aliexpress.com") {
+		return "AliExpress"
+	}
+	if strings.Contains(trimmed, "ozon.ru") {
+		return "Ozon"
+	}
+	if strings.Contains(trimmed, "market.yandex.ru") {
+		return "Яндекс Маркет"
+	}
+	return "Магазин"
 }
 
 func normalizeAgeRestriction(raw string) (*int, *rowError) {

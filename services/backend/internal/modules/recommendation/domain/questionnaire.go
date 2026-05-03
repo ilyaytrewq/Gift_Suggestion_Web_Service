@@ -17,6 +17,7 @@ type Questionnaire struct {
 	occasion             string
 	relationship         string
 	recipientAge         *int
+	recipientGender      *string
 	budgetMax            catalogdomain.Price
 	preferredCategoryIDs []catalogdomain.CategoryID
 	interests            []string
@@ -24,10 +25,13 @@ type Questionnaire struct {
 	useWishlistContext   bool
 }
 
+var validGenders = map[string]struct{}{"male": {}, "female": {}, "other": {}}
+
 func NewQuestionnaire(
 	occasion string,
 	relationship string,
 	recipientAge *int,
+	recipientGender *string,
 	budgetMax string,
 	preferredCategoryIDs []string,
 	interests []string,
@@ -61,6 +65,17 @@ func NewQuestionnaire(
 
 		value := *recipientAge
 		normalizedRecipientAge = &value
+	}
+
+	var normalizedGender *string
+	if recipientGender != nil {
+		trimmed := strings.ToLower(strings.TrimSpace(*recipientGender))
+		if trimmed != "" {
+			if _, ok := validGenders[trimmed]; !ok {
+				return Questionnaire{}, ErrInvalidGender
+			}
+			normalizedGender = &trimmed
+		}
 	}
 
 	if len(preferredCategoryIDs) > maxPreferredCategories {
@@ -115,12 +130,21 @@ func NewQuestionnaire(
 		occasion:             normalizedOccasion,
 		relationship:         normalizedRelationship,
 		recipientAge:         normalizedRecipientAge,
+		recipientGender:      normalizedGender,
 		budgetMax:            price,
 		preferredCategoryIDs: categoryIDs,
 		interests:            normalizedInterests,
 		topN:                 topN,
 		useWishlistContext:   useWishlistContext,
 	}, nil
+}
+
+func (q Questionnaire) RecipientGender() *string {
+	if q.recipientGender == nil {
+		return nil
+	}
+	value := *q.recipientGender
+	return &value
 }
 
 func (q Questionnaire) Occasion() string {

@@ -23,6 +23,7 @@ type Repository interface {
 	FindCategoryByName(ctx context.Context, name string) (*catalogdomain.Category, error)
 	GiftExists(ctx context.Context, normalizedName, normalizedStoreLink string) (bool, error)
 	InsertGift(ctx context.Context, gift catalogdomain.Gift, sourceName *string) error
+	InsertOffers(ctx context.Context, offers []catalogdomain.Offer) error
 	GetJob(ctx context.Context, id catalogimportdomain.ImportJobID) (*catalogimportdomain.ImportJob, error)
 	ListErrors(
 		ctx context.Context,

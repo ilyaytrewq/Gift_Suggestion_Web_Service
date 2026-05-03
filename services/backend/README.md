@@ -257,8 +257,10 @@ Reusable email infrastructure:
 4. Запустить backend:
 
 ```bash
-go run ./cmd/api
+ya tool go run ./cmd/api
 ```
+
+Либо стандартный `go run ./cmd/api`, если не пользуетесь Arcadia/Ya.
 
 Локальные health endpoints:
 

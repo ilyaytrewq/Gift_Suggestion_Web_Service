@@ -6,11 +6,24 @@ import type {
   RemoveCurrentWishlistItemResponse,
 } from '../../../shared/api/contracts';
 import { requestJson } from '../../../shared/api/http';
+import { sanitizeItemCategory } from '../../../shared/lib/category-visibility';
 
 export function getCurrentWishlist(): Promise<GetCurrentWishlistResponse> {
   return requestJson<GetCurrentWishlistResponse>('/api/v1/wishlist', {
     auth: true,
-  });
+  }).then((response) => ({
+    ...response,
+    data: {
+      ...response.data,
+      wishlist: {
+        ...response.data.wishlist,
+        items: response.data.wishlist.items.map((item) => ({
+          ...item,
+          gift: sanitizeItemCategory(item.gift),
+        })),
+      },
+    },
+  }));
 }
 
 export function addCurrentWishlistItem(
@@ -20,7 +33,16 @@ export function addCurrentWishlistItem(
     method: 'POST',
     auth: true,
     body: payload,
-  });
+  }).then((response) => ({
+    ...response,
+    data: {
+      ...response.data,
+      item: {
+        ...response.data.item,
+        gift: sanitizeItemCategory(response.data.item.gift),
+      },
+    },
+  }));
 }
 
 export function removeCurrentWishlistItem(

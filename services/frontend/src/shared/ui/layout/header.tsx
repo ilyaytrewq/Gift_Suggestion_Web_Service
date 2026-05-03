@@ -39,9 +39,6 @@ export function Header(): JSX.Element {
           <Link className="site-header__link" to="/catalog">
             Каталог
           </Link>
-          <a className="site-header__link" href="#how-it-works">
-            Как это работает
-          </a>
           {auth.user ? (
             <div className="site-header__actions">
               <Link className="site-header__link" to="/wishlist">

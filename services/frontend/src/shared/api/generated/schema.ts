@@ -209,6 +209,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/gifts/{gift_id}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get similar gifts */
+        get: operations["getSimilarGifts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/categories": {
         parameters: {
             query?: never;
@@ -676,6 +693,17 @@ export interface components {
             id: string;
             name: string;
         };
+        CatalogGiftOffer: {
+            /** Format: uuid */
+            id: string;
+            store_name: string;
+            /** Format: uri */
+            store_url: string;
+            price: string;
+            /** @example RUB */
+            currency: string;
+            available: boolean;
+        };
         CatalogGift: {
             /** Format: uuid */
             id: string;
@@ -689,6 +717,7 @@ export interface components {
             /** @enum {integer} */
             age_restriction?: 0 | 12 | 16 | 18;
             category?: components["schemas"]["CatalogGiftCategory"];
+            offers?: components["schemas"]["CatalogGiftOffer"][];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -708,6 +737,14 @@ export interface components {
             status: "ok";
             data: {
                 gift: components["schemas"]["CatalogGift"];
+            };
+            meta: components["schemas"]["Meta"];
+        };
+        SimilarGiftsEnvelope: {
+            /** @constant */
+            status: "ok";
+            data: {
+                items: components["schemas"]["CatalogGift"][];
             };
             meta: components["schemas"]["Meta"];
         };
@@ -804,6 +841,8 @@ export interface components {
             occasion?: string;
             relationship?: string;
             recipient_age?: number;
+            /** @enum {string} */
+            recipient_gender?: "male" | "female" | "other";
             budget_max: string;
             preferred_category_ids?: string[];
             interests?: string[];
@@ -1079,6 +1118,8 @@ export interface components {
         OffsetQuery: number;
         GiftSortQuery: "newest" | "name_asc" | "name_desc" | "price_asc" | "price_desc";
         CategorySortQuery: "name_asc" | "name_desc" | "newest";
+        /** @description If true, return only categories that have at least one gift in the catalog. */
+        CategoryHasGiftsQuery: boolean;
     };
     requestBodies: never;
     headers: never;
@@ -1525,6 +1566,39 @@ export interface operations {
             };
         };
     };
+    getSimilarGifts: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                gift_id: components["parameters"]["GiftIDPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Similar gifts list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimilarGiftsEnvelope"];
+                };
+            };
+            /** @description Gift not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     listCatalogCategories: {
         parameters: {
             query?: {
@@ -1532,6 +1606,8 @@ export interface operations {
                 limit?: components["parameters"]["LimitQuery"];
                 offset?: components["parameters"]["OffsetQuery"];
                 sort?: components["parameters"]["CategorySortQuery"];
+                /** @description If true, return only categories that have at least one gift in the catalog. */
+                has_gifts?: components["parameters"]["CategoryHasGiftsQuery"];
             };
             header?: never;
             path?: never;

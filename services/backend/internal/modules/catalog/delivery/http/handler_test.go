@@ -150,6 +150,10 @@ func (s stubCatalogService) GetGift(context.Context, catalogusecase.GetGiftInput
 	return s.getGiftOutput, nil
 }
 
+func (s stubCatalogService) GetSimilarGifts(context.Context, catalogusecase.GetSimilarGiftsInput) (catalogusecase.GetSimilarGiftsOutput, error) {
+	return catalogusecase.GetSimilarGiftsOutput{}, nil
+}
+
 func (s stubCatalogService) ListCategories(context.Context, catalogusecase.ListCategoriesInput) (catalogusecase.ListCategoriesOutput, error) {
 	return s.listCategoriesOutput, nil
 }

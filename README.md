@@ -1,83 +1,101 @@
 # Gift Suggestion Web Service
 
-Монорепозиторий MVP-сервиса подбора подарков. В текущем состоянии проект состоит из:
+Монорепозиторий веб-сервиса подбора подарков. Состоит из трёх сервисов:
 
-- backend на Go 1.26 + Gin + PostgreSQL в `services/backend`
-- frontend на React 19 + Vite в `services/frontend`
-- локального окружения через `docker-compose.yml`
+- **backend** — Go 1.26 + Gin + PostgreSQL (`services/backend/`)
+- **frontend** — React 19 + Vite + TypeScript (`services/frontend/`)
+- **ml-service** — Python 3.13 + FastAPI + gRPC (`services/ml/`)
 
 ## Что реализовано
 
 ### Backend
 
-Сервис уже поднимает и использует:
+- Health: `GET /health/live`, `GET /health/ready`
+- Auth: регистрация, логин, refresh, logout, `GET/PATCH /api/v1/users/me`
+- Password reset: `request` + `confirm`
+- Email verification: `confirm`
+- Catalog: список подарков с фильтрами, карточка подарка с **offers (мультимагазин)**, категории
+- Похожие подарки: `GET /api/v1/catalog/gifts/{gift_id}/similar`
+- Wishlist: единый список желаний пользователя
+- Catalog import: admin upload CSV / JSON / XLSX с автоматическим созданием `gift_offers`; алиасы заголовков (`title`, `store_url`, `currency`); JSON поддерживает массив `offers`
+- Recommendation: мастер подбора с полями повод / бюджет / отношения / **пол** / возраст / интересы; ранжирование через ML (LightGBM gRPC) или fallback; объяснения; альтернативы
+- Tracking: события просмотра, добавления в избранное, переходов по ссылкам
+- VK integration: scaffold (хранение соединений, шифрование токена)
 
-- health endpoints: `GET /health/live`, `GET /health/ready`
-- auth/user flow: регистрация, логин, refresh, logout, `GET/PATCH /api/v1/users/me`
-- password reset flow: `request` и `confirm`
-- email verification confirm flow
-- catalog read API: подарки, категории, карточка подарка
-- wishlist API
-- admin catalog import API для `CSV`, `JSON`, `XLSX`
-- recommendation API с fallback-ранжированием без ML
-- tracking events ingestion API
-- VK integration scaffold с feature flag
+### ML сервис
+
+- gRPC `RankingService.Rank` (порт 50051) — при наличии обученной модели использует LightGBM LambdaRank, иначе echo-заглушка
+- FastAPI `/healthz` (порт 8081)
+- `training/` — скрипты подготовки датасета, обучения, оценки NDCG
+- Инструкции по обучению: `services/ml/Guide.md`
 
 ### Frontend
 
-В браузере сейчас доступны:
+- Главная страница, каталог с поиском и фильтрами, карточка подарка
+- Мастер рекомендаций (`/recommendation`)
+- Wishlist (`/wishlist`)
+- Login / Register / запрос сброса пароля
 
-- главная страница
-- каталог с поиском и фильтрами
-- страница подарка
-- мастер рекомендаций
-- login/register
-- запрос на восстановление пароля
+### Данные каталога
+
+- `scripts/data/fetch_wb.py` — выгрузка из Wildberries (публичный поиск)
+- `scripts/data/fetch_aliexpress.py` — выгрузка из AliExpress Affiliate API
+- `scripts/data/normalize_to_catalog.py` — нормализация и слияние CSV
+- `services/ml/dataset/dataset_example.csv` — 10 000 синтетических записей (RU + CN)
+- Инструкции: `docs/data.md`
 
 ## Структура репозитория
 
-```text
+```
 .
 ├── docker-compose.yml
 ├── README.md
 ├── AGENTS.md
-└── services
-    ├── backend
-    │   ├── cmd/api
+├── CLAUDE.md
+├── Plan.md                          ← план реализации
+├── docs/
+│   ├── ci-cd.md
+│   └── data.md                      ← источники данных + инструкции
+├── scripts/data/                    ← скрипты выгрузки RU/CN каталога
+└── services/
+    ├── backend/
+    │   ├── api/proto/ranking/v1/    ← ranking.proto (gRPC контракт)
+    │   ├── cmd/api/
     │   ├── docs/openapi/backend.yaml
-    │   ├── internal
-    │   ├── migrations
+    │   ├── internal/
+    │   ├── migrations/              ← 15 миграций
     │   └── Taskfile.yaml
-    └── frontend
-        ├── src
-        └── design
+    ├── frontend/
+    │   └── src/
+    └── ml/
+        ├── Guide.md                 ← инструкции по обучению
+        ├── ml_service/              ← gRPC сервер, ranker, feature_builder
+        ├── training/                ← скрипты обучения
+        ├── tests/
+        ├── dataset/
+        └── models/                  ← сюда кладётся .pkl модель
 ```
 
 ## Быстрый запуск
 
-Требования:
-
-- Docker + Docker Compose
-
-Из корня репозитория:
+Требования: Docker + Docker Compose.
 
 ```bash
-docker compose up --build postgres backend frontend
+docker compose up --build postgres backend ml-service frontend
 ```
 
 Локальные URL:
-
-- frontend: `http://localhost:5173`
-- backend: `http://localhost:8080`
-- backend readiness: `http://localhost:8080/health/ready`
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8080`
+- ML healthz: `http://localhost:8081/healthz`
+- ML gRPC: `localhost:50051`
 - PostgreSQL: `localhost:5432`
 
-Что важно по умолчанию:
-
-- миграции запускаются при старте backend, если `DB_MIGRATIONS_ENABLED=true`
-- ML gRPC выключен, поэтому рекомендации работают через deterministic fallback
-- VK integration выключена через `VK_ENABLED=false`
-- email delivery выключен через `EMAIL_ENABLED=false`, а `noop` sender не ломает регистрацию и reset flow
+По умолчанию:
+- Миграции запускаются при старте backend (`DB_MIGRATIONS_ENABLED=true`)
+- ML gRPC **включён** (`ML_GRPC_ENABLED=true`); если `services/ml/models/lightgbm_v0_1_0.pkl` отсутствует — использует echo-заглушку
+- VK отключён (`VK_ENABLED=false`)
+- Email delivery отключён (`EMAIL_ENABLED=false`)
 
 ## Локальная разработка
 
@@ -85,98 +103,79 @@ docker compose up --build postgres backend frontend
 
 ```bash
 cd services/backend
-go test ./...
+GOTOOLCHAIN=auto ya tool go test ./...
 task lint
-go run ./cmd/api
+task build
+ya tool go run ./cmd/api
 ```
 
-Полезные task-команды:
+Если `ya` недоступен (например, в типовом GitHub Actions), используйте обычный `go` — скрипт `scripts/ci/backend-checks.sh` и задачи Task сами подставят `go`, когда `ya` не в `PATH`.
 
-- `task tests`
-- `task lint`
-- `task build`
-- `task format`
+Генерация proto:
+```bash
+task gen:proto
+```
 
 ### Frontend
 
 ```bash
 cd services/frontend
 npm ci
-npm run generate:api
+npm run generate:api   # после изменений OpenAPI
 npm run lint
 npm run build
 npm run dev
 ```
 
-По умолчанию frontend обращается к `http://localhost:8080`, если `VITE_API_BASE_URL` не задан.
+### ML сервис
+
+```bash
+cd services/ml
+pytest                 # тесты (9 штук)
+
+# Запуск без Docker
+ML_MODEL_PATH=models/lightgbm_v0_1_0.pkl python3 -m ml_service.main
+```
+
+Обучение модели — см. `services/ml/Guide.md`.
 
 ## OpenAPI и контракты
 
-Основной HTTP-контракт хранится в:
+Спецификация: `services/backend/docs/openapi/backend.yaml`
 
+После изменений OpenAPI обязательно:
 ```bash
-services/backend/docs/openapi/backend.yaml
+cd services/frontend && npm run generate:api
 ```
-
-Frontend генерирует типы из этой спецификации:
-
-```bash
-cd services/frontend
-npm run generate:api
-```
-
-Сейчас это критичная точка синхронизации: backend-код уже содержит `POST /api/v1/auth/password-reset/confirm` и `POST /api/v1/auth/email-verification/confirm`, поэтому при изменениях auth-flow нужно обновлять и Go-код, и OpenAPI, и сгенерированные frontend-типы.
 
 ## Основные env-переменные
 
-Базовые значения для compose лежат в корневом `.env.example`, для локального backend-запуска без Docker есть `services/backend/.env.example`.
-
-На практике чаще всего меняются:
-
-- `DB_DSN`
-- `DB_MIGRATIONS_ENABLED`
-- `ML_GRPC_ENABLED`, `ML_GRPC_ADDR`, `ML_GRPC_REQUEST_TIMEOUT`
-- `VK_ENABLED`, `VK_TOKEN_ENCRYPTION_KEY`
-- `AUTH_JWT_SECRET`
-- `EMAIL_ENABLED`, `EMAIL_PROVIDER`, `EMAIL_FROM_EMAIL`, `FRONTEND_BASE_URL`
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_TLS`
-- `VITE_API_BASE_URL`
-
-Если включать SMTP (`EMAIL_ENABLED=true` и `EMAIL_PROVIDER=smtp`), нужно как минимум задать:
-
-- `EMAIL_FROM_EMAIL`
-- `SMTP_HOST`
-- `SMTP_PORT`
-
-Сейчас email используется для:
-
-- подтверждения почты после регистрации
-- запроса на восстановление пароля
-
-В dev/test можно оставить `EMAIL_PROVIDER=noop`: backend сохранит verification/reset foundation, но не будет отправлять реальные письма и не будет логировать токены.
+| Переменная | Дефолт | Описание |
+|---|---|---|
+| `DB_DSN` | `postgres://gift:gift@postgres:5432/gift_suggestion?sslmode=disable` | PostgreSQL DSN |
+| `DB_MIGRATIONS_ENABLED` | `true` | Автомиграция при старте |
+| `ML_GRPC_ENABLED` | `true` | Включить ML gRPC |
+| `ML_GRPC_ADDR` | `ml-service:50051` | Адрес ML сервиса |
+| `ML_MODEL_PATH` | `models/lightgbm_v0_1_0.pkl` | Путь к модели |
+| `VK_ENABLED` | `false` | VK интеграция |
+| `EMAIL_ENABLED` | `false` | Email delivery |
+| `AUTH_JWT_SECRET` | `change-me-please` | JWT секрет |
+| `VITE_API_BASE_URL` | `` | Backend URL для фронта |
+| `ALIEXPRESS_APP_KEY` | — | Ключ AliExpress Affiliate API |
+| `ALIEXPRESS_APP_SECRET` | — | Секрет AliExpress Affiliate API |
 
 ## CI/CD
 
-Для репозитория используется GitHub Actions.
+GitHub Actions:
+- `CI` — backend tests/lint/build, frontend install/generate/lint/build, ML tests (`pytest`), docker compose smoke
+- `CD` — сборка и публикация образов backend / frontend / ml-service, deploy через SSH
 
-- `CI` прогоняет backend tests/lint/build, frontend install/generate/lint/build, проверку `docker compose` и migration smoke-check через подъем `postgres` + `backend`.
-- `CD` собирает и публикует Docker-образы `backend` и `frontend`, после чего выкатывает их на параметризованный remote target через `ssh` и `docker compose`.
-- Все deployment-specific значения должны приходить из GitHub `vars`/`secrets` и runtime env-файла. В workflow не зашиваются registry coordinates, домены, SSH host/user, DB credentials, JWT secrets и другие environment-specific значения.
-
-Подробная схема, список required variables/secrets и deployment scaffold описаны в [docs/ci-cd.md](docs/ci-cd.md).
+Подробнее: `docs/ci-cd.md`
 
 ## Ограничения текущего состояния
 
-- Реальный ML service не обязателен: при `ML_GRPC_ENABLED=false` или ошибке gRPC backend использует fallback ranking.
-- VK integration остаётся scaffold-модулем: storage и endpoint wiring есть, полноценный внешний VK flow ещё не доведён.
-- Frontend пока не выводит весь backend-функционал: нет UI для wishlist, import jobs, tracking, VK integration.
-- В коде frontend есть профильная страница, но она не подключена в router.
-- Frontend хранит access token только в памяти и восстанавливает сессию через refresh-cookie bootstrap.
-- Frontend сейчас покрывает только запрос на восстановление пароля; confirm reset и confirm email verification на UI ещё не выведены.
-
-## Что смотреть в первую очередь
-
-- backend composition root: `services/backend/internal/app/app.go`
-- backend router: `services/backend/internal/transport/http/router.go`
-- frontend router: `services/frontend/src/app/router/router.tsx`
-- frontend API layer: `services/frontend/src/shared/api`
+- ML модель не обучена — при старте сервис использует echo-stub (кандидаты в исходном порядке). Обучи через `services/ml/Guide.md`
+- VK OAuth flow scaffold: хранение / шифрование есть, реальный вызов VK API не реализован
+- Frontend: нет UI для admin import, tracking событий, VK интеграции, confirm email/password-reset
+- `ProfilePage` существует, но не подключена в router
+- Данные каталога: текущий `dataset_example.csv` синтетический. Для реальных данных используй `scripts/data/`

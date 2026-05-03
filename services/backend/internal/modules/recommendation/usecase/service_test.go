@@ -312,7 +312,7 @@ func TestServiceGetRecommendationHidesForeignRequest(t *testing.T) {
 		t.Fatalf("NewUserID() error = %v", err)
 	}
 
-	questionnaire, err := recommendationdomain.NewQuestionnaire("", "", nil, "100.00", nil, nil, 1, false)
+	questionnaire, err := recommendationdomain.NewQuestionnaire("", "", nil, nil, "100.00", nil, nil, 1, false)
 	if err != nil {
 		t.Fatalf("NewQuestionnaire() error = %v", err)
 	}

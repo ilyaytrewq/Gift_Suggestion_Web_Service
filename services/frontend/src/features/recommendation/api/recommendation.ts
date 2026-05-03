@@ -3,6 +3,7 @@ import type {
   RecommendationResponse,
 } from '../../../shared/api/contracts';
 import { requestJson } from '../../../shared/api/http';
+import { sanitizeItemCategory } from '../../../shared/lib/category-visibility';
 
 export function createRecommendation(
   payload: RecommendationRequest,
@@ -10,5 +11,21 @@ export function createRecommendation(
   return requestJson<RecommendationResponse>('/api/v1/recommendations', {
     method: 'POST',
     body: payload,
-  });
+  }).then((response) => ({
+    ...response,
+    data: {
+      ...response.data,
+      recommendation: {
+        ...response.data.recommendation,
+        recommendations: response.data.recommendation.recommendations.map((item) => ({
+          ...item,
+          gift: sanitizeItemCategory(item.gift),
+          alternatives: item.alternatives.map((alternative) => ({
+            ...alternative,
+            gift: sanitizeItemCategory(alternative.gift),
+          })),
+        })),
+      },
+    },
+  }));
 }

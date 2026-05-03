@@ -4,9 +4,9 @@ The repository uses GitHub Actions for both CI and CD because the project alread
 
 ## What CI checks
 
-- Backend unit tests: `go test ./...`
+- Backend unit tests: `ya tool go test ./...` (локально с `ya`; в CI — `go test`, см. `scripts/ci/backend-checks.sh`)
 - Backend lint: `golangci-lint run ./... --config=.golangci.yml`
-- Backend build: `go build ./cmd/api`
+- Backend build: `ya tool go build ./cmd/api` (или `go build` без `ya`)
 - Frontend install, OpenAPI client generation, lint and production build
 - Docker Compose syntax validation
 - Backend and frontend Docker image build

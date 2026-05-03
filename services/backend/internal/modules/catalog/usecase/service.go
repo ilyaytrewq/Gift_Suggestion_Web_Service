@@ -73,7 +73,61 @@ func (s *Service) GetGift(ctx context.Context, input GetGiftInput) (GetGiftOutpu
 		)
 	}
 
-	return GetGiftOutput{Gift: newGift(*gift)}, nil
+	domainOffers, err := s.repo.ListOffersByGiftID(ctx, giftID)
+	if err != nil {
+		return GetGiftOutput{}, err
+	}
+
+	giftDTO := newGift(*gift)
+	if len(domainOffers) > 0 {
+		giftDTO.Offers = make([]Offer, 0, len(domainOffers))
+		for _, o := range domainOffers {
+			giftDTO.Offers = append(giftDTO.Offers, newOffer(o))
+		}
+	}
+
+	return GetGiftOutput{Gift: giftDTO}, nil
+}
+
+func (s *Service) GetSimilarGifts(ctx context.Context, input GetSimilarGiftsInput) (GetSimilarGiftsOutput, error) {
+	giftID, err := domain.NewGiftID(input.GiftID)
+	if err != nil {
+		return GetSimilarGiftsOutput{}, apperrors.Wrap(
+			apperrors.KindValidation,
+			"invalid_gift_id",
+			"gift id is invalid",
+			err,
+		)
+	}
+
+	gift, err := s.repo.GetGift(ctx, giftID)
+	if err != nil {
+		return GetSimilarGiftsOutput{}, err
+	}
+	if gift == nil {
+		return GetSimilarGiftsOutput{}, apperrors.New(
+			apperrors.KindNotFound,
+			"gift_not_found",
+			"gift not found",
+		)
+	}
+
+	limit := input.Limit
+	if limit <= 0 || limit > 20 {
+		limit = 6
+	}
+
+	similar, err := s.repo.ListSimilarGifts(ctx, giftID, gift.CategoryID(), gift.Price().Cents(), limit)
+	if err != nil {
+		return GetSimilarGiftsOutput{}, err
+	}
+
+	items := make([]Gift, 0, len(similar))
+	for _, g := range similar {
+		items = append(items, newGift(g))
+	}
+
+	return GetSimilarGiftsOutput{Items: items}, nil
 }
 
 func (s *Service) ListCategories(ctx context.Context, input ListCategoriesInput) (ListCategoriesOutput, error) {
@@ -206,10 +260,11 @@ func normalizeCategoryFilter(input ListCategoriesInput) (CategoryFilter, error) 
 	}
 
 	return CategoryFilter{
-		Search: normalizeSearch(input.Search),
-		Limit:  limit,
-		Offset: offset,
-		Sort:   sort,
+		Search:   normalizeSearch(input.Search),
+		HasGifts: input.HasGifts,
+		Limit:    limit,
+		Offset:   offset,
+		Sort:     sort,
 	}, nil
 }
 

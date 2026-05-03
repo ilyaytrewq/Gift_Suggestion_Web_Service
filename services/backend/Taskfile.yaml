@@ -11,6 +11,8 @@ vars:
   GOLANGCI_LINT: '{{.BIN_DIR}}/golangci-lint'
   GCI: '{{.BIN_DIR}}/gci'
   GOFUMPT: '{{.BIN_DIR}}/gofumpt'
+  GO_CMD:
+    sh: command -v ya >/dev/null 2>&1 && echo 'ya tool go' || echo go
 
 tasks:
   install-formatters:
@@ -19,11 +21,11 @@ tasks:
       - |
         [ -f {{.GOFUMPT}} ] || {
           echo '📦 Устанавливаем gofumpt {{.GOFUMPT_VERSION}}...'
-          GOBIN={{.BIN_DIR}} go install mvdan.cc/gofumpt@{{.GOFUMPT_VERSION}}
+          GOBIN={{.BIN_DIR}} {{.GO_CMD}} install mvdan.cc/gofumpt@{{.GOFUMPT_VERSION}}
         }
         [ -f {{.GCI}} ] || {
           echo '📦 Устанавливаем gci {{.GCI_VERSION}}...'
-          GOBIN={{.BIN_DIR}} go install github.com/daixiang0/gci@{{.GCI_VERSION}}
+          GOBIN={{.BIN_DIR}} {{.GO_CMD}} install github.com/daixiang0/gci@{{.GCI_VERSION}}
         }
     status:
       - test -x {{.GOFUMPT}}
@@ -47,7 +49,7 @@ tasks:
         [ -f {{.GOLANGCI_LINT}} ] || {
           mkdir -p {{.BIN_DIR}}
           echo "📦 Устанавливаем golangci-lint {{.GOLANGCI_LINT_VERSION}}..."
-          GOBIN={{.BIN_DIR}} go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
+          GOBIN={{.BIN_DIR}} {{.GO_CMD}} install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
         }
     status:
       - test -x {{.GOLANGCI_LINT}}
@@ -61,14 +63,26 @@ tasks:
   run:
     desc: "Запускает backend API локально"
     cmds:
-      - go run ./cmd/api
+      - '{{.GO_CMD}} run ./cmd/api'
 
   build:
     desc: "Собирает backend binary"
     cmds:
-      - go build ./cmd/api
+      - '{{.GO_CMD}} build ./cmd/api'
+
+  gen:proto:
+    desc: "Генерирует Go код из .proto файлов (требует protoc, protoc-gen-go, protoc-gen-go-grpc)"
+    cmds:
+      - |
+        protoc \
+          --proto_path=api/proto \
+          --go_out=. \
+          --go_opt=module=github.com/ilyaytrewq/Gift_Suggestion_Web_Service \
+          --go-grpc_out=. \
+          --go-grpc_opt=module=github.com/ilyaytrewq/Gift_Suggestion_Web_Service \
+          api/proto/ranking/v1/ranking.proto
 
   tests:
     desc: "Запускает все тесты"
     cmds:
-      - go test ./... -v
+      - '{{.GO_CMD}} test ./... -v'

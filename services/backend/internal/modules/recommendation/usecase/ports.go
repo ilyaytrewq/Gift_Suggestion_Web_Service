@@ -48,15 +48,16 @@ type RankCandidate struct {
 }
 
 type RankInput struct {
-	RequestID    string
-	UserID       string
-	Occasion     string
-	Relationship string
-	RecipientAge *int
-	BudgetMax    catalogdomain.Price
-	Interests    []string
-	TopN         int
-	Candidates   []RankCandidate
+	RequestID       string
+	UserID          string
+	Occasion        string
+	Relationship    string
+	RecipientAge    *int
+	RecipientGender *string
+	BudgetMax       catalogdomain.Price
+	Interests       []string
+	TopN            int
+	Candidates      []RankCandidate
 }
 
 type RankedItem struct {

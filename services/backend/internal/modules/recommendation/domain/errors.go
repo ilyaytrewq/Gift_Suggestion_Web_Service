@@ -11,6 +11,7 @@ var (
 	ErrOccasionTooLong            = errors.New("occasion is too long")
 	ErrRelationshipTooLong        = errors.New("relationship is too long")
 	ErrRecipientAgeInvalid        = errors.New("recipient age is invalid")
+	ErrInvalidGender              = errors.New("recipient gender is invalid; allowed values: male, female, other")
 	ErrTopNInvalid                = errors.New("top n is invalid")
 	ErrTooManyPreferredCategories = errors.New("too many preferred categories")
 	ErrTooManyInterests           = errors.New("too many interests")

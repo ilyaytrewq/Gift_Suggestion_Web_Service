@@ -13,6 +13,7 @@ type RecommendInput struct {
 	Occasion             string
 	Relationship         string
 	RecipientAge         *int
+	RecipientGender      *string
 	BudgetMax            string
 	PreferredCategoryIDs []string
 	Interests            []string

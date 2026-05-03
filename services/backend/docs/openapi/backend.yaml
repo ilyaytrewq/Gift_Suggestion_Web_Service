@@ -339,6 +339,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/catalog/gifts/{gift_id}/similar:
+    get:
+      tags: [catalog]
+      summary: Get similar gifts
+      operationId: getSimilarGifts
+      parameters:
+        - $ref: '#/components/parameters/GiftIDPath'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 6
+      responses:
+        '200':
+          description: Similar gifts list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimilarGiftsEnvelope'
+        '404':
+          description: Gift not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /api/v1/catalog/categories:
     get:
       tags: [catalog]
@@ -349,6 +376,7 @@ paths:
         - $ref: '#/components/parameters/LimitQuery'
         - $ref: '#/components/parameters/OffsetQuery'
         - $ref: '#/components/parameters/CategorySortQuery'
+        - $ref: '#/components/parameters/CategoryHasGiftsQuery'
       responses:
         '200':
           description: Category list page
@@ -1193,6 +1221,13 @@ components:
         type: string
         enum: [name_asc, name_desc, newest]
         default: name_asc
+    CategoryHasGiftsQuery:
+      in: query
+      name: has_gifts
+      required: false
+      description: If true, return only categories that have at least one gift in the catalog.
+      schema:
+        type: boolean
   schemas:
     Meta:
       type: object
@@ -1497,6 +1532,27 @@ components:
         name:
           type: string
       additionalProperties: false
+    CatalogGiftOffer:
+      type: object
+      required: [id, store_name, store_url, price, currency, available]
+      properties:
+        id:
+          type: string
+          format: uuid
+        store_name:
+          type: string
+        store_url:
+          type: string
+          format: uri
+        price:
+          type: string
+          pattern: '^\d+(\.\d{2})$'
+        currency:
+          type: string
+          example: RUB
+        available:
+          type: boolean
+      additionalProperties: false
     CatalogGift:
       type: object
       required: [id, name, description, price, store_link, created_at, updated_at]
@@ -1522,6 +1578,10 @@ components:
           enum: [0, 12, 16, 18]
         category:
           $ref: '#/components/schemas/CatalogGiftCategory'
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogGiftOffer'
         created_at:
           type: string
           format: date-time
@@ -1563,6 +1623,25 @@ components:
           properties:
             gift:
               $ref: '#/components/schemas/CatalogGift'
+          additionalProperties: false
+        meta:
+          $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    SimilarGiftsEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status:
+          type: string
+          const: ok
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CatalogGift'
           additionalProperties: false
         meta:
           $ref: '#/components/schemas/Meta'
@@ -1766,6 +1845,9 @@ components:
           type: integer
           minimum: 0
           maximum: 120
+        recipient_gender:
+          type: string
+          enum: [male, female, other]
         budget_max:
           type: string
           pattern: '^\d+(\.\d{1,2})?$'

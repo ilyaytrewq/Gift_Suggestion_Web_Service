@@ -1,9 +1,13 @@
 import { authSession } from '../../../shared/auth/session';
 import type {
   CurrentUserResponse,
+  EmailVerificationConfirmRequest,
+  EmailVerificationConfirmResponse,
   LoginRequest,
   LoginResponse,
   LogoutResponse,
+  PasswordResetConfirmRequest,
+  PasswordResetConfirmResponse,
   PasswordResetRequest,
   PasswordResetResponse,
   RegisterRequest,
@@ -63,6 +67,24 @@ export function updateCurrentUser(
   return requestJson<UpdateCurrentUserResponse>('/api/v1/users/me', {
     method: 'PATCH',
     auth: true,
+    body: payload,
+  });
+}
+
+export function confirmPasswordReset(
+  payload: PasswordResetConfirmRequest,
+): Promise<PasswordResetConfirmResponse> {
+  return requestJson<PasswordResetConfirmResponse>('/api/v1/auth/password-reset/confirm', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function confirmEmailVerification(
+  payload: EmailVerificationConfirmRequest,
+): Promise<EmailVerificationConfirmResponse> {
+  return requestJson<EmailVerificationConfirmResponse>('/api/v1/auth/email-verification/confirm', {
+    method: 'POST',
     body: payload,
   });
 }

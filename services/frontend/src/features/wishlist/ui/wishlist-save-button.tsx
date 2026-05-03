@@ -8,6 +8,7 @@ import {
   isGiftSavedInWishlist,
   useWishlistQuery,
 } from '../model/use-wishlist';
+import { useTrackEvent } from '../../tracking/model/use-track-event';
 import { useAuth } from '../../../shared/auth/use-auth';
 import { cn } from '../../../shared/lib/cn';
 import { buttonClassName, type ButtonStyleOptions } from '../../../shared/ui/button/button-class-name';
@@ -35,7 +36,7 @@ export function WishlistSaveButton({
   const userID = auth.user?.id ?? null;
   const queryKey = currentWishlistQueryKey(userID);
   const wishlist = wishlistQuery.data?.data.wishlist;
-  const isSaved = isGiftSavedInWishlist(wishlist, giftID);
+  const track = useTrackEvent();
 
   const mutation = useMutation({
     mutationFn: () => addCurrentWishlistItem({ gift_id: giftID }),
@@ -43,8 +44,12 @@ export function WishlistSaveButton({
       queryClient.setQueryData(queryKey, (current: typeof wishlistQuery.data) => (
         appendWishlistItem(current, payload.data.item)
       ));
+      track({ type: 'wishlist_add', gift_id: giftID });
     },
   });
+  const isSaving = mutation.isPending;
+  const hasSavedCurrentGift = mutation.data?.data.item.gift.id === giftID;
+  const isSaved = isGiftSavedInWishlist(wishlist, giftID) || hasSavedCurrentGift;
 
   if (!auth.accessToken) {
     return (
@@ -72,15 +77,16 @@ export function WishlistSaveButton({
   return (
     <div className={cn('wishlist-action', className)}>
       <button
+        aria-busy={isSaving}
         className={buttonClassName({ size, variant })}
-        disabled={mutation.isPending || wishlistQuery.isFetching}
+        disabled={isSaving}
         type="button"
         onClick={() => {
           mutation.reset();
           void mutation.mutateAsync();
         }}
       >
-        {mutation.isPending ? 'Сохраняем...' : 'Сохранить'}
+        {isSaving ? 'Сохраняем...' : 'Сохранить'}
       </button>
       {mutation.isError ? (
         <p className="wishlist-action__hint">Не удалось сохранить подарок. Попробуйте ещё раз.</p>

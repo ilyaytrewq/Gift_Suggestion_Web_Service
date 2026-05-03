@@ -16,6 +16,9 @@ in/bin/
 /build/
 /target/
 .github/workflows/
+skills/
+notes.txt
+.claude/
 !.github/workflows/
 !.github/workflows/*.yml
 ISSUE.md
@@ -39,6 +42,7 @@ vendor/
 .idea/
 .vscode/
 *.swp
+Solve_Guide.md
 .github/copilot-instructions.md
 *.swo
 .DS_Store
@@ -47,6 +51,7 @@ Thumbs.db
 # --- Local env / secrets ---
 *.env
 .env.*
+CLAUDE.md
 !.env.example
 
 # --- Debug / profiling ---
@@ -56,5 +61,25 @@ Thumbs.db
 .gocache/
 **/.gocache/
 
+# Python
+__pycache__/
+AGENTS.md
+*.py[cod]
+*.pycache
+.pytest_cache/
+*.egg-info/
+dist/
+.venv/
+venv/
+
 *TZ/
 *TODO.md
+
+# --- ML datasets / model artifacts ---
+services/ml/dataset/collected/
+services/ml/dataset/catalog_real.csv
+services/ml/dataset/training.parquet
+services/ml/models/*.pkl
+services/ml/models/metrics*.json
+services/ml/services/ml/dataset/collected/
+

@@ -38,11 +38,12 @@ export function HomePage(): JSX.Element {
   const categoriesQuery = useQuery({
     queryFn: () =>
       listCatalogCategories({
-        limit: 6,
+        limit: 100,
         offset: 0,
         sort: 'name_asc',
+        has_gifts: true,
       }),
-    queryKey: ['categories', 'preview'],
+    queryKey: ['categories', 'preview', 'with-gifts'],
   });
 
   return (

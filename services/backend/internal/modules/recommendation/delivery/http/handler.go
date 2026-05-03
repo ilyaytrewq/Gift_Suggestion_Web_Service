@@ -73,6 +73,7 @@ func (h *Handler) recommend(c *gin.Context) {
 		Occasion:             request.Occasion,
 		Relationship:         request.Relationship,
 		RecipientAge:         request.RecipientAge,
+		RecipientGender:      request.RecipientGender,
 		BudgetMax:            request.BudgetMax,
 		PreferredCategoryIDs: request.PreferredCategoryIDs,
 		Interests:            request.Interests,
