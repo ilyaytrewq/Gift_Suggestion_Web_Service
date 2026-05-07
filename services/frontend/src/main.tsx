@@ -11,6 +11,7 @@ import { AppRouter } from './app/router/router';
 import './app/styles/index.css';
 import { AuthProvider } from './shared/auth/auth-context';
 import { AuthBootstrap } from './shared/auth/auth-bootstrap';
+import { ToastProvider } from './shared/ui/toast/toast-provider';
 
 const rootElement = document.getElementById('root');
 
@@ -22,9 +23,11 @@ createRoot(rootElement).render(
   <StrictMode>
     <QueryProvider>
       <AuthProvider>
-        <AuthBootstrap>
-          <AppRouter />
-        </AuthBootstrap>
+        <ToastProvider>
+          <AuthBootstrap>
+            <AppRouter />
+          </AuthBootstrap>
+        </ToastProvider>
       </AuthProvider>
     </QueryProvider>
   </StrictMode>,

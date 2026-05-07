@@ -1,5 +1,6 @@
 import {
   BrowserRouter,
+  Navigate,
   Route,
   Routes,
 } from 'react-router-dom';
@@ -30,6 +31,7 @@ export function AppRouter(): JSX.Element {
           <Route element={<RecommendationPage />} path="/recommendation" />
           <Route element={<WishlistPage />} path="/wishlist" />
           <Route element={<ProfilePage />} path="/profile" />
+          <Route element={<Navigate replace to="/admin/import" />} path="/admin" />
           <Route element={<AdminImportPage />} path="/admin/import" />
           <Route element={<LoginPage />} path="/login" />
           <Route element={<RegisterPage />} path="/register" />

@@ -196,6 +196,22 @@ func (u *User) Role() Role {
 	return u.role
 }
 
+// PromoteToAdmin sets role to admin. Idempotent if already admin (updated_at unchanged).
+func (u *User) PromoteToAdmin(at time.Time) error {
+	if u == nil {
+		return ErrUserNotFound
+	}
+
+	if u.role == UserRoleAdmin {
+		return nil
+	}
+
+	u.role = UserRoleAdmin
+	u.updatedAt = at.UTC()
+
+	return nil
+}
+
 func (u *User) DisplayName() string {
 	return u.displayName
 }

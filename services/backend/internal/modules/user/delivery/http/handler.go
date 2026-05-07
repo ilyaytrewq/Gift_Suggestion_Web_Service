@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,6 +19,7 @@ var ErrNilUserService = errors.New("user service is nil")
 type service interface {
 	GetCurrentUser(ctx context.Context, userID string) (userusecase.Profile, error)
 	UpdateProfile(ctx context.Context, input userusecase.UpdateProfileInput) (userusecase.Profile, error)
+	PromoteUserToAdmin(ctx context.Context, email string) (userusecase.Profile, error)
 }
 
 type Handler struct {
@@ -41,6 +43,10 @@ func (h *Handler) Register(root gin.IRouter) {
 	users.Use(h.authMiddleware)
 	users.GET("/me", h.getCurrentUser)
 	users.PATCH("/me", h.updateProfile)
+
+	admin := root.Group("/admin/users")
+	admin.Use(h.authMiddleware, authhttp.RequireAdmin())
+	admin.POST("/promote", h.promoteToAdmin)
 }
 
 func (h *Handler) getCurrentUser(c *gin.Context) {
@@ -89,6 +95,32 @@ func (h *Handler) updateProfile(c *gin.Context) {
 		UserID:      actor.UserID,
 		DisplayName: displayName,
 	})
+	if err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	httpapi.Success(c, http.StatusOK, gin.H{"user": profile})
+}
+
+func (h *Handler) promoteToAdmin(c *gin.Context) {
+	var req promoteToAdminRequest
+	if err := httpapi.DecodeJSON(c, &req); err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	email := strings.TrimSpace(req.Email)
+	if email == "" {
+		httpapi.Fail(c, apperrors.New(
+			apperrors.KindValidation,
+			"missing_email",
+			"email is required",
+		))
+		return
+	}
+
+	profile, err := h.service.PromoteUserToAdmin(c.Request.Context(), email)
 	if err != nil {
 		httpapi.Fail(c, err)
 		return

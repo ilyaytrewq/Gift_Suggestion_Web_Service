@@ -89,3 +89,41 @@ func (s *Service) UpdateProfile(ctx context.Context, input UpdateProfileInput) (
 
 	return newProfile(user), nil
 }
+
+func (s *Service) PromoteUserToAdmin(ctx context.Context, rawEmail string) (Profile, error) {
+	em, err := domain.NewEmail(rawEmail)
+	if err != nil {
+		return Profile{}, apperrors.Wrap(
+			apperrors.KindValidation,
+			"invalid_email",
+			"email has invalid format",
+			err,
+		)
+	}
+
+	user, err := s.repo.GetByEmail(ctx, em)
+	if err != nil {
+		return Profile{}, err
+	}
+	if user == nil {
+		return Profile{}, apperrors.New(
+			apperrors.KindNotFound,
+			"user_not_found",
+			"user not found",
+		)
+	}
+
+	if user.Role() == domain.UserRoleAdmin {
+		return newProfile(user), nil
+	}
+
+	if err := user.PromoteToAdmin(s.clock.Now()); err != nil {
+		return Profile{}, err
+	}
+
+	if err := s.repo.UpdateUserRole(ctx, user); err != nil {
+		return Profile{}, err
+	}
+
+	return newProfile(user), nil
+}

@@ -29,3 +29,7 @@ type updateProfileRequest struct {
 		DisplayName nullableStringField `json:"display_name"`
 	} `json:"profile"`
 }
+
+type promoteToAdminRequest struct {
+	Email string `json:"email"`
+}

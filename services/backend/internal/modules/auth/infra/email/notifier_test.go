@@ -34,7 +34,7 @@ func TestNotifierSendVerificationEmailBuildsFrontendLink(t *testing.T) {
 	if !strings.Contains(sender.message.TextBody, "verify-token") {
 		t.Fatalf("text body does not contain token: %q", sender.message.TextBody)
 	}
-	if !strings.Contains(sender.message.TextBody, "http://localhost:5173/auth/verify-email?token=verify-token") {
+	if !strings.Contains(sender.message.TextBody, "http://localhost:5173/auth/email-verify?token=verify-token") {
 		t.Fatalf("text body does not contain verification link: %q", sender.message.TextBody)
 	}
 }
@@ -58,11 +58,38 @@ func TestNotifierSendPasswordResetEmailWithoutFrontendLink(t *testing.T) {
 		t.Fatalf("SendPasswordResetEmail() error = %v", err)
 	}
 
-	if strings.Contains(sender.message.TextBody, "/auth/reset-password") {
+	if strings.Contains(sender.message.TextBody, "/password-reset/confirm") {
 		t.Fatalf("unexpected frontend link in text body: %q", sender.message.TextBody)
 	}
-	if !strings.Contains(sender.message.TextBody, "reset-token") {
-		t.Fatalf("text body does not contain token: %q", sender.message.TextBody)
+	if strings.Contains(sender.message.TextBody, "reset-token") {
+		t.Fatalf("raw token must not appear in email body: %q", sender.message.TextBody)
+	}
+}
+
+func TestNotifierSendPasswordResetEmailContainsLink(t *testing.T) {
+	t.Parallel()
+
+	sender := &captureSender{}
+	notifier, err := NewNotifier(
+		sender,
+		nil,
+		platformemail.Address{Email: "noreply@example.com", Name: "Gift Suggestion"},
+		"http://localhost:5173",
+	)
+	if err != nil {
+		t.Fatalf("NewNotifier() error = %v", err)
+	}
+
+	user := mustNotifierUser(t)
+	if err := notifier.SendPasswordResetEmail(context.Background(), user, "reset-token"); err != nil {
+		t.Fatalf("SendPasswordResetEmail() error = %v", err)
+	}
+
+	if !strings.Contains(sender.message.TextBody, "http://localhost:5173/password-reset/confirm?token=reset-token") {
+		t.Fatalf("text body does not contain reset link: %q", sender.message.TextBody)
+	}
+	if strings.Contains(sender.message.TextBody, "Reset code") {
+		t.Fatalf("raw token code must not appear in text body: %q", sender.message.TextBody)
 	}
 }
 

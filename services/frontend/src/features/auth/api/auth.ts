@@ -10,6 +10,8 @@ import type {
   PasswordResetConfirmResponse,
   PasswordResetRequest,
   PasswordResetResponse,
+  PromoteUserToAdminRequest,
+  PromoteUserToAdminResponse,
   RegisterRequest,
   RegisterResponse,
   RefreshResponse,
@@ -85,6 +87,16 @@ export function confirmEmailVerification(
 ): Promise<EmailVerificationConfirmResponse> {
   return requestJson<EmailVerificationConfirmResponse>('/api/v1/auth/email-verification/confirm', {
     method: 'POST',
+    body: payload,
+  });
+}
+
+export function promoteUserToAdmin(
+  payload: PromoteUserToAdminRequest,
+): Promise<PromoteUserToAdminResponse> {
+  return requestJson<PromoteUserToAdminResponse>('/api/v1/admin/users/promote', {
+    method: 'POST',
+    auth: true,
     body: payload,
   });
 }

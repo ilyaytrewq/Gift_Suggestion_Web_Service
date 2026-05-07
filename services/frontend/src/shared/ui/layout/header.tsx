@@ -44,9 +44,19 @@ export function Header(): JSX.Element {
               <Link className="site-header__link" to="/wishlist">
                 Список желаний
               </Link>
-              <span className="site-header__user">
+              {auth.user.role === 'admin' && (
+                <Link className="site-header__link" to="/admin/import">
+                  Администрирование
+                </Link>
+              )}
+              <Link
+                aria-label="Профиль и данные аккаунта"
+                className="site-header__link site-header__user"
+                title="Профиль"
+                to="/profile"
+              >
                 {auth.user.display_name || auth.user.email}
-              </span>
+              </Link>
               <button
                 className={buttonClassName({ variant: 'ghost' })}
                 type="button"

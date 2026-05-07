@@ -21,6 +21,7 @@ services:
     build:
       context: .
       dockerfile: services/backend/Dockerfile
+    restart: unless-stopped
     environment:
       APP_NAME: ${APP_NAME:-gift-suggestion-backend}
       APP_ENV: ${APP_ENV:-local}
@@ -46,16 +47,16 @@ services:
       VK_ENABLED: ${VK_ENABLED:-false}
       VK_REQUEST_TIMEOUT: ${VK_REQUEST_TIMEOUT:-3s}
       VK_TOKEN_ENCRYPTION_KEY: ${VK_TOKEN_ENCRYPTION_KEY:-}
-      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
-      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-noop}
-      EMAIL_FROM_EMAIL: ${EMAIL_FROM_EMAIL:-noreply@example.com}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
+      EMAIL_FROM_EMAIL: ${EMAIL_FROM_EMAIL:-weather_sender@mail.ru}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Gift Suggestion}
       EMAIL_SEND_TIMEOUT: ${EMAIL_SEND_TIMEOUT:-10s}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
-      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_HOST: ${SMTP_HOST:-smtp.mail.ru}
       SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-weather_sender@mail.ru}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-vUiAA45J6jFbMo3I7HZ4}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change-me-please}
       AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-gift-suggestion-backend}
@@ -90,6 +91,8 @@ services:
       ML_HTTP_PORT: ${ML_HTTP_PORT:-8081}
       ML_MODEL_PATH: ${ML_MODEL_PATH:-models/lightgbm_v2_1_0.pkl}
       ML_DB_DSN: ${DB_DSN:-postgres://gift:gift@postgres:5432/gift_suggestion?sslmode=disable}
+      # Optional: overrides LOG_LEVEL for ml-service (Python wants DEBUG/INFO/WARNING/etc.)
+      ML_LOG_LEVEL: ${ML_LOG_LEVEL:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "50051:50051"

@@ -56,12 +56,11 @@ func verificationMessage(
 	rawToken string,
 ) platformemail.Message {
 	displayName := recipientName(user)
-	link := buildFrontendLink(frontendBaseURL, "/auth/verify-email", rawToken)
+	link := buildFrontendLink(frontendBaseURL, "/auth/email-verify", rawToken)
 
 	textBody := fmt.Sprintf(
-		"Hello %s,\n\nConfirm your email for Gift Suggestion Web Service.\nVerification code: %s\n",
+		"Hello %s,\n\nConfirm your email for Gift Suggestion Web Service.\n",
 		displayName,
-		rawToken,
 	)
 	if link != "" {
 		textBody += fmt.Sprintf("Verification link: %s\n", link)
@@ -69,9 +68,8 @@ func verificationMessage(
 	textBody += "\nIf you did not create this account, you can ignore this email.\n"
 
 	htmlBody := fmt.Sprintf(
-		"<p>Hello %s,</p><p>Confirm your email for Gift Suggestion Web Service.</p><p><strong>Verification code:</strong> %s</p>",
+		"<p>Hello %s,</p><p>Confirm your email for Gift Suggestion Web Service.</p>",
 		displayName,
-		rawToken,
 	)
 	if link != "" {
 		htmlBody += fmt.Sprintf(`<p><a href="%s">Confirm email</a></p>`, link)
@@ -94,22 +92,20 @@ func passwordResetMessage(
 	rawToken string,
 ) platformemail.Message {
 	displayName := recipientName(user)
-	link := buildFrontendLink(frontendBaseURL, "/auth/reset-password", rawToken)
+	link := buildFrontendLink(frontendBaseURL, "/password-reset/confirm", rawToken)
 
 	textBody := fmt.Sprintf(
-		"Hello %s,\n\nWe received a password reset request for your Gift Suggestion Web Service account.\nReset code: %s\n",
+		"Hello %s,\n\nWe received a password reset request for your Gift Suggestion Web Service account.\n",
 		displayName,
-		rawToken,
 	)
 	if link != "" {
-		textBody += fmt.Sprintf("Reset link: %s\n", link)
+		textBody += fmt.Sprintf("Reset your password here: %s\n", link)
 	}
 	textBody += "\nIf you did not request a password reset, you can ignore this email.\n"
 
 	htmlBody := fmt.Sprintf(
-		"<p>Hello %s,</p><p>We received a password reset request for your Gift Suggestion Web Service account.</p><p><strong>Reset code:</strong> %s</p>",
+		"<p>Hello %s,</p><p>We received a password reset request for your Gift Suggestion Web Service account.</p>",
 		displayName,
-		rawToken,
 	)
 	if link != "" {
 		htmlBody += fmt.Sprintf(`<p><a href="%s">Reset password</a></p>`, link)

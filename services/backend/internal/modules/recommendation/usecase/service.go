@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -13,10 +14,9 @@ import (
 )
 
 const (
-	defaultTopN         = 5
-	maxTopN             = 10
 	candidateFetchLimit = 400
 	maxRankCandidates   = 200
+	maxTopN             = maxRankCandidates
 	alternativesPerItem = 2
 )
 
@@ -543,13 +543,13 @@ func sortFallbackCandidates(candidates []scoredCandidate) {
 
 func normalizeTopN(value int) (int, error) {
 	if value == 0 {
-		return defaultTopN, nil
+		return maxTopN, nil
 	}
 	if value < 1 || value > maxTopN {
 		return 0, apperrors.New(
 			apperrors.KindValidation,
 			"invalid_top_n",
-			"top_n must be between 1 and 10",
+			fmt.Sprintf("top_n must be between 1 and %d, or omitted for the full list", maxTopN),
 		)
 	}
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
@@ -15,6 +15,54 @@ import { Field } from '../../../shared/ui/form/field';
 import { Input } from '../../../shared/ui/input/input';
 import { Container } from '../../../shared/ui/layout/container';
 
+const PRESET_OCCASIONS = [
+  'День рождения',
+  'Юбилей',
+  'Новый год',
+  '8 Марта',
+  '23 Февраля',
+  'День всех влюблённых',
+  'Годовщина',
+  'Свадьба',
+  'Выпускной',
+  'Рождение ребёнка',
+  'Новоселье',
+  'Благодарность',
+  'Просто так',
+] as const;
+
+const PRESET_RELATIONSHIPS = [
+  'Партнёру / супругу',
+  'Родителям',
+  'Ребёнку',
+  'Брату или сестре',
+  'Другу или подруге',
+  'Коллеге',
+  'Руководителю',
+  'Знакомому',
+  'Себе',
+] as const;
+
+const PRESET_INTERESTS = [
+  'Книги и чтение',
+  'Кино и сериалы',
+  'Музыка',
+  'Спорт и фитнес',
+  'Путешествия',
+  'Готовка',
+  'Настольные и видеоигры',
+  'Техника и гаджеты',
+  'Рукоделие и DIY',
+  'Красота и уход',
+  'Автомобили',
+  'Фотография',
+  'Растения и сад',
+  'Дом и уют',
+  'Искусство',
+] as const;
+
+const RESULTS_PAGE_SIZE = 12;
+
 // ─── Wizard state ────────────────────────────────────────────────────────────
 
 interface WizardData {
@@ -22,9 +70,9 @@ interface WizardData {
   relationship: string;
   recipient_age: string;
   recipient_gender: 'male' | 'female' | 'other' | '';
-  interests: string;
+  interest_presets: string[];
+  interests_extra: string;
   budget_max: string;
-  top_n: number;
   use_wishlist_context: boolean;
 }
 
@@ -33,13 +81,26 @@ const EMPTY: WizardData = {
   relationship: '',
   recipient_age: '',
   recipient_gender: '',
-  interests: '',
+  interest_presets: [],
+  interests_extra: '',
   budget_max: '',
-  top_n: 5,
   use_wishlist_context: true,
 };
 
 const STEPS = ['Повод', 'Получатель', 'Интересы', 'Бюджет'];
+
+function mergeInterests(presets: string[], extraCsv: string): string[] {
+  const fromExtra = extraCsv
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return [...new Set([...presets, ...fromExtra])];
+}
+
+/** Значение для `<select>` только из пресетов; иначе пусто. */
+function valueIfPreset(value: string, presets: readonly string[]): string {
+  return (presets as readonly string[]).includes(value) ? value : '';
+}
 
 // ─── Helper: simple numeric validation ───────────────────────────────────────
 
@@ -63,20 +124,51 @@ export function RecommendationPage(): JSX.Element {
   const [data, setData] = useState<WizardData>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof WizardData, string>>>({});
 
+  const [resultsPage, setResultsPage] = useState(1);
+
   // filters for results
   const [filterCategory, setFilterCategory] = useState('');
   const [filterMaxPrice, setFilterMaxPrice] = useState('');
 
-  const mutation = useMutation({ mutationFn: createRecommendation });
+  const mutation = useMutation({
+    mutationFn: createRecommendation,
+    onSuccess: () => {
+      setResultsPage(1);
+    },
+  });
   const track = useTrackEvent();
 
   const requestId = mutation.data?.data.recommendation.request_id;
 
-  // Fire card_view for every shown recommendation card
+  const recommendations = useMemo(() => {
+    if (!mutation.isSuccess || !mutation.data) return [];
+    return mutation.data.data.recommendation.recommendations;
+  }, [mutation.isSuccess, mutation.data]);
+
+  const filteredItems = useMemo(
+    () =>
+      recommendations.filter((item) => {
+        if (filterCategory && item.gift.category?.name !== filterCategory) return false;
+        if (filterMaxPrice && Number(item.gift.price) > Number(filterMaxPrice)) return false;
+        return true;
+      }),
+    [recommendations, filterCategory, filterMaxPrice],
+  );
+
+  const resultsPageCount = Math.max(1, Math.ceil(filteredItems.length / RESULTS_PAGE_SIZE));
+  const effectivePage = Math.min(resultsPage, resultsPageCount);
+
+  const paginatedItems = useMemo(() => {
+    const start = (effectivePage - 1) * RESULTS_PAGE_SIZE;
+    return filteredItems.slice(start, start + RESULTS_PAGE_SIZE);
+  }, [filteredItems, effectivePage]);
+
+  // Fire card_view for cards on the current results page
   useEffect(() => {
     if (!mutation.isSuccess) return;
-    const items = mutation.data.data.recommendation.recommendations;
-    items.forEach((item) => {
+    const start = (effectivePage - 1) * RESULTS_PAGE_SIZE;
+    const pageItems = filteredItems.slice(start, start + RESULTS_PAGE_SIZE);
+    pageItems.forEach((item) => {
       track({
         type: 'card_view',
         gift_id: item.gift.id,
@@ -85,11 +177,21 @@ export function RecommendationPage(): JSX.Element {
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mutation.isSuccess, requestId]);
+  }, [mutation.isSuccess, requestId, effectivePage, filteredItems]);
 
   function update<K extends keyof WizardData>(key: K, value: WizardData[K]) {
     setData((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
+  }
+
+  function togglePresetInterest(label: string) {
+    setData((prev) => {
+      const has = prev.interest_presets.includes(label);
+      const interest_presets = has
+        ? prev.interest_presets.filter((x) => x !== label)
+        : [...prev.interest_presets, label];
+      return { ...prev, interest_presets };
+    });
   }
 
   function validateStep(): boolean {
@@ -123,11 +225,7 @@ export function RecommendationPage(): JSX.Element {
       recipient_age: data.recipient_age.trim() ? Number(data.recipient_age) : undefined,
       recipient_gender: (data.recipient_gender || undefined) as 'male' | 'female' | 'other' | undefined,
       budget_max: data.budget_max.trim(),
-      interests: data.interests
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-      top_n: data.top_n,
+      interests: mergeInterests(data.interest_presets, data.interests_extra),
       use_wishlist_context: data.use_wishlist_context,
     });
   }
@@ -139,15 +237,8 @@ export function RecommendationPage(): JSX.Element {
     setFilterCategory('');
     setFilterMaxPrice('');
     mutation.reset();
+    setResultsPage(1);
   }
-
-  const recommendations = mutation.data?.data.recommendation.recommendations ?? [];
-
-  const filteredItems = recommendations.filter((item) => {
-    if (filterCategory && item.gift.category?.name !== filterCategory) return false;
-    if (filterMaxPrice && Number(item.gift.price) > Number(filterMaxPrice)) return false;
-    return true;
-  });
 
   const categories = Array.from(
     new Set(recommendations.map((i) => i.gift.category?.name).filter(Boolean)),
@@ -192,19 +283,33 @@ export function RecommendationPage(): JSX.Element {
           {step === 0 && (
             <div className="wizard__body">
               <h2 className="wizard__title">Повод и отношения</h2>
-              <Field label="Повод для подарка" hint="Необязательно">
-                <Input
-                  placeholder="Например: день рождения"
-                  value={data.occasion}
+              <Field label="Повод для подарка" hint="Выберите из списка">
+                <select
+                  className="input"
+                  value={valueIfPreset(data.occasion, PRESET_OCCASIONS)}
                   onChange={(e) => update('occasion', e.target.value)}
-                />
+                >
+                  <option value="">Не выбрано</option>
+                  {PRESET_OCCASIONS.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
               </Field>
-              <Field label="Кому дарите" hint="Необязательно">
-                <Input
-                  placeholder="Например: коллега, друг, родственник"
-                  value={data.relationship}
+              <Field label="Кому дарите" hint="Выберите из списка">
+                <select
+                  className="input"
+                  value={valueIfPreset(data.relationship, PRESET_RELATIONSHIPS)}
                   onChange={(e) => update('relationship', e.target.value)}
-                />
+                >
+                  <option value="">Не выбрано</option>
+                  {PRESET_RELATIONSHIPS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
               </Field>
             </div>
           )}
@@ -246,12 +351,41 @@ export function RecommendationPage(): JSX.Element {
               <h2 className="wizard__title">Интересы получателя</h2>
               <Field
                 label="Интересы"
-                hint="Через запятую: спорт, книги, музыка"
+                hint="Нажмите, чтобы отметить один или несколько вариантов"
+              >
+                <div
+                  className="wizard__interest-chips"
+                  role="group"
+                  aria-label="Типичные интересы"
+                >
+                  {PRESET_INTERESTS.map((label) => {
+                    const selected = data.interest_presets.includes(label);
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        className={[
+                          'chip',
+                          'wizard__interest-chip',
+                          selected ? 'wizard__interest-chip--selected' : '',
+                        ].join(' ')}
+                        aria-pressed={selected}
+                        onClick={() => togglePresetInterest(label)}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+              <Field
+                label="Дополнительно"
+                hint="Свои интересы через запятую, если их нет в списке выше"
               >
                 <Input
-                  placeholder="Интересы получателя"
-                  value={data.interests}
-                  onChange={(e) => update('interests', e.target.value)}
+                  placeholder="Например: винил, настолки"
+                  value={data.interests_extra}
+                  onChange={(e) => update('interests_extra', e.target.value)}
                 />
               </Field>
             </div>
@@ -268,22 +402,20 @@ export function RecommendationPage(): JSX.Element {
                   onChange={(e) => update('budget_max', e.target.value)}
                 />
               </Field>
-              <Field label="Сколько вариантов показать">
-                <Input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={data.top_n}
-                  onChange={(e) => update('top_n', Number(e.target.value))}
-                />
-              </Field>
-              <label className="field">
-                <span className="field__label">Учитывать список желаний</span>
+              <label className="checkbox-field">
                 <input
+                  className="checkbox-field__native"
                   type="checkbox"
                   checked={data.use_wishlist_context}
                   onChange={(e) => update('use_wishlist_context', e.target.checked)}
                 />
+                <span className="checkbox-field__indicator" aria-hidden />
+                <span className="checkbox-field__body">
+                  <span className="checkbox-field__title">Учитывать список желаний</span>
+                  <span className="checkbox-field__hint">
+                    Подбор может опираться на подарки, которые вы сохранили в списке.
+                  </span>
+                </span>
               </label>
             </div>
           )}
@@ -323,7 +455,12 @@ export function RecommendationPage(): JSX.Element {
       {mutation.isSuccess && (
         <>
           <div className="catalog-summary" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span>Подобрано: {recommendations.length}</span>
+            <span>
+              Подобрано: {recommendations.length}
+              {filteredItems.length !== recommendations.length
+                ? ` (после фильтров: ${filteredItems.length})`
+                : null}
+            </span>
             <Button variant="ghost" type="button" onClick={restart}>
               Начать заново
             </Button>
@@ -348,7 +485,10 @@ export function RecommendationPage(): JSX.Element {
                     className="input"
                     style={{ width: 'auto' }}
                     value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
+                    onChange={(e) => {
+                      setFilterCategory(e.target.value);
+                      setResultsPage(1);
+                    }}
                   >
                     <option value="">Все категории</option>
                     {categories.map((c) => (
@@ -360,13 +500,20 @@ export function RecommendationPage(): JSX.Element {
                     style={{ width: '120px' }}
                     type="number"
                     value={filterMaxPrice}
-                    onChange={(e) => setFilterMaxPrice(e.target.value)}
+                    onChange={(e) => {
+                      setFilterMaxPrice(e.target.value);
+                      setResultsPage(1);
+                    }}
                   />
                   {(filterCategory || filterMaxPrice) && (
                     <button
                       className={buttonClassName({ variant: 'ghost' })}
                       type="button"
-                      onClick={() => { setFilterCategory(''); setFilterMaxPrice(''); }}
+                      onClick={() => {
+                        setFilterCategory('');
+                        setFilterMaxPrice('');
+                        setResultsPage(1);
+                      }}
                     >
                       Сбросить
                     </button>
@@ -380,9 +527,10 @@ export function RecommendationPage(): JSX.Element {
                   title="Ничего не подходит под фильтры"
                 />
               ) : (
-                <div className="gift-grid">
-                  {filteredItems.map((item) => (
-                    <article className="card gift-card" key={item.gift.id}>
+                <>
+                  <div className="gift-grid">
+                    {paginatedItems.map((item) => (
+                      <article className="card gift-card" key={item.gift.id}>
                       <div className="gift-card__content">
                         <div className="gift-card__heading">
                           <h3>{item.rank}. {item.gift.name}</h3>
@@ -426,7 +574,43 @@ export function RecommendationPage(): JSX.Element {
                       </div>
                     </article>
                   ))}
-                </div>
+                  </div>
+
+                  {resultsPageCount > 1 && (
+                    <nav
+                      className="recommendation-pagination"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '1rem',
+                        flexWrap: 'wrap',
+                        marginTop: '1.25rem',
+                      }}
+                      aria-label="Страницы результатов"
+                    >
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        disabled={effectivePage <= 1}
+                        onClick={() => setResultsPage((p) => Math.max(1, p - 1))}
+                      >
+                        Назад
+                      </Button>
+                      <span style={{ fontSize: '0.9rem', color: 'var(--color-muted)' }}>
+                        Страница {effectivePage} из {resultsPageCount}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        disabled={effectivePage >= resultsPageCount}
+                        onClick={() => setResultsPage((p) => Math.min(resultsPageCount, p + 1))}
+                      >
+                        Вперёд
+                      </Button>
+                    </nav>
+                  )}
+                </>
               )}
             </>
           )}
