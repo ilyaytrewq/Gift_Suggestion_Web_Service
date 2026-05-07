@@ -1,7 +1,27 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       APP_NAME: ${APP_NAME:-gift-suggestion-backend}
       APP_ENV: ${APP_ENV:-production}
@@ -76,3 +96,6 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+
+volumes:
+  postgres_data:

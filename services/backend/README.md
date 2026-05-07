@@ -118,7 +118,7 @@ JWT access token опционален: при его наличии backend мо
 - `occasion`, `relationship` — optional questionnaire context;
 - `preferred_category_ids` — optional hard filter по категориям;
 - `interests` — optional ranking context;
-- `top_n` — optional limit, по умолчанию `5`, максимум `10`;
+- `top_n` — optional limit; `0` или не передавать = максимум доступных после ранжирования (до `200`); иначе `1`…`200`;
 - `use_wishlist_context` — optional flag, по умолчанию `true`.
 
 Онлайн pipeline recommendation:

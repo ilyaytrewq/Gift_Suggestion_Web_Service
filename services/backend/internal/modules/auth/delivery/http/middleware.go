@@ -57,3 +57,27 @@ func UnauthorizedError() error {
 		"access token is required",
 	)
 }
+
+const adminRole = "admin"
+
+// RequireAdmin requires a valid Bearer actor with role admin (JWT claim).
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		actor, ok := ActorFromContext(c)
+		if !ok {
+			httpapi.Fail(c, UnauthorizedError())
+			return
+		}
+
+		if actor.Role != adminRole {
+			httpapi.Fail(c, apperrors.New(
+				apperrors.KindForbidden,
+				"forbidden",
+				"admin role is required",
+			))
+			return
+		}
+
+		c.Next()
+	}
+}

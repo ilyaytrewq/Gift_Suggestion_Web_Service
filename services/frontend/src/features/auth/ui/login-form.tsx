@@ -14,6 +14,7 @@ import { Button } from '../../../shared/ui/button/button';
 import { ErrorBanner } from '../../../shared/ui/feedback/error-banner';
 import { Field } from '../../../shared/ui/form/field';
 import { Input } from '../../../shared/ui/input/input';
+import { PasswordInput } from '../../../shared/ui/input/password-input';
 
 function resolvePostLoginPath(nextPath: string | null): string {
   if (!nextPath) {
@@ -71,11 +72,14 @@ export function LoginForm(): JSX.Element {
         />
       </Field>
 
-      <Field error={form.formState.errors.password?.message} label="Пароль">
-        <Input
+      <Field
+        error={form.formState.errors.password?.message}
+        hint="От 8 символов: строчные и заглавные буквы, цифра, спецсимвол (!@#$% и др.), без пробелов"
+        label="Пароль"
+      >
+        <PasswordInput
           autoComplete="current-password"
           placeholder="Введите пароль"
-          type="password"
           {...form.register('password')}
         />
       </Field>
@@ -85,8 +89,15 @@ export function LoginForm(): JSX.Element {
       </Button>
 
       <div className="auth-form__links">
-        <Link to="/register">Нет аккаунта? Зарегистрироваться</Link>
-        <Link to="/password-reset">Забыли пароль?</Link>
+        <div className="auth-form__register-block">
+          <span className="auth-form__register-hint">Нет аккаунта?</span>
+          <Link className="auth-form__link-action" to="/register">
+            Зарегистрироваться
+          </Link>
+        </div>
+        <Link className="auth-form__link-action" to="/password-reset">
+          Забыли пароль?
+        </Link>
       </div>
     </form>
   );

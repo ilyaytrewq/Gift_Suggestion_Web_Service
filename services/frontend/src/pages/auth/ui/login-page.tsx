@@ -6,7 +6,7 @@ import { Container } from '../../../shared/ui/layout/container';
 
 export function LoginPage(): JSX.Element {
   const [searchParams] = useSearchParams();
-  const wasRegistered = searchParams.get('registered') === '1';
+  const passwordReset = searchParams.get('password_reset') === '1';
 
   return (
     <Container className="auth-page">
@@ -16,11 +16,11 @@ export function LoginPage(): JSX.Element {
         <p>
           Так вы сможете быстрее вернуться к подбору и управлять данными профиля.
         </p>
-        {wasRegistered ? (
+        {passwordReset && (
           <Notice tone="success">
-            Аккаунт создан. Теперь можно войти.
+            Пароль успешно изменён. Войдите с новым паролем.
           </Notice>
-        ) : null}
+        )}
       </section>
 
       <LoginForm />

@@ -31,6 +31,10 @@
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  /* Подстраиваем нижний край под вырез / home indicator при snap */
+  scroll-padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Футер: либо целиком в кадре, либо ниже края (без «половины текста») */
+  scroll-snap-type: y proximity;
 }
 
 body {
@@ -62,11 +66,13 @@ select {
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .app-shell {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   flex-direction: column;
 }
 
@@ -134,6 +140,9 @@ select {
 .site-footer {
   border-top: 1px solid rgba(216, 200, 176, 0.7);
   background: rgba(255, 253, 248, 0.9);
+  scroll-snap-align: end;
+  scroll-margin-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .site-footer p {
@@ -488,10 +497,56 @@ select {
   gap: 0.4rem;
 }
 
-.wishlist-action__hint {
-  margin: 0;
-  color: var(--danger);
-  font-size: 0.9rem;
+.toast-viewport {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 60;
+  display: flex;
+  max-width: min(420px, calc(100vw - 1.5rem));
+  margin: 0 auto calc(1rem + env(safe-area-inset-bottom, 0px));
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0 0.75rem;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: none;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  animation: toast-in 220ms ease-out;
+}
+
+.toast--success {
+  border-color: rgba(47, 122, 74, 0.35);
+  background: var(--success-soft);
+  color: var(--ink);
+}
+
+.toast--error {
+  border-color: rgba(177, 58, 47, 0.35);
+  background: var(--danger-soft);
+  color: var(--ink);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .gift-detail {
@@ -556,8 +611,34 @@ select {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: flex-end;
   gap: 0.75rem;
   color: var(--ink-muted);
+}
+
+.auth-form__register-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.auth-form__register-hint {
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+}
+
+.auth-form__link-action {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(198, 90, 30, 0.4);
+  text-underline-offset: 0.15em;
+}
+
+.auth-form__link-action:hover {
+  color: var(--primary-hover);
+  text-decoration-color: var(--primary-hover);
 }
 
 .field {
@@ -582,6 +663,103 @@ select {
   color: var(--danger);
 }
 
+/* Clickable row checkbox (aligned with .input fields) */
+.checkbox-field {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin: 0;
+  cursor: pointer;
+  padding: 0.95rem 1rem;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.checkbox-field:hover {
+  border-color: rgba(198, 90, 30, 0.32);
+}
+
+.checkbox-field:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(198, 90, 30, 0.14);
+}
+
+.checkbox-field__native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.checkbox-field__indicator {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.1rem;
+  border: 2px solid rgba(216, 200, 176, 0.95);
+  border-radius: 6px;
+  background: rgba(255, 253, 248, 0.9);
+  display: grid;
+  place-items: center;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.checkbox-field:hover .checkbox-field__indicator {
+  border-color: rgba(198, 90, 30, 0.45);
+}
+
+.checkbox-field__native:checked + .checkbox-field__indicator {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.checkbox-field__native:checked + .checkbox-field__indicator::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  margin-bottom: 2px;
+  border: solid #fffdf8;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-field__native:focus-visible + .checkbox-field__indicator {
+  outline: 2px solid rgba(198, 90, 30, 0.45);
+  outline-offset: 2px;
+}
+
+.checkbox-field__body {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.checkbox-field__title {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.checkbox-field__hint {
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: var(--ink-muted);
+}
+
 .input,
 .select {
   min-height: 48px;
@@ -596,6 +774,51 @@ select {
 .select:focus {
   outline: 2px solid rgba(198, 90, 30, 0.18);
   border-color: var(--primary);
+}
+
+.password-input {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.password-input__control {
+  width: 100%;
+  padding-right: 2.85rem;
+}
+
+.password-input__toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 4px);
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.password-input__toggle:hover {
+  color: var(--ink);
+  background: rgba(216, 200, 176, 0.22);
+}
+
+.password-input__toggle:focus-visible {
+  outline: 2px solid rgba(198, 90, 30, 0.45);
+  outline-offset: 2px;
+}
+
+.password-input__icon {
+  width: 1.3rem;
+  height: 1.3rem;
 }
 
 .banner {
@@ -870,6 +1093,24 @@ select {
   gap: 1rem;
 }
 
+.wizard__interest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+button.wizard__interest-chip {
+  cursor: pointer;
+  border: 1px solid transparent;
+  font: inherit;
+}
+
+.wizard__interest-chip--selected {
+  background: rgba(198, 90, 30, 0.22);
+  border-color: rgba(198, 90, 30, 0.45);
+  font-weight: 600;
+}
+
 .wizard__nav {
   display: flex;
   gap: 0.75rem;
@@ -940,16 +1181,18 @@ select {
   flex-direction: column;
   gap: 1rem;
   padding: 1.5rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
 }
 
 .import-job {
   padding: 1.25rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -962,11 +1205,11 @@ select {
   letter-spacing: 0.04em;
 }
 
-.import-job__status--completed { color: var(--color-success, #16a34a); }
-.import-job__status--failed { color: var(--color-error, #dc2626); }
-.import-job__status--running { color: var(--color-primary, #2563eb); }
-.import-job__status--pending { color: var(--color-muted); }
-.import-job__status--completed_with_errors { color: var(--color-warning, #d97706); }
+.import-job__status--completed { color: var(--success); }
+.import-job__status--failed { color: var(--danger); }
+.import-job__status--running { color: var(--secondary); }
+.import-job__status--pending { color: var(--ink-muted); }
+.import-job__status--completed_with_errors { color: var(--accent); }
 
 .import-job__stats {
   display: grid;
@@ -979,8 +1222,8 @@ select {
   display: flex;
   justify-content: space-between;
   padding: 0.3rem 0.5rem;
-  background: var(--color-bg);
-  border-radius: 4px;
+  background: var(--surface-muted);
+  border-radius: 6px;
 }
 
 .import-errors {
@@ -992,8 +1235,8 @@ select {
 
 .import-error {
   font-size: 0.82rem;
-  color: var(--color-error, #dc2626);
+  color: var(--danger);
   padding: 0.3rem 0.5rem;
-  background: var(--color-error-surface, #fef2f2);
-  border-radius: 4px;
+  background: var(--danger-soft);
+  border-radius: 6px;
 }

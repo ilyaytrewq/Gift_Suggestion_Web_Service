@@ -10,6 +10,7 @@ import { z } from 'zod';
 
 import {
   getCurrentUser,
+  promoteUserToAdmin,
   updateCurrentUser,
 } from '../../../features/auth/api/auth';
 import { useAuth } from '../../../shared/auth/use-auth';
@@ -29,7 +30,16 @@ const profileSchema = z.object({
     .max(120, 'Имя должно быть не длиннее 120 символов'),
 });
 
+const adminPromoteSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Укажите email')
+    .email('Введите корректный адрес'),
+});
+
 type ProfileSchema = z.infer<typeof profileSchema>;
+type AdminPromoteSchema = z.infer<typeof adminPromoteSchema>;
 
 function getRoleLabel(role: string): string | null {
   if (role === 'admin') {
@@ -46,6 +56,13 @@ export function ProfilePage(): JSX.Element {
       display_name: auth.user?.display_name ?? '',
     },
     resolver: zodResolver(profileSchema),
+  });
+
+  const promoteForm = useForm<AdminPromoteSchema>({
+    defaultValues: {
+      email: '',
+    },
+    resolver: zodResolver(adminPromoteSchema),
   });
 
   const query = useQuery({
@@ -75,6 +92,15 @@ export function ProfilePage(): JSX.Element {
     onSuccess: (payload) => {
       auth.setCurrentUser(payload.data.user);
       form.reset({ display_name: payload.data.user.display_name });
+    },
+  });
+
+  const promoteMutation = useMutation({
+    mutationFn: (payload: AdminPromoteSchema) => promoteUserToAdmin({
+      email: payload.email.trim(),
+    }),
+    onSuccess: () => {
+      promoteForm.reset({ email: '' });
     },
   });
 
@@ -126,7 +152,7 @@ export function ProfilePage(): JSX.Element {
   }
 
   return (
-    <Container className="profile-page">
+    <Container className="profile-page page-stack">
       <section className="profile-card">
         <div className="profile-card__header">
           <div>
@@ -199,6 +225,63 @@ export function ProfilePage(): JSX.Element {
           </div>
         </form>
       </section>
+
+      {user.role === 'admin' ? (
+        <section className="profile-card">
+          <div className="profile-card__header">
+            <div>
+              <p className="eyebrow">Администрирование</p>
+              <h2>Сделать администратором</h2>
+              <p className="page-copy">
+                Укажите электронную почту уже зарегистрированного пользователя. После сохранения
+                ему нужно выйти и войти снова, чтобы токен обновился.
+              </p>
+            </div>
+          </div>
+
+          <form
+            className="profile-form"
+            onSubmit={promoteForm.handleSubmit((values) => {
+              promoteMutation.reset();
+              void promoteMutation.mutateAsync(values);
+            })}
+          >
+            {promoteMutation.isError ? (
+              <ErrorBanner
+                error={promoteMutation.error}
+                title="Не удалось назначить роль"
+              />
+            ) : null}
+            {promoteMutation.isSuccess && promoteMutation.data ? (
+              <Notice tone="success">
+                Роль назначена: {promoteMutation.data.data.user.email}. Пользователь должен заново войти в аккаунт.
+              </Notice>
+            ) : null}
+
+            <Field
+              error={promoteForm.formState.errors.email?.message}
+              hint="Учётная запись с этим адресом должна уже существовать."
+              label="Email пользователя"
+            >
+              <Input
+                autoComplete="email"
+                placeholder="partner@example.com"
+                type="email"
+                {...promoteForm.register('email')}
+              />
+            </Field>
+
+            <div className="profile-actions">
+              <Button disabled={promoteMutation.isPending} type="submit">
+                {promoteMutation.isPending ? 'Назначаем...' : 'Назначить администратора'}
+              </Button>
+              <Link className={buttonClassName({ variant: 'ghost' })} to="/admin/import">
+                Импорт каталога
+              </Link>
+            </div>
+          </form>
+        </section>
+      ) : null}
     </Container>
   );
 }

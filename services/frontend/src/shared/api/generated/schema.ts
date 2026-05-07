@@ -175,6 +175,23 @@ export interface paths {
         patch: operations["updateCurrentUser"];
         trace?: never;
     };
+    "/api/v1/admin/users/promote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Promote user to admin by email */
+        post: operations["promoteUserToAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/gifts": {
         parameters: {
             query?: never;
@@ -622,6 +639,10 @@ export interface components {
                 display_name?: string | null;
             };
         };
+        PromoteUserToAdminRequest: {
+            /** Format: email */
+            email: string;
+        };
         AuthPayload: {
             access_token: string;
             /** @example Bearer */
@@ -846,8 +867,11 @@ export interface components {
             budget_max: string;
             preferred_category_ids?: string[];
             interests?: string[];
-            /** @default 5 */
-            top_n: number;
+            /**
+             * @description Limit of primary recommendations. `0` or omitted = return as many as available
+             *     after ranking (up to the server maximum, currently 200).
+             */
+            top_n?: number;
             /** @default true */
             use_wishlist_context: boolean;
         };
@@ -1478,6 +1502,66 @@ export interface operations {
             };
             /** @description Missing or invalid access token */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    promoteUserToAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoteUserToAdminRequest"];
+            };
+        };
+        responses: {
+            /** @description User profile with role admin (target user after promotion) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileEnvelope"];
+                };
+            };
+            /** @description Invalid email or empty body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Admin role is required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description No user with this email */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

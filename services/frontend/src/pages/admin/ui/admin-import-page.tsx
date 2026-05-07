@@ -16,17 +16,11 @@ async function createImportJob(file: File, source?: string): Promise<CreateImpor
   form.append('file', file);
   if (source) form.append('source', source);
 
-  const res = await fetch('/api/v1/admin/import-jobs', {
+  return requestJson<CreateImportJobResponse>('/api/v1/admin/import-jobs', {
     method: 'POST',
     body: form,
-    credentials: 'include',
+    auth: true,
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Ошибка загрузки (${res.status}): ${text}`);
-  }
-  return res.json() as Promise<CreateImportJobResponse>;
 }
 
 function getImportJob(jobId: string) {
@@ -97,7 +91,7 @@ export function AdminImportPage(): JSX.Element {
     }
   }
 
-  if (!auth.accessToken) {
+  if (!auth.accessToken || auth.user?.role !== 'admin') {
     return (
       <Container className="auth-page">
         <p>Для доступа к этому разделу необходимо войти как администратор.</p>

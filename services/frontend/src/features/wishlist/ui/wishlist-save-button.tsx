@@ -9,9 +9,11 @@ import {
   useWishlistQuery,
 } from '../model/use-wishlist';
 import { useTrackEvent } from '../../tracking/model/use-track-event';
+import { ApiError, getUserFacingApiErrorMessage } from '../../../shared/api/api-error';
 import { useAuth } from '../../../shared/auth/use-auth';
 import { cn } from '../../../shared/lib/cn';
 import { buttonClassName, type ButtonStyleOptions } from '../../../shared/ui/button/button-class-name';
+import { useToast } from '../../../shared/ui/toast/use-toast';
 
 function buildLoginHref(pathname: string, search: string, hash: string): string {
   const nextPath = `${pathname}${search}${hash}`;
@@ -37,14 +39,32 @@ export function WishlistSaveButton({
   const queryKey = currentWishlistQueryKey(userID);
   const wishlist = wishlistQuery.data?.data.wishlist;
   const track = useTrackEvent();
+  const toast = useToast();
 
   const mutation = useMutation({
     mutationFn: () => addCurrentWishlistItem({ gift_id: giftID }),
     onSuccess: (payload) => {
-      queryClient.setQueryData(queryKey, (current: typeof wishlistQuery.data) => (
-        appendWishlistItem(current, payload.data.item)
-      ));
+      queryClient.setQueryData(queryKey, (current: typeof wishlistQuery.data) => {
+        if (!current) {
+          void queryClient.invalidateQueries({ queryKey });
+          return current;
+        }
+        return appendWishlistItem(current, payload.data.item) ?? current;
+      });
       track({ type: 'wishlist_add', gift_id: giftID });
+      toast.show({
+        variant: 'success',
+        message: payload.data.already_in_wishlist
+          ? 'Этот подарок уже в вашем списке желаний.'
+          : 'Подарок сохранён в список желаний.',
+      });
+    },
+    onError: (error) => {
+      const message =
+        error instanceof ApiError
+          ? getUserFacingApiErrorMessage(error)
+          : 'Не удалось сохранить подарок. Попробуйте ещё раз.';
+      toast.show({ variant: 'error', message });
     },
   });
   const isSaving = mutation.isPending;
@@ -81,16 +101,10 @@ export function WishlistSaveButton({
         className={buttonClassName({ size, variant })}
         disabled={isSaving}
         type="button"
-        onClick={() => {
-          mutation.reset();
-          void mutation.mutateAsync();
-        }}
+        onClick={() => mutation.mutate()}
       >
         {isSaving ? 'Сохраняем...' : 'Сохранить'}
       </button>
-      {mutation.isError ? (
-        <p className="wishlist-action__hint">Не удалось сохранить подарок. Попробуйте ещё раз.</p>
-      ) : null}
     </div>
   );
 }

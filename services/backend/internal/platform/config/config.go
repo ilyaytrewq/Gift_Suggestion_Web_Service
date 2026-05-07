@@ -16,8 +16,8 @@ const (
 	defaultLogLevel          = "info"
 	defaultHTTPHost          = "0.0.0.0"
 	defaultHTTPPort          = 8080
-	defaultHTTPReadTimeout   = 5 * time.Second
-	defaultHTTPWriteTimeout  = 10 * time.Second
+	defaultHTTPReadTimeout   = 30 * time.Second
+	defaultHTTPWriteTimeout  = 120 * time.Second
 	defaultHTTPIdleTimeout   = 60 * time.Second
 	defaultHTTPShutdownGrace = 10 * time.Second
 	defaultDBMaxOpenConns    = 10

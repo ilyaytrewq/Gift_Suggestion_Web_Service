@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import { registerUser } from '../api/auth';
 import { registerSchema, type RegisterSchema } from '../model/schemas';
@@ -10,9 +10,9 @@ import { ErrorBanner } from '../../../shared/ui/feedback/error-banner';
 import { Notice } from '../../../shared/ui/feedback/notice';
 import { Field } from '../../../shared/ui/form/field';
 import { Input } from '../../../shared/ui/input/input';
+import { PasswordInput } from '../../../shared/ui/input/password-input';
 
 export function RegisterForm(): JSX.Element {
-  const navigate = useNavigate();
   const form = useForm<RegisterSchema>({
     defaultValues: {
       display_name: '',
@@ -24,10 +24,30 @@ export function RegisterForm(): JSX.Element {
 
   const mutation = useMutation({
     mutationFn: registerUser,
-    onSuccess: () => {
-      navigate('/login?registered=1');
-    },
   });
+
+  const registeredEmail = form.getValues('email');
+
+  if (mutation.isSuccess) {
+    return (
+      <div className="auth-form">
+        <Notice tone="success">
+          <strong>Аккаунт создан!</strong>
+          <br />
+          Мы отправили письмо на <strong>{registeredEmail}</strong> — перейдите по
+          ссылке в письме, чтобы подтвердить email и активировать аккаунт.
+        </Notice>
+        <p style={{ margin: 0, color: 'var(--ink-muted)', fontSize: '0.92rem' }}>
+          Не получили письмо? Проверьте папку «Спам».
+        </p>
+        <div className="auth-form__links">
+          <Link className="auth-form__link-action" to="/login">
+            Войти после подтверждения
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form
@@ -41,11 +61,6 @@ export function RegisterForm(): JSX.Element {
       })}
     >
       {mutation.isError ? <ErrorBanner error={mutation.error} /> : null}
-      {mutation.isSuccess ? (
-        <Notice tone="success">
-          Аккаунт создан. Перенаправляем на страницу входа.
-        </Notice>
-      ) : null}
 
       <Field
         error={form.formState.errors.display_name?.message}
@@ -67,11 +82,14 @@ export function RegisterForm(): JSX.Element {
         />
       </Field>
 
-      <Field error={form.formState.errors.password?.message} label="Пароль">
-        <Input
+      <Field
+        error={form.formState.errors.password?.message}
+        hint="От 8 символов: строчные и заглавные буквы, цифра, спецсимвол (!@#$% и др.), без пробелов"
+        label="Пароль"
+      >
+        <PasswordInput
           autoComplete="new-password"
-          placeholder="Минимум 8 символов"
-          type="password"
+          placeholder="Например: Secret1!"
           {...form.register('password')}
         />
       </Field>
@@ -81,7 +99,12 @@ export function RegisterForm(): JSX.Element {
       </Button>
 
       <div className="auth-form__links">
-        <Link to="/login">Уже есть аккаунт? Войти</Link>
+        <div className="auth-form__register-block">
+          <span className="auth-form__register-hint">Уже есть аккаунт?</span>
+          <Link className="auth-form__link-action" to="/login">
+            Войти
+          </Link>
+        </div>
       </div>
     </form>
   );

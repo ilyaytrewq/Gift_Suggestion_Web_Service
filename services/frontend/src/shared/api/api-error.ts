@@ -28,7 +28,7 @@ export function getUserFacingApiErrorMessage(error: ApiError): string {
     case 'invalid_email':
       return 'Проверьте email и попробуйте снова.';
     case 'invalid_password':
-      return 'Введите пароль.';
+      return 'Пароль не соответствует требованиям безопасности.';
     case 'missing_access_token':
     case 'invalid_refresh_token':
       return 'Войдите, чтобы продолжить.';

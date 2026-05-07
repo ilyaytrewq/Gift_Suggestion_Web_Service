@@ -85,6 +85,13 @@ export type UpdateCurrentUserResponse = JsonResponse<
   paths['/api/v1/users/me']['patch']['responses']['200']
 >;
 
+export type PromoteUserToAdminRequest = JsonBody<
+  paths['/api/v1/admin/users/promote']['post']
+>;
+export type PromoteUserToAdminResponse = JsonResponse<
+  paths['/api/v1/admin/users/promote']['post']['responses']['200']
+>;
+
 export type RecommendationRequest = JsonBody<
   paths['/api/v1/recommendations']['post']
 >;

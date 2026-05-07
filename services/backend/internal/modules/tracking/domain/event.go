@@ -71,7 +71,7 @@ func NewEventMetadata(surface *string, position *int) (EventMetadata, error) {
 		}
 	}
 
-	if position != nil && (*position < 1 || *position > 100) {
+	if position != nil && (*position < 1 || *position > 500) {
 		return EventMetadata{}, ErrInvalidMetadataPosition
 	}
 

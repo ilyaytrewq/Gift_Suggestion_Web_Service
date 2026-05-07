@@ -101,6 +101,35 @@ func (r *Repository) UpdateProfile(ctx context.Context, user *userdomain.User) e
 	return nil
 }
 
+func (r *Repository) UpdateUserRole(ctx context.Context, user *userdomain.User) error {
+	const query = `
+		UPDATE users
+		SET role = $2, updated_at = $3
+		WHERE id = $1
+	`
+
+	result, err := r.db.ExecContext(
+		ctx,
+		query,
+		user.ID().String(),
+		string(user.Role()),
+		user.UpdatedAt(),
+	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return userdomain.ErrUserNotFound
+	}
+
+	return nil
+}
+
 func (r *Repository) MarkLastLogin(ctx context.Context, id userdomain.UserID, at time.Time) error {
 	const query = `
 		UPDATE users

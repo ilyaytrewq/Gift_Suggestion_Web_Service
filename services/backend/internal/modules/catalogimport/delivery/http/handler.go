@@ -11,7 +11,6 @@ import (
 
 	authhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/auth/delivery/http"
 	catalogimportusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/catalogimport/usecase"
-	userdomain "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/user/domain"
 	"github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/platform/apperrors"
 	httpapi "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/transport/httpapi"
 )
@@ -44,7 +43,7 @@ func NewHandler(service service, authMiddleware gin.HandlerFunc, maxFileSizeByte
 
 func (h *Handler) Register(root gin.IRouter) {
 	admin := root.Group("/admin/import-jobs")
-	admin.Use(h.authMiddleware, requireAdmin())
+	admin.Use(h.authMiddleware, authhttp.RequireAdmin())
 	admin.POST("", h.runImport)
 	admin.GET("/:job_id", h.getImportJob)
 	admin.GET("/:job_id/errors", h.listImportErrors)
@@ -159,25 +158,4 @@ func (h *Handler) listImportErrors(c *gin.Context) {
 	}
 
 	httpapi.Success(c, nethttp.StatusOK, output)
-}
-
-func requireAdmin() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		actor, ok := authhttp.ActorFromContext(c)
-		if !ok {
-			httpapi.Fail(c, authhttp.UnauthorizedError())
-			return
-		}
-
-		if actor.Role != string(userdomain.UserRoleAdmin) {
-			httpapi.Fail(c, apperrors.New(
-				apperrors.KindForbidden,
-				"forbidden",
-				"admin role is required",
-			))
-			return
-		}
-
-		c.Next()
-	}
 }
