@@ -123,6 +123,7 @@ func TestServiceLoginSuccess(t *testing.T) {
 
 	now := time.Date(2026, 4, 18, 12, 30, 0, 0, time.UTC)
 	user := mustUser(t)
+	user.MarkEmailVerified(now)
 
 	userRepo := newFakeUserRepository()
 	userRepo.usersByEmail[testEmail] = user
@@ -186,11 +187,176 @@ func TestServiceLoginSuccess(t *testing.T) {
 	}
 }
 
+func TestServiceLoginRejectsUnverifiedEmail(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 4, 18, 12, 30, 0, 0, time.UTC)
+	user := mustUser(t)
+
+	userRepo := newFakeUserRepository()
+	userRepo.usersByEmail[testEmail] = user
+	userRepo.usersByID[testUserID] = user
+
+	service := mustAuthServiceWithDeps(t, authServiceDeps{
+		userRepo:              userRepo,
+		registrationRepo:      newFakeRegistrationRepository(),
+		emailVerificationRepo: newFakeEmailVerificationRepository(),
+		sessionRepo:           newFakeSessionRepository(),
+		passwordResetRepo:     newFakePasswordResetRepository(),
+		accessTokenManager: &fakeAccessTokenManager{
+			token: testAccessToken,
+			ttl:   15 * time.Minute,
+		},
+		refreshTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: testRefreshToken, hash: testRefreshTokenHash}},
+		},
+		verificationTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+		},
+		resetTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
+		},
+		emailNotifier:        &fakeAuthEmailNotifier{},
+		logger:               &fakeLogger{},
+		clock:                fixedClock{now: now},
+		refreshTokenTTL:      7 * 24 * time.Hour,
+		verificationTokenTTL: 24 * time.Hour,
+		resetTokenTTL:        30 * time.Minute,
+	})
+
+	_, err := service.Login(context.Background(), LoginInput{
+		Email:    testEmail,
+		Password: testPassword,
+	})
+	if err == nil {
+		t.Fatal("Login() expected error for unverified email")
+	}
+	appErr := apperrors.From(err)
+	if appErr.Kind() != apperrors.KindForbidden {
+		t.Fatalf("Login() kind = %q, want %q", appErr.Kind(), apperrors.KindForbidden)
+	}
+	if appErr.Code() != "email_not_verified" {
+		t.Fatalf("Login() code = %q, want %q", appErr.Code(), "email_not_verified")
+	}
+}
+
+func TestServiceRefreshRevokesSessionWhenEmailUnverified(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 4, 18, 13, 0, 0, 0, time.UTC)
+	user := mustUser(t)
+	session := mustSession(t, testSessionID, testUserID, testRefreshTokenHash, now.Add(-time.Hour), now.Add(time.Hour))
+
+	userRepo := newFakeUserRepository()
+	userRepo.usersByID[testUserID] = user
+
+	sessionRepo := newFakeSessionRepository()
+	sessionPtr := session
+	sessionRepo.sessionsByHash[testRefreshTokenHash] = &sessionPtr
+
+	service := mustAuthServiceWithDeps(t, authServiceDeps{
+		userRepo:              userRepo,
+		registrationRepo:      newFakeRegistrationRepository(),
+		emailVerificationRepo: newFakeEmailVerificationRepository(),
+		sessionRepo:           sessionRepo,
+		passwordResetRepo:     newFakePasswordResetRepository(),
+		accessTokenManager: &fakeAccessTokenManager{
+			token: testAccessToken,
+			ttl:   15 * time.Minute,
+		},
+		refreshTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: testNextRefreshToken, hash: testNextRefreshHash}},
+			hashes:  map[string]string{testRefreshToken: testRefreshTokenHash},
+		},
+		verificationTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+		},
+		resetTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
+		},
+		emailNotifier:        &fakeAuthEmailNotifier{},
+		logger:               &fakeLogger{},
+		clock:                fixedClock{now: now},
+		refreshTokenTTL:      7 * 24 * time.Hour,
+		verificationTokenTTL: 24 * time.Hour,
+		resetTokenTTL:        30 * time.Minute,
+	})
+
+	_, err := service.Refresh(context.Background(), RefreshInput{RefreshToken: testRefreshToken})
+	if err == nil {
+		t.Fatal("Refresh() expected error for unverified email")
+	}
+	appErr := apperrors.From(err)
+	if appErr.Code() != "email_not_verified" {
+		t.Fatalf("Refresh() code = %q, want %q", appErr.Code(), "email_not_verified")
+	}
+	if len(sessionRepo.updatedSessions) != 1 || !sessionRepo.updatedSessions[0].IsRevoked() {
+		t.Fatalf("expected revoked session update, got %+v", sessionRepo.updatedSessions)
+	}
+}
+
+func TestServiceAuthorizeRejectsUnverifiedEmail(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 4, 18, 14, 0, 0, 0, time.UTC)
+	user := mustUser(t)
+
+	userRepo := newFakeUserRepository()
+	userRepo.usersByID[testUserID] = user
+
+	service := mustAuthServiceWithDeps(t, authServiceDeps{
+		userRepo:              userRepo,
+		registrationRepo:      newFakeRegistrationRepository(),
+		emailVerificationRepo: newFakeEmailVerificationRepository(),
+		sessionRepo:           newFakeSessionRepository(),
+		passwordResetRepo:     newFakePasswordResetRepository(),
+		accessTokenManager: &fakeAccessTokenManager{
+			token: testAccessToken,
+			ttl:   15 * time.Minute,
+		},
+		refreshTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: testRefreshToken, hash: testRefreshTokenHash}},
+		},
+		verificationTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
+		},
+		resetTokenGenerator: &fakeTokenGenerator{
+			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
+		},
+		emailNotifier:        &fakeAuthEmailNotifier{},
+		logger:               &fakeLogger{},
+		clock:                fixedClock{now: now},
+		refreshTokenTTL:      7 * 24 * time.Hour,
+		verificationTokenTTL: 24 * time.Hour,
+		resetTokenTTL:        30 * time.Minute,
+	})
+
+	_, err := service.Authorize(context.Background(), "any-access-token")
+	if err == nil {
+		t.Fatal("Authorize() expected error")
+	}
+	if apperrors.From(err).Code() != "email_not_verified" {
+		t.Fatalf("Authorize() code = %q", apperrors.From(err).Code())
+	}
+
+	user.MarkEmailVerified(now)
+	userRepo.usersByID[testUserID] = user
+
+	actor, err := service.Authorize(context.Background(), "any-access-token")
+	if err != nil {
+		t.Fatalf("Authorize() error = %v", err)
+	}
+	if actor.UserID != testUserID {
+		t.Fatalf("actor user id = %q", actor.UserID)
+	}
+}
+
 func TestServiceRefreshSuccess(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, 4, 18, 13, 0, 0, 0, time.UTC)
 	user := mustUser(t)
+	user.MarkEmailVerified(now)
 	session := mustSession(t, testSessionID, testUserID, testRefreshTokenHash, now.Add(-time.Hour), now.Add(time.Hour))
 
 	userRepo := newFakeUserRepository()
@@ -211,13 +377,13 @@ func TestServiceRefreshSuccess(t *testing.T) {
 		},
 		refreshTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: testNextRefreshToken, hash: testNextRefreshHash}},
+			hashes:  map[string]string{testRefreshToken: testRefreshTokenHash},
 		},
 		verificationTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: "verify-token", hash: "verify-token-hash"}},
 		},
 		resetTokenGenerator: &fakeTokenGenerator{
 			results: []tokenResult{{raw: testResetToken, hash: testResetTokenHash}},
-			hashes:  map[string]string{testRefreshToken: testRefreshTokenHash},
 		},
 		emailNotifier:        &fakeAuthEmailNotifier{},
 		logger:               &fakeLogger{},
@@ -730,7 +896,11 @@ func (m *fakeAccessTokenManager) IssueToken(Actor, time.Time) (string, error) {
 }
 
 func (m *fakeAccessTokenManager) ParseToken(string) (Actor, error) {
-	return Actor{}, nil
+	return Actor{
+		UserID:    testUserID,
+		SessionID: testSessionID,
+		Role:      string(userdomain.UserRoleUser),
+	}, nil
 }
 
 func (m *fakeAccessTokenManager) TokenTTL() time.Duration {

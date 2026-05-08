@@ -254,6 +254,14 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginOutput, err
 		)
 	}
 
+	if !user.IsEmailVerified() {
+		return LoginOutput{}, apperrors.New(
+			apperrors.KindForbidden,
+			"email_not_verified",
+			"confirm your email before signing in",
+		)
+	}
+
 	output, err := s.createSession(ctx, user)
 	if err != nil {
 		return LoginOutput{}, err
@@ -320,6 +328,18 @@ func (s *Service) Refresh(ctx context.Context, input RefreshInput) (RefreshOutpu
 			apperrors.KindUnauthorized,
 			"invalid_refresh_token",
 			"refresh token is invalid",
+		)
+	}
+
+	if !user.IsEmailVerified() {
+		session.Revoke(now)
+		if err := s.sessionRepo.Update(ctx, session); err != nil {
+			return RefreshOutput{}, err
+		}
+		return RefreshOutput{}, apperrors.New(
+			apperrors.KindForbidden,
+			"email_not_verified",
+			"confirm your email before continuing",
 		)
 	}
 
@@ -506,7 +526,7 @@ func (s *Service) ConfirmPasswordReset(ctx context.Context, input ConfirmPasswor
 	return AcceptedOutput{Accepted: true}, nil
 }
 
-func (s *Service) Authorize(_ context.Context, rawAccessToken string) (Actor, error) {
+func (s *Service) Authorize(ctx context.Context, rawAccessToken string) (Actor, error) {
 	token := strings.TrimSpace(rawAccessToken)
 	if token == "" {
 		return Actor{}, apperrors.New(
@@ -525,7 +545,8 @@ func (s *Service) Authorize(_ context.Context, rawAccessToken string) (Actor, er
 		)
 	}
 
-	if _, err := userdomain.NewUserID(actor.UserID); err != nil {
+	userID, err := userdomain.NewUserID(actor.UserID)
+	if err != nil {
 		return Actor{}, apperrors.New(
 			apperrors.KindUnauthorized,
 			"invalid_access_token",
@@ -547,6 +568,25 @@ func (s *Service) Authorize(_ context.Context, rawAccessToken string) (Actor, er
 			apperrors.KindUnauthorized,
 			"invalid_access_token",
 			"access token is invalid",
+		)
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return Actor{}, err
+	}
+	if user == nil {
+		return Actor{}, apperrors.New(
+			apperrors.KindUnauthorized,
+			"invalid_access_token",
+			"access token is invalid",
+		)
+	}
+	if !user.IsEmailVerified() {
+		return Actor{}, apperrors.New(
+			apperrors.KindForbidden,
+			"email_not_verified",
+			"confirm your email before continuing",
 		)
 	}
 

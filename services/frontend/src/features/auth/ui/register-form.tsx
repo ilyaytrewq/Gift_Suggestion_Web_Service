@@ -35,12 +35,16 @@ export function RegisterForm(): JSX.Element {
           <strong>Аккаунт создан!</strong>
           <br />
           Мы отправили письмо на <strong>{registeredEmail}</strong> — перейдите по
-          ссылке в письме, чтобы подтвердить email и активировать аккаунт.
+          ссылке в письме или введите код из письма на странице подтверждения, затем
+          войдите в аккаунт.
         </Notice>
         <p style={{ margin: 0, color: 'var(--ink-muted)', fontSize: '0.92rem' }}>
           Не получили письмо? Проверьте папку «Спам».
         </p>
         <div className="auth-form__links">
+          <Link className="auth-form__link-action" to="/auth/email-verify">
+            Ввести код из письма
+          </Link>
           <Link className="auth-form__link-action" to="/login">
             Войти после подтверждения
           </Link>

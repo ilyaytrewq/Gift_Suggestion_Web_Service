@@ -1,7 +1,11 @@
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import type { ImportJob, CreateImportJobResponse } from '../../../shared/api/contracts';
+import type {
+  ImportJob,
+  CreateImportJobResponse,
+  GetImportJobErrorsResponse,
+} from '../../../shared/api/contracts';
 import { requestJson } from '../../../shared/api/http';
 import { useAuth } from '../../../shared/auth/use-auth';
 import { Button } from '../../../shared/ui/button/button';
@@ -30,10 +34,9 @@ function getImportJob(jobId: string) {
 }
 
 function getImportJobErrors(jobId: string) {
-  return requestJson<{ data: { errors: Array<{ row: number; message: string }> } }>(
-    `/api/v1/admin/import-jobs/${jobId}/errors`,
-    { auth: true },
-  );
+  return requestJson<GetImportJobErrorsResponse>(`/api/v1/admin/import-jobs/${jobId}/errors`, {
+    auth: true,
+  });
 }
 
 // ─── Status display ───────────────────────────────────────────────────────────
@@ -68,8 +71,13 @@ export function AdminImportPage(): JSX.Element {
     },
   });
 
+  const errorsQueryEnabled =
+    Boolean(jobId) &&
+    (jobQuery.data?.data.job?.status === 'completed_with_errors' ||
+      jobQuery.data?.data.job?.status === 'failed');
+
   const errorsQuery = useQuery({
-    enabled: Boolean(jobId) && jobQuery.data?.data.job.status === 'completed_with_errors',
+    enabled: errorsQueryEnabled,
     queryKey: ['import-job-errors', jobId],
     queryFn: () => getImportJobErrors(jobId!),
   });
@@ -149,6 +157,22 @@ export function AdminImportPage(): JSX.Element {
         </Button>
       </div>
 
+      {jobQuery.error && (
+        <ErrorBanner
+          title="Не удалось обновить статус импорта"
+          error={jobQuery.error}
+        />
+      )}
+
+      {errorsQuery.error &&
+        job &&
+        (job.status === 'completed_with_errors' || job.status === 'failed') && (
+        <ErrorBanner
+          title="Не удалось загрузить список ошибок по строкам"
+          error={errorsQuery.error}
+        />
+      )}
+
       {job && (
         <div className="import-job">
           <div className="import-job__header">
@@ -169,8 +193,16 @@ export function AdminImportPage(): JSX.Element {
             )}
           </div>
 
-          {job.failure_message && (
-            <Notice tone="error">{job.failure_message}</Notice>
+          {(job.failure_code || job.failure_message) && (
+            <Notice tone="error">
+              {job.failure_code ? (
+                <>
+                  <strong>Код: {job.failure_code}</strong>
+                  {job.failure_message ? <>{' · '}</> : null}
+                </>
+              ) : null}
+              {job.failure_message ?? ''}
+            </Notice>
           )}
 
           {job.summary && (
@@ -191,15 +223,22 @@ export function AdminImportPage(): JSX.Element {
             </div>
           )}
 
-          {errorsQuery.data?.data.errors && errorsQuery.data.data.errors.length > 0 && (
+          {errorsQuery.data?.data.items && errorsQuery.data.data.items.length > 0 && (
             <div>
               <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem' }}>
                 Строки с ошибками:
               </p>
               <div className="import-errors">
-                {errorsQuery.data.data.errors.map((e, i) => (
-                  <div className="import-error" key={i}>
-                    Строка {e.row}: {e.message}
+                {errorsQuery.data.data.items.map((item) => (
+                  <div className="import-error" key={item.id}>
+                    {item.row_number != null ? <>Строка {item.row_number}: </> : null}
+                    {item.field_name ? (
+                      <>
+                        поле «{item.field_name}»:{' '}
+                      </>
+                    ) : null}
+                    {item.code ? <>[{item.code}] </> : null}
+                    {item.message}
                   </div>
                 ))}
               </div>
@@ -208,6 +247,12 @@ export function AdminImportPage(): JSX.Element {
 
           {job.status === 'completed' && (
             <Notice tone="success">Импорт успешно завершён.</Notice>
+          )}
+          {job.status === 'completed_with_errors' && (
+            <Notice tone="info">
+              Импорт завершён: часть строк пропущена из‑за ошибок. При необходимости исправьте файл и
+              загрузите снова.
+            </Notice>
           )}
         </div>
       )}

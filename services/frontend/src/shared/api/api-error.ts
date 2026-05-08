@@ -23,6 +23,8 @@ export function getUserFacingApiErrorMessage(error: ApiError): string {
   switch (error.code) {
     case 'invalid_credentials':
       return 'Почта или пароль указаны неверно.';
+    case 'email_not_verified':
+      return 'Подтвердите email: откройте ссылку из письма или введите код на странице подтверждения, затем войдите снова.';
     case 'email_already_exists':
       return 'Этот email уже используется.';
     case 'invalid_email':
@@ -79,10 +81,33 @@ export function getUserFacingApiErrorMessage(error: ApiError): string {
       return 'Импорт интересов из VK недоступен. Обратитесь к администратору.';
     case 'vk_integration_disabled':
       return 'Интеграция VK на сервере отключена.';
+    case 'invalid_content_type':
+      return 'Неверный тип запроса: нужно отправить файл как multipart/form-data.';
+    case 'file_too_large':
+      return 'Файл импорта слишком большой. Уменьшите размер или увеличьте лимит на сервере.';
+    case 'file_required':
+      return 'Не выбран файл. Укажите CSV, JSON или XLSX.';
+    case 'unsupported_import_format':
+      return 'Поддерживаются только расширения файла .csv, .json и .xlsx.';
+    case 'empty_import_file':
+      return 'Файл пуст или не содержит записей каталога.';
+    case 'import_file_read_failed':
+      return 'Не удалось прочитать загруженный файл. Попробуйте другой файл или повторите позже.';
+    case 'invalid_import_job_id':
+    case 'import_job_not_found':
+      return 'Задача импорта не найдена. Обновите страницу и попробуйте снова.';
     case 'invalid_vk_connection_payload':
       return 'Проверьте данные подключения VK и попробуйте снова.';
     default:
       break;
+  }
+
+  const serverMsg = error.message.trim();
+  if (
+    serverMsg &&
+    !serverMsg.startsWith('Request failed with status')
+  ) {
+    return serverMsg;
   }
 
   switch (error.status) {
