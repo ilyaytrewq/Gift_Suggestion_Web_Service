@@ -139,3 +139,10 @@ export type TrackEventRequest = JsonBody<
 export type TrackEventResponse = JsonResponse<
   paths['/api/v1/tracking/events']['post']['responses']['200']
 >;
+
+export type VKConnectionEnvelope = JsonResponse<
+  paths['/api/v1/integrations/vk/connection']['get']['responses']['200']
+>;
+export type ConnectVKRequestBody = JsonBody<
+  paths['/api/v1/integrations/vk/connection']['put']
+>;

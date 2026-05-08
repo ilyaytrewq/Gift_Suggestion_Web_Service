@@ -77,21 +77,27 @@ export function CatalogFilters({
         >
           Все категории
         </button>
-        {categories.map((category) => (
-          <button
-            className={buttonClassName({
-              variant:
-                filters.category_id === category.id ? 'secondary' : 'ghost',
-            })}
-            key={category.id}
-            onClick={() => {
-              onCategoryChange(category.id);
-            }}
-            type="button"
-          >
-            {category.name}
-          </button>
-        ))}
+        {categories.map((category) => {
+          const isAngelina = category.name === 'Специально для Ангелины';
+          const isActive = filters.category_id === category.id;
+          return (
+            <button
+              className={[
+                buttonClassName({ variant: isActive ? 'secondary' : 'ghost' }),
+                isAngelina ? 'button--angelina' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              key={category.id}
+              onClick={() => {
+                onCategoryChange(category.id);
+              }}
+              type="button"
+            >
+              {isAngelina ? '♡ ' : ''}{category.name}
+            </button>
+          );
+        })}
 
         {(filters.q || filters.category_id) ? (
           <button

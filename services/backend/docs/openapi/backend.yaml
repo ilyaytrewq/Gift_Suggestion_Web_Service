@@ -8,7 +8,7 @@ info:
     auth/user foundation, catalog read endpoints, wishlist endpoints,
     admin catalog import endpoints, recommendation endpoints, tracking endpoints,
     admin user promotion endpoints,
-    and VK integration scaffold endpoints.
+    and VK integration endpoints (connect, disconnect, sync interests from groups.get).
 servers:
   - url: http://localhost:8080
 tags:
@@ -1153,7 +1153,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '503':
-          description: VK integration is disabled or external import path is unavailable
+          description: >
+            VK integration is disabled (`vk_integration_disabled`),
+            token storage unavailable (`vk_token_storage_unavailable`),
+            token invalid or expired (`vk_token_invalid`),
+            VK API rate limit exceeded (`vk_rate_limited`),
+            groups access denied by privacy settings (`vk_groups_access_denied`),
+            or import timed out (`vk_interest_import_timeout`).
           content:
             application/json:
               schema:

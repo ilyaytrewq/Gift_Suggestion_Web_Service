@@ -16,4 +16,8 @@ var (
 	ErrTokenProtectionUnavailable   = errors.New("vk token protection is unavailable")
 	ErrTokenCiphertextCorrupted     = errors.New("vk token ciphertext is corrupted")
 	ErrVKUserAlreadyConnected       = errors.New("vk user is already connected to another account")
+
+	ErrVKTokenInvalid       = errors.New("vk token is invalid or expired, reconnection required")
+	ErrVKRateLimited        = errors.New("vk api rate limit exceeded")
+	ErrVKGroupsAccessDenied = errors.New("vk groups list access denied by privacy settings")
 )

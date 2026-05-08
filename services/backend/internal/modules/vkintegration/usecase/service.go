@@ -490,6 +490,27 @@ func mapImportFailure(err error) error {
 			"vk interest import timed out",
 			err,
 		)
+	case errors.Is(err, ErrVKTokenInvalid):
+		return apperrors.Wrap(
+			apperrors.KindUnavailable,
+			"vk_token_invalid",
+			"vk token is invalid or expired, please reconnect vk account",
+			err,
+		)
+	case errors.Is(err, ErrVKRateLimited):
+		return apperrors.Wrap(
+			apperrors.KindUnavailable,
+			"vk_rate_limited",
+			"vk api rate limit exceeded, please retry later",
+			err,
+		)
+	case errors.Is(err, ErrVKGroupsAccessDenied):
+		return apperrors.Wrap(
+			apperrors.KindUnavailable,
+			"vk_groups_access_denied",
+			"vk groups access is denied by privacy settings",
+			err,
+		)
 	case errors.Is(err, ErrInterestImportNotImplemented), errors.Is(err, ErrInterestImportUnavailable):
 		return apperrors.Wrap(
 			apperrors.KindUnavailable,

@@ -5,6 +5,7 @@ import {
   Routes,
 } from 'react-router-dom';
 
+import { VkOAuthCallbackPage } from '../../pages/auth/ui/vk-oauth-callback-page';
 import { EmailVerifyPage } from '../../pages/auth/ui/email-verify-page';
 import { LoginPage } from '../../pages/auth/ui/login-page';
 import { PasswordResetPage } from '../../pages/auth/ui/password-reset-page';
@@ -38,6 +39,7 @@ export function AppRouter(): JSX.Element {
           <Route element={<PasswordResetPage />} path="/password-reset" />
           <Route element={<PasswordResetConfirmPage />} path="/password-reset/confirm" />
           <Route element={<EmailVerifyPage />} path="/auth/email-verify" />
+          <Route element={<VkOAuthCallbackPage />} path="/auth/vk-callback" />
           <Route element={<NotFoundPage />} path="*" />
         </Routes>
       </AppShell>

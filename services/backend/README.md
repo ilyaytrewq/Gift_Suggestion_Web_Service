@@ -1,21 +1,17 @@
-# Backend Bootstrap
+# Backend
 
-`services/backend` это Go API gateway на `Gin`, который оркестрирует backend-сценарии сервиса подбора подарков, работает с PostgreSQL и готовится к интеграции с ML-service по gRPC.
+`services/backend` — Go 1.26 API на Gin, оркестрирует backend-сценарии сервиса подбора подарков, работает с PostgreSQL, интегрируется с ML-service по gRPC и VK API.
 
-## Что уже входит в bootstrap
+## Реализованные эндпоинты
 
-- composition root через `cmd/api` + `internal/app`;
-- конфиг из env и структурированный `slog`;
-- подключение к PostgreSQL и запуск embedded migrations;
-- базовый `health` модуль с `domain/usecase/delivery/http/infra` слоями;
-- единый JSON envelope для success/error ответов;
-- Gin router, request-id middleware и readiness/liveness endpoints;
-- scaffold gRPC client для ML-service;
-- Dockerfile и `docker-compose.yml` для локального окружения.
+### Health
 
-## User/Auth minimum
+- `GET /health/live`
+- `GET /health/ready`
+- `GET /api/v1/health/live`
+- `GET /api/v1/health/ready`
 
-После `feature/user-postgres-http` backend поддерживает:
+### Auth / User
 
 - `POST /api/v1/users`
 - `POST /api/v1/auth/login`
@@ -27,249 +23,136 @@
 - `GET /api/v1/users/me`
 - `PATCH /api/v1/users/me`
 
-Текущий auth/email scope:
+Токены сброса пароля и верификации email хранятся только в виде хэша и никогда не логируются.
 
-- регистрация создаёт пользователя в статусе `email_verified=false`, сохраняет одноразовый verification token hash и инициирует отправку verification email;
-- password reset request сохраняет одноразовый reset-token hash и инициирует отправку reset email;
-- verification/reset tokens никогда не возвращаются в API response и не логируются;
-- `confirm` endpoints принимают raw token, хэшируют его в backend и атомарно завершают verification/reset flow.
-
-## Catalog read API
-
-После `feature/catalog-postgres-http` backend также поддерживает:
+### Catalog
 
 - `GET /api/v1/catalog/gifts`
 - `GET /api/v1/catalog/gifts/{gift_id}`
+- `GET /api/v1/catalog/gifts/{gift_id}/similar`
 - `GET /api/v1/catalog/categories`
 
-List endpoints используют общий envelope и возвращают `data.items` + `data.page`.
-Для списка подарков сейчас доступны фильтры `q`, `category_id`, `min_price`, `max_price`, `age_restriction`, `has_image`, `limit`, `offset`, `sort`.
+Фильтры списка: `q`, `category_id`, `min_price`, `max_price`, `age_restriction`, `has_image`, `limit`, `offset`, `sort`.
 
-## Wishlist API
+### Wishlist
 
-После `feature/wishlist-postgres-http` backend также поддерживает:
+- `GET /api/v1/wishlist`
+- `POST /api/v1/wishlist/items`
+- `DELETE /api/v1/wishlist/items/{gift_id}`
+- `DELETE /api/v1/wishlist`
 
-- `POST /api/v1/wishlists`
-- `GET /api/v1/wishlists`
-- `GET /api/v1/wishlists/{wishlist_id}`
-- `POST /api/v1/wishlists/{wishlist_id}/items`
-- `DELETE /api/v1/wishlists/{wishlist_id}/items/{gift_id}`
-- `DELETE /api/v1/wishlists/{wishlist_id}`
+Все wishlist-эндпоинты требуют JWT. Обращение к чужому wishlist маскируется ответом `404`.
 
-Все wishlist endpoints требуют JWT access token и работают только с wishlist текущего пользователя.
-Попытка обратиться к чужому wishlist маскируется ответом `404`, чтобы не раскрывать существование чужих списков.
-
-## Catalog import API
-
-После `feature/import-jobs` backend также поддерживает admin-oriented import flow:
+### Catalog import (admin)
 
 - `POST /api/v1/admin/import-jobs`
 - `GET /api/v1/admin/import-jobs/{job_id}`
 - `GET /api/v1/admin/import-jobs/{job_id}/errors`
 
-Все import endpoints требуют JWT access token с ролью `admin`.
-Импорт выполняется синхронно в рамках `POST`, но результат всегда сохраняется в `import_jobs` и `import_errors`.
+Требуется роль `admin`. Форматы: CSV, JSON, XLSX. Импорт синхронный; результат сохраняется в `import_jobs` / `import_errors`.
 
-Поддерживаемые форматы:
-
-- `CSV`
-- `JSON`
-- `XLSX`
-
-Обязательные поля записи:
-
-- `name`
-- `category`
-- `price`
-- `description`
-- `store_link`
-
-Опциональные поля:
-
-- `image`
-- `age_restriction`
-- `source`
-
-Текущий импортный контракт:
-
-- `category` резолвится по уже существующим `categories` case-insensitive; неизвестная категория уходит в `import_errors`;
-- дубликаты внутри файла и дубликаты относительно каталога (`normalized(name) + normalized(store_link)`) не импортируются и попадают в `import_errors`;
-- частично валидный файл допустим: валидные записи сохраняются, невалидные фиксируются в отчёте;
-- максимальный размер файла задаётся через `IMPORT_MAX_FILE_SIZE_BYTES`.
-
-Для `CSV` и `XLSX` первая строка должна содержать headers.
-Для `JSON` поддерживается массив объектов, а также объект вида `{ "items": [...] }`.
-
-## Recommendation API
-
-После `feature/recommendation-ml-gateway` backend также поддерживает recommendation flow:
+### Recommendation
 
 - `POST /api/v1/recommendations`
 - `GET /api/v1/recommendations/{request_id}`
 
-`POST /api/v1/recommendations` доступен без авторизации.
-JWT access token опционален: при его наличии backend может использовать user/wishlist контекст для дополнительной персонализации.
-`GET /api/v1/recommendations/{request_id}` остаётся auth-only endpoint.
+`POST` доступен без авторизации; JWT опционален. Pipeline: hard filters → ML ranking (gRPC) → fallback при ошибке ML → explanations → alternatives.
 
-Поддерживаемый request payload:
-
-- `budget_max` — обязательный верхний предел бюджета;
-- `recipient_age` — optional hard filter по возрастному ограничению;
-- `occasion`, `relationship` — optional questionnaire context;
-- `preferred_category_ids` — optional hard filter по категориям;
-- `interests` — optional ranking context;
-- `top_n` — optional limit; `0` или не передавать = максимум доступных после ранжирования (до `200`); иначе `1`…`200`;
-- `use_wishlist_context` — optional flag, по умолчанию `true`.
-
-Онлайн pipeline recommendation:
-
-- backend читает кандидатов из уже нормализованного каталога;
-- применяет hard filters по `budget_max`, `recipient_age` и `preferred_category_ids`;
-- подготавливает candidate pool и вызывает ML gateway;
-- если ML недоступен, таймаутится или возвращает невалидный ranking, backend переключается на deterministic fallback;
-- explanations синтезируются backend-ом, если ML их не прислал;
-- alternatives достраиваются из remaining candidate pool, если ML их не прислал или прислал частично.
-
-Текущие execution guarantees:
-
-- per-call timeout на ML ranking задаётся через `ML_GRPC_REQUEST_TIMEOUT`;
-- число retry ограничивается `ML_GRPC_MAX_RETRIES`;
-- backend хранит `recommendation_requests` и `recommendation_results` для traceability и следующей tracking-ветки.
-
-## Tracking API
-
-После `feature/tracking-events` backend поддерживает auth-only ingestion path для user interaction events:
+### Tracking
 
 - `POST /api/v1/tracking/events`
 
-Минимально поддерживаемые типы:
+Типы событий: `recommendation_request`, `card_view`, `wishlist_add`, `outbound_click`. Требует JWT.
 
-- `recommendation_request`
-- `card_view`
-- `wishlist_add`
-- `outbound_click`
-
-Контракт события:
-
-- `type` обязателен;
-- `gift_id` обязателен для `card_view`, `wishlist_add`, `outbound_click`;
-- `wishlist_id` обязателен для `wishlist_add`;
-- `recommendation_request_id` обязателен для `recommendation_request` и optional для остальных;
-- `client_event_id` optional и используется как idempotency key для повторной отправки одного и того же события;
-- `metadata.surface` и `metadata.position` optional и валидируются как компактный аналитический контекст.
-
-Текущая реализация хранит события в append-only `tracking_events` и валидирует ссылки на:
-
-- текущего пользователя из JWT access token;
-- `recommendation_request_id` с ownership check;
-- `wishlist_id` с ownership check;
-- `gift_id` через catalog existence check.
-
-Автоматическая серверная эмиссия tracking-событий из `recommendation` и `wishlist` use-case в этой ветке не добавлялась сознательно.
-Сейчас ветка даёт единый ingestion endpoint и storage foundation без расширения чужих модулей.
-
-## VK integration scaffold
-
-После `feature/vk-connections` backend поддерживает auth-only scaffold для consent-aware VK linkage:
+### VK интеграция
 
 - `GET /api/v1/integrations/vk/connection`
 - `PUT /api/v1/integrations/vk/connection`
 - `DELETE /api/v1/integrations/vk/connection`
 - `POST /api/v1/integrations/vk/connection/sync-interests`
 
-VK integration deliberately остаётся supporting-module scaffold:
+Все эндпоинты требуют JWT. При `VK_ENABLED=false` возвращают `503 vk_integration_disabled`.
 
-- backend хранит один `vk_connection` на пользователя;
-- consent и connection state валидируются в use-case, не в handler;
-- access token никогда не возвращается в API и, если передан, хранится только в зашифрованном виде;
-- imported interests сохраняются snapshot-моделью в `vk_imported_interests`;
-- если `VK_ENABLED=false`, endpoints возвращают `503 vk_integration_disabled`.
+Реализованный импорт интересов (`sync-interests`):
 
-Текущий safe scope этой ветки:
+- вызывает VK API `groups.get` методом POST (токен передаётся только в теле запроса)
+- версия API: `5.199`; поля: `name`, `description`, `activity`
+- пагинация: `count=1000`, повторные запросы до получения всех групп
+- названия групп сохраняются как imported interests с `source_label=vk_group`
+- дедупликация по нормализованному значению
 
-- connect/disconnect текущего пользователя;
-- безопасное хранение non-secret metadata (`screen_name`, `profile_url`, scopes, expires_at`);
-- foundation для `sync-interests` с pluggable VK importer;
-- feature-flag friendly wiring через `VK_ENABLED`, `VK_REQUEST_TIMEOUT`, `VK_TOKEN_ENCRYPTION_KEY`.
+Обработка ошибок VK API:
 
-Текущая граница реализованного:
+| error_code | apperrors code |
+|---|---|
+| 5, 1117 | `vk_token_invalid` |
+| 6, 29 | `vk_rate_limited` |
+| 260 | `vk_groups_access_denied` |
 
-- реальный VK API/OAuth flow намеренно не реализован;
-- встроенный importer возвращает controlled scaffold error, пока внешний VK client не добавлен;
-- `sync-interests` готов к рабочему провайдеру, но не делает опасных предположений о внешнем API.
+Для хранения access token нужен `VK_TOKEN_ENCRYPTION_KEY` — base64-закодированный 32-байтовый AES-ключ. Без него `PUT /connection` с токеном вернёт `503 vk_token_storage_not_configured`.
 
 ## OpenAPI
 
-HTTP contracts ведутся в OpenAPI-формате в файле:
+Спецификация: `services/backend/docs/openapi/backend.yaml`
+
+Покрывает все реализованные эндпоинты. После изменений спецификации обязательно:
 
 ```bash
-services/backend/docs/openapi/backend.yaml
+cd services/frontend && npm run generate:api
 ```
-
-Сейчас спецификация покрывает health, auth/user foundation, email verification, password reset confirm, catalog read, wishlist, admin catalog import, recommendation, tracking и VK integration scaffold endpoints.
 
 ## Email delivery
 
-Reusable email infrastructure:
+Infrastructure: `internal/platform/email`. Auth-specific notifier: `internal/modules/auth/infra/email`.
 
-- generic sender infrastructure: `internal/platform/email`
-- auth-specific notifier/templates: `internal/modules/auth/infra/email`
-- SMTP details остаются в config/env и не протаскиваются в use-case слой
-- dev/test режим использует `noop` sender и не выводит токены в логи
+Сценарии, использующие email:
+- верификация email при регистрации
+- запрос сброса пароля
 
-Сценарии, которые используют email уже сейчас:
+Переменные для рабочего SMTP-режима:
 
-- registration email verification
-- password reset request
+```
+EMAIL_ENABLED=true
+EMAIL_PROVIDER=smtp
+EMAIL_FROM_EMAIL=...
+SMTP_HOST=...
+SMTP_PORT=587
+SMTP_USERNAME=...
+SMTP_PASSWORD=...
+FRONTEND_BASE_URL=http://localhost:5173
+```
 
-Обязательные env для рабочего SMTP режима:
+По умолчанию используется noop-отправитель (`EMAIL_ENABLED=false`).
 
-- `EMAIL_ENABLED=true`
-- `EMAIL_PROVIDER=smtp`
-- `EMAIL_FROM_EMAIL`
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USERNAME`
-- `SMTP_PASSWORD`
-- `FRONTEND_BASE_URL`
+## Конфигурация
 
-Дополнительные env:
+Все параметры читаются из окружения. Пример — `.env.example`.
 
-- `EMAIL_FROM_NAME`
-- `EMAIL_SEND_TIMEOUT`
-- `SMTP_USE_TLS`
-- `AUTH_EMAIL_VERIFICATION_TTL`
-- `AUTH_PASSWORD_RESET_TTL`
+Ключевые переменные:
 
-Сценарии, оставленные на будущее:
+| Переменная | Дефолт | Описание |
+|---|---|---|
+| `DB_DSN` | — (обязателен) | PostgreSQL DSN |
+| `DB_MIGRATIONS_ENABLED` | `true` | Автомиграция при старте |
+| `AUTH_JWT_SECRET` | — (обязателен, ≥16 символов) | JWT секрет |
+| `VK_ENABLED` | `false` | Включить VK интеграцию |
+| `VK_TOKEN_ENCRYPTION_KEY` | — | Base64 AES-256 ключ (`openssl rand -base64 32`) |
+| `VK_REQUEST_TIMEOUT` | `3s` | Таймаут запроса к VK API |
+| `ML_GRPC_ENABLED` | `false` | Включить ML gRPC клиент |
+| `ML_GRPC_ADDR` | — | Адрес ML сервиса |
+| `EMAIL_ENABLED` | `false` | Включить email delivery |
 
-- уведомление о смене пароля
-- уведомление о входе с нового устройства
-- подтверждение смены email
-- admin/system import notifications
-- onboarding/welcome email
-
-## Локальный запуск backend
-
-1. Перейти в `services/backend`.
-2. Подготовить env на основе `.env.example`.
-3. Запустить PostgreSQL через корневой `docker-compose.yml` или использовать локальную БД.
-4. Запустить backend:
+## Локальный запуск
 
 ```bash
+cd services/backend
+cp .env.example .env   # задать DB_DSN, AUTH_JWT_SECRET и другие обязательные переменные
 ya tool go run ./cmd/api
 ```
 
-Либо стандартный `go run ./cmd/api`, если не пользуетесь Arcadia/Ya.
+Если `ya` недоступен, используйте обычный `go run ./cmd/api`.
 
-Локальные health endpoints:
-
-- `GET /health/live`
-- `GET /health/ready`
-- `GET /api/v1/health/live`
-- `GET /api/v1/health/ready`
-
-## Локальный запуск через Docker Compose
+## Через Docker Compose
 
 Из корня репозитория:
 
@@ -277,21 +160,15 @@ ya tool go run ./cmd/api
 docker compose up --build backend postgres
 ```
 
-Compose поднимает:
-
-- `postgres:16-alpine` на `localhost:5432`;
-- `backend` на `localhost:8080`.
-
-По умолчанию в compose отключен ML gRPC (`ML_GRPC_ENABLED=false`), поэтому bootstrap можно поднять без ML-service.
-В этом режиме recommendation flow продолжает работать через backend fallback ranking.
-VK scaffold по умолчанию тоже отключён (`VK_ENABLED=false`). Для сохранения access token в зашифрованном виде нужно задать `VK_TOKEN_ENCRYPTION_KEY` как base64-encoded 32-byte AES key.
+Поднимает `postgres:16-alpine` на `:5432` и `backend` на `:8080`. ML gRPC по умолчанию отключён в compose — recommendation fallback продолжает работать.
 
 ## Полезные команды
 
 Из `services/backend`:
 
 ```bash
-task run
-task tests
-task lint
+task tests   # go test ./... -v
+task lint    # golangci-lint
+task build   # компиляция бинаря
+task run     # запуск локально
 ```

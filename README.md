@@ -14,13 +14,13 @@
 - Auth: регистрация, логин, refresh, logout, `GET/PATCH /api/v1/users/me`
 - Password reset: `request` + `confirm`
 - Email verification: `confirm`
-- Catalog: список подарков с фильтрами, карточка подарка с **offers (мультимагазин)**, категории
+- Catalog: список подарков с фильтрами, карточка подарка с offers (мультимагазин), категории
 - Похожие подарки: `GET /api/v1/catalog/gifts/{gift_id}/similar`
 - Wishlist: единый список желаний пользователя
-- Catalog import: admin upload CSV / JSON / XLSX с автоматическим созданием `gift_offers`; алиасы заголовков (`title`, `store_url`, `currency`); JSON поддерживает массив `offers`
-- Recommendation: мастер подбора с полями повод / бюджет / отношения / **пол** / возраст / интересы; ранжирование через ML (LightGBM gRPC) или fallback; объяснения; альтернативы
+- Catalog import: admin upload CSV / JSON / XLSX с автоматическим созданием `gift_offers`
+- Recommendation: мастер подбора с полями повод / бюджет / отношения / пол / возраст / интересы; ранжирование через ML (LightGBM gRPC) или fallback; объяснения; альтернативы
 - Tracking: события просмотра, добавления в избранное, переходов по ссылкам
-- VK integration: scaffold (хранение соединений, шифрование токена)
+- VK integration: реальный импорт групп из VK API (`groups.get` 5.199) с пагинацией; шифрование токенов AES-256-GCM; обработка ошибок API (невалидный токен, rate limit, закрытый список групп)
 
 ### ML сервис
 
@@ -34,7 +34,10 @@
 - Главная страница, каталог с поиском и фильтрами, карточка подарка
 - Мастер рекомендаций (`/recommendation`)
 - Wishlist (`/wishlist`)
-- Login / Register / запрос сброса пароля
+- Профиль (`/profile`) с редактированием имени и панелью VK-интеграции
+- Login / Register / сброс пароля / подтверждение email
+- Admin import (`/admin/import`)
+- VK OAuth implicit flow: редирект на oauth.vk.com, callback-страница (`/auth/vk-callback`), сохранение токена на бэкенде, синхронизация интересов
 
 ### Данные каталога
 
@@ -52,28 +55,27 @@
 ├── README.md
 ├── AGENTS.md
 ├── CLAUDE.md
-├── Plan.md                          ← план реализации
 ├── docs/
 │   ├── ci-cd.md
-│   └── data.md                      ← источники данных + инструкции
-├── scripts/data/                    ← скрипты выгрузки RU/CN каталога
+│   └── data.md
+├── scripts/data/
 └── services/
     ├── backend/
-    │   ├── api/proto/ranking/v1/    ← ranking.proto (gRPC контракт)
+    │   ├── api/proto/ranking/v1/
     │   ├── cmd/api/
     │   ├── docs/openapi/backend.yaml
     │   ├── internal/
-    │   ├── migrations/              ← 15 миграций
+    │   ├── migrations/              ← 16 миграций
     │   └── Taskfile.yaml
     ├── frontend/
     │   └── src/
     └── ml/
-        ├── Guide.md                 ← инструкции по обучению
-        ├── ml_service/              ← gRPC сервер, ranker, feature_builder
-        ├── training/                ← скрипты обучения
+        ├── Guide.md
+        ├── ml_service/
+        ├── training/
         ├── tests/
         ├── dataset/
-        └── models/                  ← сюда кладётся .pkl модель
+        └── models/
 ```
 
 ## Быстрый запуск
@@ -93,9 +95,9 @@ docker compose up --build postgres backend ml-service frontend
 
 По умолчанию:
 - Миграции запускаются при старте backend (`DB_MIGRATIONS_ENABLED=true`)
-- ML gRPC **включён** (`ML_GRPC_ENABLED=true`); если `services/ml/models/lightgbm_v0_1_0.pkl` отсутствует — использует echo-заглушку
-- VK отключён (`VK_ENABLED=false`)
-- Email delivery отключён (`EMAIL_ENABLED=false`)
+- ML gRPC **включён** (`ML_GRPC_ENABLED=true`); если `services/ml/models/lightgbm_v0_1_0.pkl` отсутствует — используется echo-заглушка
+- VK отключён (`VK_ENABLED=false`) — см. раздел ниже
+- Email delivery отключён (`EMAIL_ENABLED=false`) — использует noop-отправитель
 
 ## Локальная разработка
 
@@ -109,7 +111,7 @@ task build
 ya tool go run ./cmd/api
 ```
 
-Если `ya` недоступен (например, в типовом GitHub Actions), используйте обычный `go` — скрипт `scripts/ci/backend-checks.sh` и задачи Task сами подставят `go`, когда `ya` не в `PATH`.
+Если `ya` недоступен (например, в GitHub Actions), используйте обычный `go` — скрипт `scripts/ci/backend-checks.sh` и задачи Task сами подставят `go`, когда `ya` не в `PATH`.
 
 Генерация proto:
 ```bash
@@ -131,7 +133,7 @@ npm run dev
 
 ```bash
 cd services/ml
-pytest                 # тесты (9 штук)
+pytest
 
 # Запуск без Docker
 ML_MODEL_PATH=models/lightgbm_v0_1_0.pkl python3 -m ml_service.main
@@ -157,12 +159,33 @@ cd services/frontend && npm run generate:api
 | `ML_GRPC_ENABLED` | `true` | Включить ML gRPC |
 | `ML_GRPC_ADDR` | `ml-service:50051` | Адрес ML сервиса |
 | `ML_MODEL_PATH` | `models/lightgbm_v0_1_0.pkl` | Путь к модели |
-| `VK_ENABLED` | `false` | VK интеграция |
+| `VK_ENABLED` | `false` | Включить VK интеграцию |
+| `VK_TOKEN_ENCRYPTION_KEY` | — | Base64-ключ AES-256 для хранения токенов (`openssl rand -base64 32`) |
 | `EMAIL_ENABLED` | `false` | Email delivery |
 | `AUTH_JWT_SECRET` | `change-me-please` | JWT секрет |
-| `VITE_API_BASE_URL` | `` | Backend URL для фронта |
+| `VITE_API_BASE_URL` | — | Backend URL для фронта |
+| `VITE_VK_APP_ID` | — | ID VK-приложения (для OAuth кнопки в профиле) |
+| `VITE_VK_REDIRECT_URI` | — | Redirect URI OAuth (например, `http://localhost:5173/auth/vk-callback`) |
 | `ALIEXPRESS_APP_KEY` | — | Ключ AliExpress Affiliate API |
 | `ALIEXPRESS_APP_SECRET` | — | Секрет AliExpress Affiliate API |
+
+## VK интеграция
+
+Чтобы VK-интеграция заработала, нужно:
+
+1. Создать VK-приложение на [vk.com/apps?act=manage](https://vk.com/apps?act=manage) (тип: Веб-сайт), добавить redirect URI.
+2. Задать переменные бэкенда:
+   ```
+   VK_ENABLED=true
+   VK_TOKEN_ENCRYPTION_KEY=<openssl rand -base64 32>
+   ```
+3. Задать переменные фронтенда:
+   ```
+   VITE_VK_APP_ID=<id приложения>
+   VITE_VK_REDIRECT_URI=http://localhost:5173/auth/vk-callback
+   ```
+
+После этого в профиле появится кнопка «Войти через VK», а синхронизация интересов будет вызывать реальный `groups.get` VK API.
 
 ## CI/CD
 
@@ -172,10 +195,9 @@ GitHub Actions:
 
 Подробнее: `docs/ci-cd.md`
 
-## Ограничения текущего состояния
+## Текущие ограничения
 
-- ML модель не обучена — при старте сервис использует echo-stub (кандидаты в исходном порядке). Обучи через `services/ml/Guide.md`
-- VK OAuth flow scaffold: хранение / шифрование есть, реальный вызов VK API не реализован
-- Frontend: нет UI для admin import, tracking событий, VK интеграции, confirm email/password-reset
-- `ProfilePage` существует, но не подключена в router
-- Данные каталога: текущий `dataset_example.csv` синтетический. Для реальных данных используй `scripts/data/`
+- **ML модель не обучена** — сервис использует echo-stub (кандидаты в исходном порядке). Обучи через `services/ml/Guide.md`.
+- **Email** отключён по умолчанию (`EMAIL_ENABLED=false`). Регистрация и сброс пароля работают через noop-отправитель; письма не доходят до получателя без настройки SMTP.
+- **VK** отключён по умолчанию (`VK_ENABLED=false`). Требует ручной настройки переменных — см. раздел выше.
+- **Данные каталога** — `dataset_example.csv` синтетический. Для реальных данных используй `scripts/data/`.

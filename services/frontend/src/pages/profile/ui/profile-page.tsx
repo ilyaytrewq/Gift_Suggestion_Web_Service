@@ -13,6 +13,7 @@ import {
   promoteUserToAdmin,
   updateCurrentUser,
 } from '../../../features/auth/api/auth';
+import { VkConnectionPanel } from '../../../features/vk-integration/ui/vk-connection-panel';
 import { useAuth } from '../../../shared/auth/use-auth';
 import { formatDateTime } from '../../../shared/lib/format';
 import { Button } from '../../../shared/ui/button/button';
@@ -225,6 +226,8 @@ export function ProfilePage(): JSX.Element {
           </div>
         </form>
       </section>
+
+      <VkConnectionPanel />
 
       {user.role === 'admin' ? (
         <section className="profile-card">

@@ -56,6 +56,31 @@ export function getUserFacingApiErrorMessage(error: ApiError): string {
       return 'Проверьте список интересов.';
     case 'invalid_recommendation_request':
       return 'Не удалось обработать запрос. Проверьте данные и попробуйте ещё раз.';
+    case 'vk_connection_already_exists':
+      return 'Уже привязан другой аккаунт VK. Сначала отключите текущий.';
+    case 'vk_token_storage_not_configured':
+    case 'vk_token_storage_unavailable':
+      return 'На сервере не настроено хранение токена VK (ключ шифрования).';
+    case 'vk_consent_required':
+      return 'Нужно ваше согласие на обработку данных VK.';
+    case 'vk_token_expired':
+      return 'Срок действия токена VK истёк. Подключите аккаунт снова.';
+    case 'vk_token_invalid':
+      return 'Токен VK недействителен. Отключите и снова подключите аккаунт VK.';
+    case 'vk_connection_not_ready':
+      return 'Подключите VK и сохраните токен, затем повторите синхронизацию.';
+    case 'vk_rate_limited':
+      return 'VK API временно ограничил запросы. Повторите через несколько секунд.';
+    case 'vk_groups_access_denied':
+      return 'Список групп VK закрыт настройками приватности. Откройте доступ к группам в настройках VK и повторите.';
+    case 'vk_interest_import_timeout':
+      return 'VK API не ответил вовремя. Повторите синхронизацию позже.';
+    case 'vk_interest_import_unavailable':
+      return 'Импорт интересов из VK недоступен. Обратитесь к администратору.';
+    case 'vk_integration_disabled':
+      return 'Интеграция VK на сервере отключена.';
+    case 'invalid_vk_connection_payload':
+      return 'Проверьте данные подключения VK и попробуйте снова.';
     default:
       break;
   }
