@@ -71,6 +71,7 @@ AGENTS.md
 dist/
 .venv/
 venv/
+*.env*
 
 *TZ/
 *TODO.md
