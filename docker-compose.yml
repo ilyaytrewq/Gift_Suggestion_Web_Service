@@ -18,6 +18,7 @@ services:
       retries: 10
 
   backend:
+    image: ${BACKEND_IMAGE:-gift-suggestion-backend:local}
     build:
       context: .
       dockerfile: services/backend/Dockerfile
@@ -83,6 +84,7 @@ services:
       retries: 10
 
   ml-service:
+    image: ${ML_IMAGE:-gift-suggestion-ml:local}
     build:
       context: .
       dockerfile: services/ml/Dockerfile
@@ -106,6 +108,7 @@ services:
       retries: 10
 
   frontend:
+    image: ${FRONTEND_IMAGE:-gift-suggestion-frontend:local}
     build:
       context: .
       dockerfile: services/frontend/Dockerfile
