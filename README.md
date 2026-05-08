@@ -1,5 +1,5 @@
 # Gift Suggestion Web Service
-
+## http://giftsuggestion.ru/
 Монорепозиторий веб-сервиса подбора подарков. Состоит из трёх сервисов:
 
 - **backend** — Go 1.26 + Gin + PostgreSQL (`services/backend/`)

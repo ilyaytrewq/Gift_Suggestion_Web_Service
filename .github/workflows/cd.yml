@@ -117,6 +117,8 @@ jobs:
           file: services/frontend/Dockerfile
           build-args: |
             VITE_API_BASE_URL=http://${{ vars.DEPLOY_HOST }}
+            VITE_VK_APP_ID=${{ vars.VK_APP_ID }}
+            VITE_VK_REDIRECT_URI=${{ vars.VK_REDIRECT_URI }}
           push: true
           tags: ${{ steps.image-refs.outputs.frontend_image }}
 
