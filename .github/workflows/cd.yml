@@ -73,6 +73,7 @@ jobs:
     outputs:
       backend_image: ${{ steps.image-refs.outputs.backend_image }}
       frontend_image: ${{ steps.image-refs.outputs.frontend_image }}
+      ml_image: ${{ steps.image-refs.outputs.ml_image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -99,6 +100,7 @@ jobs:
           owner="$(printf '%s' "${REPO_OWNER}" | tr '[:upper:]' '[:lower:]')"
           echo "backend_image=ghcr.io/${owner}/gift-suggestion-backend:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
           echo "frontend_image=ghcr.io/${owner}/gift-suggestion-frontend:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "ml_image=ghcr.io/${owner}/gift-suggestion-ml:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
 
       - name: Build and push backend image
         uses: docker/build-push-action@v6
@@ -117,6 +119,14 @@ jobs:
             VITE_API_BASE_URL=http://${{ vars.DEPLOY_HOST }}
           push: true
           tags: ${{ steps.image-refs.outputs.frontend_image }}
+
+      - name: Build and push ml-service image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/ml/Dockerfile
+          push: true
+          tags: ${{ steps.image-refs.outputs.ml_image }}
 
   deploy:
     name: Deploy application
@@ -150,6 +160,7 @@ jobs:
           IMAGE_TAG: ${{ needs.resolve-target.outputs.image_tag }}
           BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend_image }}
           FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend_image }}
+          ML_IMAGE: ${{ needs.build-and-push.outputs.ml_image }}
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_RUNTIME_ENV_FILE: ${{ secrets.DEPLOY_RUNTIME_ENV_FILE }}
         run: |
@@ -159,6 +170,7 @@ jobs:
             printf 'IMAGE_TAG=%s\n' "${IMAGE_TAG}"
             printf 'BACKEND_IMAGE=%s\n' "${BACKEND_IMAGE}"
             printf 'FRONTEND_IMAGE=%s\n' "${FRONTEND_IMAGE}"
+            printf 'ML_IMAGE=%s\n' "${ML_IMAGE}"
             printf 'BACKEND_PORT=8080\n'
             printf 'FRONTEND_PORT=80\n'
             printf 'FRONTEND_PUBLIC_URL=http://%s\n' "${DEPLOY_HOST}"
@@ -173,7 +185,7 @@ jobs:
         run: |
           set -euo pipefail
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p '${DEPLOY_PATH}'"
-          scp deploy/docker-compose.deploy.yml "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/docker-compose.deploy.yml"
+          scp docker-compose.yml "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/docker-compose.yml"
           scp "${RUNNER_TEMP}/deploy.env" "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/.deploy.env"
 
       - name: Pull and restart services
@@ -201,7 +213,7 @@ jobs:
 
           printf '%s\n' "${GITHUB_TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
 
-          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.deploy.yml config -q
-          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.deploy.yml pull
-          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.deploy.yml up -d --remove-orphans
+          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml config -q
+          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml pull
+          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml up -d --remove-orphans
           EOF
