@@ -28,7 +28,7 @@ func TestHandlerRunImportRequiresAuthorization(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 
-	handler, err := NewHandler(&stubImportService{}, authhttp.NewMiddleware(stubImportAuthorizer{}), 1024)
+	handler, err := NewHandler(&stubImportService{}, authhttp.NewMiddleware(stubImportAuthorizer{}), 1024, nil)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -55,7 +55,7 @@ func TestHandlerRunImportRequiresAdminRole(t *testing.T) {
 
 	handler, err := NewHandler(&stubImportService{}, authhttp.NewMiddleware(stubImportAuthorizer{
 		actor: authusecase.Actor{UserID: testAdminUserID, Role: "user"},
-	}), 1024)
+	}), 1024, nil)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -99,7 +99,7 @@ func TestHandlerRunImportSuccess(t *testing.T) {
 	}
 	handler, err := NewHandler(service, authhttp.NewMiddleware(stubImportAuthorizer{
 		actor: authusecase.Actor{UserID: testAdminUserID, Role: "admin"},
-	}), 1024)
+	}), 1024, nil)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -130,7 +130,7 @@ func TestHandlerRunImportRejectsInvalidMultipart(t *testing.T) {
 
 	handler, err := NewHandler(&stubImportService{}, authhttp.NewMiddleware(stubImportAuthorizer{
 		actor: authusecase.Actor{UserID: testAdminUserID, Role: "admin"},
-	}), 1024)
+	}), 1024, nil)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -168,7 +168,7 @@ func TestHandlerGetImportJobSuccess(t *testing.T) {
 		},
 	}, authhttp.NewMiddleware(stubImportAuthorizer{
 		actor: authusecase.Actor{UserID: testAdminUserID, Role: "admin"},
-	}), 1024)
+	}), 1024, nil)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -196,7 +196,7 @@ func TestHandlerGetImportJobNotFound(t *testing.T) {
 		getErr: apperrors.New(apperrors.KindNotFound, "import_job_not_found", "import job not found"),
 	}, authhttp.NewMiddleware(stubImportAuthorizer{
 		actor: authusecase.Actor{UserID: testAdminUserID, Role: "admin"},
-	}), 1024)
+	}), 1024, nil)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -222,7 +222,7 @@ func TestHandlerListImportErrorsRejectsUnknownQueryParam(t *testing.T) {
 
 	handler, err := NewHandler(&stubImportService{}, authhttp.NewMiddleware(stubImportAuthorizer{
 		actor: authusecase.Actor{UserID: testAdminUserID, Role: "admin"},
-	}), 1024)
+	}), 1024, nil)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}

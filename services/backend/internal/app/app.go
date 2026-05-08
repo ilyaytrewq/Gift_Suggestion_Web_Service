@@ -192,7 +192,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	if err != nil {
 		return nil, err
 	}
-	importHandler, err := newCatalogImportHandler(database, authMiddleware, cfg.Import, uuidGenerator)
+	importHandler, err := newCatalogImportHandler(database, authMiddleware, cfg.Import, uuidGenerator, log)
 	if err != nil {
 		return nil, err
 	}
@@ -340,6 +340,7 @@ func newCatalogImportHandler(
 	authMiddleware gin.HandlerFunc,
 	cfg config.ImportConfig,
 	uuidGenerator idgen.UUIDGenerator,
+	log *slog.Logger,
 ) (*catalogimporthttp.Handler, error) {
 	importRepository := catalogimportpostgres.NewRepository(database)
 	importParsers := catalogimportparser.NewRegistry()
@@ -357,7 +358,7 @@ func newCatalogImportHandler(
 		return nil, err
 	}
 
-	return catalogimporthttp.NewHandler(importService, authMiddleware, cfg.MaxFileSizeBytes)
+	return catalogimporthttp.NewHandler(importService, authMiddleware, cfg.MaxFileSizeBytes, log)
 }
 
 func newRecommendationHandler(

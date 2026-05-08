@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	nethttp "net/http"
 	"strings"
 
@@ -27,9 +28,15 @@ type Handler struct {
 	service          service
 	authMiddleware   gin.HandlerFunc
 	maxFileSizeBytes int64
+	logger           *slog.Logger
 }
 
-func NewHandler(service service, authMiddleware gin.HandlerFunc, maxFileSizeBytes int64) (*Handler, error) {
+func NewHandler(
+	service service,
+	authMiddleware gin.HandlerFunc,
+	maxFileSizeBytes int64,
+	logger *slog.Logger,
+) (*Handler, error) {
 	if service == nil {
 		return nil, ErrNilImportService
 	}
@@ -38,6 +45,7 @@ func NewHandler(service service, authMiddleware gin.HandlerFunc, maxFileSizeByte
 		service:          service,
 		authMiddleware:   authMiddleware,
 		maxFileSizeBytes: maxFileSizeBytes,
+		logger:           logger,
 	}, nil
 }
 
@@ -50,12 +58,16 @@ func (h *Handler) Register(root gin.IRouter) {
 }
 
 func (h *Handler) runImport(c *gin.Context) {
+	actor, _ := authhttp.ActorFromContext(c)
+
 	if !strings.HasPrefix(c.GetHeader("Content-Type"), "multipart/form-data") {
-		httpapi.Fail(c, apperrors.New(
+		err := apperrors.New(
 			apperrors.KindValidation,
 			"invalid_content_type",
 			"content type must be multipart/form-data",
-		))
+		)
+		h.logCatalogImportRejected(c, actor.UserID, "", err)
+		httpapi.Fail(c, err)
 		return
 	}
 
@@ -66,36 +78,49 @@ func (h *Handler) runImport(c *gin.Context) {
 	if err := c.Request.ParseMultipartForm(h.maxFileSizeBytes); err != nil {
 		var maxBytesErr *nethttp.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
-			httpapi.Fail(c, apperrors.New(
+			e := apperrors.New(
 				apperrors.KindValidation,
 				"file_too_large",
 				"import file exceeds size limit",
-			))
+			)
+			h.logCatalogImportRejected(c, actor.UserID, "", e)
+			httpapi.Fail(c, e)
 			return
 		}
 
-		httpapi.Fail(c, apperrors.Wrap(
+		e := apperrors.Wrap(
 			apperrors.KindValidation,
 			"invalid_request_body",
 			"multipart request is invalid",
 			err,
-		))
+		)
+		h.logCatalogImportRejected(c, actor.UserID, "", e)
+		httpapi.Fail(c, e)
 		return
 	}
 
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		httpapi.Fail(c, apperrors.New(
+		e := apperrors.New(
 			apperrors.KindValidation,
 			"file_required",
 			"file is required",
-		))
+		)
+		h.logCatalogImportRejected(c, actor.UserID, "", e)
+		httpapi.Fail(c, e)
 		return
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
-		httpapi.Fail(c, err)
+		e := apperrors.Wrap(
+			apperrors.KindValidation,
+			"import_file_read_failed",
+			"failed to read uploaded import file",
+			err,
+		)
+		h.logCatalogImportRejected(c, actor.UserID, fileHeader.Filename, e)
+		httpapi.Fail(c, e)
 		return
 	}
 	defer func() {
@@ -106,16 +131,17 @@ func (h *Handler) runImport(c *gin.Context) {
 
 	payload, err := io.ReadAll(file)
 	if err != nil {
-		httpapi.Fail(c, apperrors.Wrap(
+		e := apperrors.Wrap(
 			apperrors.KindValidation,
 			"invalid_request_body",
 			"failed to read import file",
 			err,
-		))
+		)
+		h.logCatalogImportRejected(c, actor.UserID, fileHeader.Filename, e)
+		httpapi.Fail(c, e)
 		return
 	}
 
-	actor, _ := authhttp.ActorFromContext(c)
 	output, err := h.service.RunImport(c.Request.Context(), catalogimportusecase.RunImportInput{
 		RequestedByUserID: actor.UserID,
 		Filename:          fileHeader.Filename,
@@ -124,11 +150,70 @@ func (h *Handler) runImport(c *gin.Context) {
 		File:              payload,
 	})
 	if err != nil {
+		h.logCatalogImportRejected(c, actor.UserID, fileHeader.Filename, err)
 		httpapi.Fail(c, err)
 		return
 	}
 
+	if output.Job.Status == "failed" {
+		h.logCatalogImportJobFailed(
+			c,
+			actor.UserID,
+			fileHeader.Filename,
+			output.Job.ID,
+			output.Job.FailureCode,
+			output.Job.FailureMessage,
+		)
+	}
+
 	httpapi.Success(c, nethttp.StatusCreated, output)
+}
+
+func (h *Handler) logCatalogImportRejected(c *gin.Context, userID, filename string, err error) {
+	if h.logger == nil || err == nil {
+		return
+	}
+
+	appErr := apperrors.From(err)
+	h.logger.Warn("catalog import rejected",
+		"request_id", httpapi.RequestIDFromContext(c),
+		"user_id", strings.TrimSpace(userID),
+		"filename", strings.TrimSpace(filename),
+		"error_code", appErr.Code(),
+		"error_kind", appErr.Kind(),
+		"err", err,
+	)
+}
+
+func (h *Handler) logCatalogImportJobFailed(
+	c *gin.Context,
+	userID string,
+	filename string,
+	jobID string,
+	failureCode *string,
+	failureMsg *string,
+) {
+	if h.logger == nil {
+		return
+	}
+
+	fc := ""
+	if failureCode != nil {
+		fc = *failureCode
+	}
+	fm := ""
+	if failureMsg != nil {
+		fm = *failureMsg
+	}
+
+	h.logger.Warn("catalog import job failed",
+		"request_id", httpapi.RequestIDFromContext(c),
+		"user_id", strings.TrimSpace(userID),
+		"filename", strings.TrimSpace(filename),
+		"job_id", jobID,
+		"failure_code", fc,
+		"failure_detail", fm,
+	)
 }
 
 func (h *Handler) getImportJob(c *gin.Context) {

@@ -68,21 +68,26 @@ func verificationMessage(
 	link := buildFrontendLink(frontendBaseURL, "/auth/email-verify", rawToken)
 
 	textBody := fmt.Sprintf(
-		"Hello %s,\n\nConfirm your email for Gift Suggestion Web Service.\n",
+		"Hello %s,\n\nConfirm your email for Gift Suggestion Web Service.\n\n"+
+			"Verification code (same as in the link): %s\n",
 		displayName,
+		rawToken,
 	)
 	if link != "" {
-		textBody += fmt.Sprintf("Verification link: %s\n", link)
+		textBody += fmt.Sprintf("\nOr open the verification link:\n%s\n", link)
 	}
 	textBody += "\nIf you did not create this account, you can ignore this email.\n"
 
 	htmlBody := fmt.Sprintf(
-		"<p>Hello %s,</p><p>Confirm your email for Gift Suggestion Web Service.</p>",
+		"<p>Hello %s,</p><p>Confirm your email for Gift Suggestion Web Service.</p>"+
+			`<p>Verification code: <code style="word-break:break-all;">%s</code></p>`,
 		displayName,
+		rawToken,
 	)
 	if link != "" {
-		htmlBody += fmt.Sprintf(`<p><a href="%s">Confirm email</a></p>`, link)
+		htmlBody += fmt.Sprintf(`<p><a href="%s">Confirm email (open link)</a></p>`, link)
 	}
+	htmlBody += "<p>You can paste the code on the confirmation page if the link does not work.</p>"
 	htmlBody += "<p>If you did not create this account, you can ignore this email.</p>"
 
 	return platformemail.Message{

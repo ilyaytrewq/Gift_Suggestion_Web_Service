@@ -1284,6 +1284,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            /** @description Email not verified (sign in only after confirming the email) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     refreshToken: {
@@ -1310,6 +1319,15 @@ export interface operations {
             };
             /** @description Invalid refresh token */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Email not verified (session ended; confirm email, then sign in again) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
