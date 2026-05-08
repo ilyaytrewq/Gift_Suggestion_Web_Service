@@ -23,6 +23,7 @@ concurrency:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   resolve-target:
@@ -69,28 +70,10 @@ jobs:
     if: ${{ needs.resolve-target.outputs.should_deploy == 'true' }}
     timeout-minutes: 30
     environment: ${{ needs.resolve-target.outputs.environment }}
-    permissions:
-      contents: read
-      packages: write
     outputs:
       backend_image: ${{ steps.image-refs.outputs.backend_image }}
       frontend_image: ${{ steps.image-refs.outputs.frontend_image }}
     steps:
-      - name: Validate registry configuration
-        env:
-          DOCKER_REGISTRY: ${{ vars.DOCKER_REGISTRY }}
-          DOCKER_BACKEND_IMAGE: ${{ vars.DOCKER_BACKEND_IMAGE }}
-          DOCKER_FRONTEND_IMAGE: ${{ vars.DOCKER_FRONTEND_IMAGE }}
-          DOCKER_REGISTRY_USERNAME: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
-          DOCKER_REGISTRY_PASSWORD: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          test -n "${DOCKER_REGISTRY}" || (echo "Missing DOCKER_REGISTRY variable" && exit 1)
-          test -n "${DOCKER_BACKEND_IMAGE}" || (echo "Missing DOCKER_BACKEND_IMAGE variable" && exit 1)
-          test -n "${DOCKER_FRONTEND_IMAGE}" || (echo "Missing DOCKER_FRONTEND_IMAGE variable" && exit 1)
-          test -n "${DOCKER_REGISTRY_USERNAME}" || (echo "Missing DOCKER_REGISTRY_USERNAME secret" && exit 1)
-          test -n "${DOCKER_REGISTRY_PASSWORD}" || (echo "Missing DOCKER_REGISTRY_PASSWORD secret" && exit 1)
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -99,23 +82,23 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to container registry
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ vars.DOCKER_REGISTRY }}
-          username: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
-          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve image references
         id: image-refs
         env:
-          DOCKER_BACKEND_IMAGE: ${{ vars.DOCKER_BACKEND_IMAGE }}
-          DOCKER_FRONTEND_IMAGE: ${{ vars.DOCKER_FRONTEND_IMAGE }}
+          REPO_OWNER: ${{ github.repository_owner }}
           IMAGE_TAG: ${{ needs.resolve-target.outputs.image_tag }}
         run: |
           set -euo pipefail
-          echo "backend_image=${DOCKER_BACKEND_IMAGE}:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
-          echo "frontend_image=${DOCKER_FRONTEND_IMAGE}:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
+          owner="$(printf '%s' "${REPO_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "backend_image=ghcr.io/${owner}/gift-suggestion-backend:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "frontend_image=ghcr.io/${owner}/gift-suggestion-frontend:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
 
       - name: Build and push backend image
         uses: docker/build-push-action@v6
@@ -131,7 +114,7 @@ jobs:
           context: .
           file: services/frontend/Dockerfile
           build-args: |
-            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL }}
+            VITE_API_BASE_URL=http://${{ vars.DEPLOY_HOST }}
           push: true
           tags: ${{ steps.image-refs.outputs.frontend_image }}
 
@@ -145,25 +128,6 @@ jobs:
     timeout-minutes: 30
     environment: ${{ needs.resolve-target.outputs.environment }}
     steps:
-      - name: Validate deployment configuration
-        env:
-          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          DEPLOY_PROJECT_NAME: ${{ vars.DEPLOY_PROJECT_NAME }}
-          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
-          DEPLOY_RUNTIME_ENV_FILE: ${{ secrets.DEPLOY_RUNTIME_ENV_FILE }}
-        run: |
-          set -euo pipefail
-          test -n "${DEPLOY_HOST}" || (echo "Missing DEPLOY_HOST variable" && exit 1)
-          test -n "${DEPLOY_USER}" || (echo "Missing DEPLOY_USER variable" && exit 1)
-          test -n "${DEPLOY_PATH}" || (echo "Missing DEPLOY_PATH variable" && exit 1)
-          test -n "${DEPLOY_PROJECT_NAME}" || (echo "Missing DEPLOY_PROJECT_NAME variable" && exit 1)
-          test -n "${DEPLOY_SSH_PRIVATE_KEY}" || (echo "Missing DEPLOY_SSH_PRIVATE_KEY secret" && exit 1)
-          test -n "${DEPLOY_SSH_KNOWN_HOSTS}" || (echo "Missing DEPLOY_SSH_KNOWN_HOSTS secret" && exit 1)
-          test -n "${DEPLOY_RUNTIME_ENV_FILE}" || (echo "Missing DEPLOY_RUNTIME_ENV_FILE secret" && exit 1)
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -172,13 +136,13 @@ jobs:
       - name: Prepare SSH
         env:
           DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
         run: |
           set -euo pipefail
           install -m 700 -d ~/.ssh
           printf '%s\n' "${DEPLOY_SSH_PRIVATE_KEY}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' "${DEPLOY_SSH_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          ssh-keyscan -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
       - name: Render deployment env file
@@ -186,75 +150,58 @@ jobs:
           IMAGE_TAG: ${{ needs.resolve-target.outputs.image_tag }}
           BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend_image }}
           FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend_image }}
-          DEPLOY_PROJECT_NAME: ${{ vars.DEPLOY_PROJECT_NAME }}
-          BACKEND_PORT: ${{ vars.BACKEND_PORT }}
-          FRONTEND_PORT: ${{ vars.FRONTEND_PORT }}
-          FRONTEND_PUBLIC_URL: ${{ vars.FRONTEND_PUBLIC_URL }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_RUNTIME_ENV_FILE: ${{ secrets.DEPLOY_RUNTIME_ENV_FILE }}
         run: |
           set -euo pipefail
           {
-            printf 'COMPOSE_PROJECT_NAME=%s\n' "${DEPLOY_PROJECT_NAME}"
+            printf 'COMPOSE_PROJECT_NAME=gift-suggestion\n'
             printf 'IMAGE_TAG=%s\n' "${IMAGE_TAG}"
             printf 'BACKEND_IMAGE=%s\n' "${BACKEND_IMAGE}"
             printf 'FRONTEND_IMAGE=%s\n' "${FRONTEND_IMAGE}"
-            printf 'BACKEND_PORT=%s\n' "${BACKEND_PORT}"
-            printf 'FRONTEND_PORT=%s\n' "${FRONTEND_PORT}"
-            printf 'FRONTEND_PUBLIC_URL=%s\n' "${FRONTEND_PUBLIC_URL}"
+            printf 'BACKEND_PORT=8080\n'
+            printf 'FRONTEND_PORT=80\n'
+            printf 'FRONTEND_PUBLIC_URL=http://%s\n' "${DEPLOY_HOST}"
           } > "${RUNNER_TEMP}/deploy.env"
           printf '%s\n' "${DEPLOY_RUNTIME_ENV_FILE}" >> "${RUNNER_TEMP}/deploy.env"
 
       - name: Upload deployment bundle
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-          DEPLOY_PORT: ${{ vars.DEPLOY_PORT != '' && vars.DEPLOY_PORT || '22' }}
           DEPLOY_USER: ${{ vars.DEPLOY_USER }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          DEPLOY_COMPOSE_FILENAME: ${{ vars.DEPLOY_COMPOSE_FILENAME != '' && vars.DEPLOY_COMPOSE_FILENAME || 'docker-compose.deploy.yml' }}
         run: |
           set -euo pipefail
-          ssh -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p '${DEPLOY_PATH}'"
-          scp -P "${DEPLOY_PORT}" deploy/docker-compose.deploy.yml "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/${DEPLOY_COMPOSE_FILENAME}"
-          scp -P "${DEPLOY_PORT}" "${RUNNER_TEMP}/deploy.env" "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/.deploy.env"
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p '${DEPLOY_PATH}'"
+          scp deploy/docker-compose.deploy.yml "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/docker-compose.deploy.yml"
+          scp "${RUNNER_TEMP}/deploy.env" "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/.deploy.env"
 
       - name: Pull and restart services
         env:
-          DOCKER_REGISTRY: ${{ vars.DOCKER_REGISTRY }}
-          DOCKER_REGISTRY_USERNAME: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
-          DOCKER_REGISTRY_PASSWORD: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-          DEPLOY_PORT: ${{ vars.DEPLOY_PORT != '' && vars.DEPLOY_PORT || '22' }}
           DEPLOY_USER: ${{ vars.DEPLOY_USER }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          DEPLOY_PROJECT_NAME: ${{ vars.DEPLOY_PROJECT_NAME }}
-          DEPLOY_COMPOSE_FILENAME: ${{ vars.DEPLOY_COMPOSE_FILENAME != '' && vars.DEPLOY_COMPOSE_FILENAME || 'docker-compose.deploy.yml' }}
         run: |
           set -euo pipefail
 
-          docker_registry_b64="$(printf '%s' "${DOCKER_REGISTRY}" | base64 | tr -d '\n')"
-          docker_registry_username_b64="$(printf '%s' "${DOCKER_REGISTRY_USERNAME}" | base64 | tr -d '\n')"
-          docker_registry_password_b64="$(printf '%s' "${DOCKER_REGISTRY_PASSWORD}" | base64 | tr -d '\n')"
+          github_token_b64="$(printf '%s' "${GITHUB_TOKEN}" | base64 | tr -d '\n')"
+          github_actor_b64="$(printf '%s' "${GITHUB_ACTOR}" | base64 | tr -d '\n')"
           deploy_path_b64="$(printf '%s' "${DEPLOY_PATH}" | base64 | tr -d '\n')"
-          deploy_project_name_b64="$(printf '%s' "${DEPLOY_PROJECT_NAME}" | base64 | tr -d '\n')"
-          deploy_compose_filename_b64="$(printf '%s' "${DEPLOY_COMPOSE_FILENAME}" | base64 | tr -d '\n')"
 
-          ssh -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "DOCKER_REGISTRY_B64='${docker_registry_b64}' DOCKER_REGISTRY_USERNAME_B64='${docker_registry_username_b64}' DOCKER_REGISTRY_PASSWORD_B64='${docker_registry_password_b64}' DEPLOY_PATH_B64='${deploy_path_b64}' DEPLOY_PROJECT_NAME_B64='${deploy_project_name_b64}' DEPLOY_COMPOSE_FILENAME_B64='${deploy_compose_filename_b64}' bash -s" <<'EOF'
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "GITHUB_TOKEN_B64='${github_token_b64}' GITHUB_ACTOR_B64='${github_actor_b64}' DEPLOY_PATH_B64='${deploy_path_b64}' bash -s" <<'EOF'
           set -euo pipefail
-          DOCKER_REGISTRY="$(printf '%s' "${DOCKER_REGISTRY_B64}" | base64 -d)"
-          DOCKER_REGISTRY_USERNAME="$(printf '%s' "${DOCKER_REGISTRY_USERNAME_B64}" | base64 -d)"
-          DOCKER_REGISTRY_PASSWORD="$(printf '%s' "${DOCKER_REGISTRY_PASSWORD_B64}" | base64 -d)"
+          GITHUB_TOKEN="$(printf '%s' "${GITHUB_TOKEN_B64}" | base64 -d)"
+          GITHUB_ACTOR="$(printf '%s' "${GITHUB_ACTOR_B64}" | base64 -d)"
           DEPLOY_PATH="$(printf '%s' "${DEPLOY_PATH_B64}" | base64 -d)"
-          DEPLOY_PROJECT_NAME="$(printf '%s' "${DEPLOY_PROJECT_NAME_B64}" | base64 -d)"
-          DEPLOY_COMPOSE_FILENAME="$(printf '%s' "${DEPLOY_COMPOSE_FILENAME_B64}" | base64 -d)"
           cd "${DEPLOY_PATH}"
           chmod 600 .deploy.env
 
-          if [ -n "${DOCKER_REGISTRY}" ]; then
-            printf '%s\n' "${DOCKER_REGISTRY_PASSWORD}" | docker login "${DOCKER_REGISTRY}" --username "${DOCKER_REGISTRY_USERNAME}" --password-stdin
-          fi
+          printf '%s\n' "${GITHUB_TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
 
-          docker compose -p "${DEPLOY_PROJECT_NAME}" --env-file .deploy.env -f "${DEPLOY_COMPOSE_FILENAME}" config -q
-          docker compose -p "${DEPLOY_PROJECT_NAME}" --env-file .deploy.env -f "${DEPLOY_COMPOSE_FILENAME}" pull
-          docker compose -p "${DEPLOY_PROJECT_NAME}" --env-file .deploy.env -f "${DEPLOY_COMPOSE_FILENAME}" up -d --remove-orphans
+          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.deploy.yml config -q
+          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.deploy.yml pull
+          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.deploy.yml up -d --remove-orphans
           EOF

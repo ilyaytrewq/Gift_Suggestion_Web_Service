@@ -207,7 +207,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (RegisterOu
 	s.logEmailDeliveryError(
 		"failed to send registration verification email",
 		&user,
-		s.emailNotifier.SendVerificationEmail(ctx, &user, rawVerificationToken),
+		s.emailNotifier.SendVerificationEmail(ctx, &user, rawVerificationToken, input.FrontendBaseURL),
 	)
 
 	return RegisterOutput{
@@ -429,7 +429,7 @@ func (s *Service) RequestPasswordReset(ctx context.Context, input RequestPasswor
 	s.logEmailDeliveryError(
 		"failed to send password reset email",
 		user,
-		s.emailNotifier.SendPasswordResetEmail(ctx, user, rawResetToken),
+		s.emailNotifier.SendPasswordResetEmail(ctx, user, rawResetToken, input.FrontendBaseURL),
 	)
 
 	return AcceptedOutput{Accepted: true}, nil

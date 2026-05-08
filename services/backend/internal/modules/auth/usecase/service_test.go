@@ -810,7 +810,7 @@ type emailCall struct {
 func (n *fakeAuthEmailNotifier) SendVerificationEmail(
 	_ context.Context,
 	user *userdomain.User,
-	rawToken string,
+	rawToken, _ string,
 ) error {
 	n.verificationCalls = append(n.verificationCalls, emailCall{userID: user.ID().String(), rawToken: rawToken})
 	return n.err
@@ -819,7 +819,7 @@ func (n *fakeAuthEmailNotifier) SendVerificationEmail(
 func (n *fakeAuthEmailNotifier) SendPasswordResetEmail(
 	_ context.Context,
 	user *userdomain.User,
-	rawToken string,
+	rawToken, _ string,
 ) error {
 	n.resetCalls = append(n.resetCalls, emailCall{userID: user.ID().String(), rawToken: rawToken})
 	return n.err
