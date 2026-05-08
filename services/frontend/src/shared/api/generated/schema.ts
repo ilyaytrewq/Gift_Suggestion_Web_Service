@@ -2694,7 +2694,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description VK integration is disabled or external import path is unavailable */
+            /** @description VK integration is disabled (`vk_integration_disabled`), token storage unavailable (`vk_token_storage_unavailable`), token invalid or expired (`vk_token_invalid`), VK API rate limit exceeded (`vk_rate_limited`), groups access denied by privacy settings (`vk_groups_access_denied`), or import timed out (`vk_interest_import_timeout`). */
             503: {
                 headers: {
                     [name: string]: unknown;

@@ -4,7 +4,7 @@ Static, Figma-ready final-site mockups for the Gift Suggestion frontend. These a
 
 ## Design Concept
 
-The mockups follow the current Slice 1 frontend visual language:
+The mockups follow the current frontend visual language:
 
 - Warm light background: `#f6f1e8`
 - Surface cards: `#fffdf8`
@@ -14,13 +14,12 @@ The mockups follow the current Slice 1 frontend visual language:
 - Borders: `#d8c8b0`
 - Editorial commerce tone with serif headings, rounded cards, catalog grids, gift cards, auth form blocks, banners and skeleton states.
 
-Typography mirrors the frontend CSS intent:
+Typography:
 
 - Headings: `Fraunces, Georgia, serif`
 - Body/UI: `Manrope, Segoe UI, sans-serif`
-- Numeric emphasis uses compact, high-contrast UI text.
 
-The quality pass keeps each screen inside a fixed `1440x1024` SVG frame, with no external images, fonts, local file links or backend calls.
+Each screen is a fixed `1440x1024` SVG frame with no external images, fonts, local file links or backend calls.
 
 ## Covered Screens
 
@@ -53,16 +52,14 @@ services/frontend/design/index.html
 4. Keep each imported SVG at `1440x1024`.
 5. Place frames in the specified order and use each SVG file name as the frame caption.
 
-SVG files are pure static artifacts, so they can be opened in a browser and imported into Figma without running the app.
+## Notes on Current Implementation
 
-## Backend Gaps Reflected In UI
+The mockups were created before full VK integration was implemented. The following clarifications apply when comparing mockups to the live app:
 
-- Recommendation submit is auth-only, so the wizard includes an auth limitation note.
-- VK connect/sync is shown as a disabled planned state because there are no VK HTTP endpoints in the current OpenAPI/backend code.
-- Gift detail uses one purchase CTA because backend exposes one `store_link`, not a store list.
-- Recommendation request does not contain `gender`, so the wizard does not render that field.
-- Recommendation refine/filtering is not drawn as a working server feature.
-- Wishlist saved flags are not assumed inside catalog/recommendation payloads; save actions are presented as explicit wishlist operations.
+- **VK connect/sync** — эндпоинты реализованы, реальный импорт групп через `groups.get` работает при `VK_ENABLED=true`. Mockup `11-integrations-vk.svg` отражает UI-концепцию; живая панель в профиле функциональна.
+- **Gift detail offers** — backend возвращает несколько offers (`gift_offers`) на подарок; mockup показывал одну кнопку.
+- **Recommendation** — поле `gender` реализовано в backend и frontend.
+- **Wishlist flags** — сохранение в wishlist доступно из каталога и карточки подарка через кнопку.
 
 ## Regeneration
 

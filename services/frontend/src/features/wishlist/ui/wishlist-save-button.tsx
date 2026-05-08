@@ -84,13 +84,11 @@ export function WishlistSaveButton({
 
   if (isSaved) {
     return (
-      <button
-        className={cn(buttonClassName({ size, variant }), className)}
-        disabled
-        type="button"
-      >
-        Сохранено
-      </button>
+      <span className={cn('wishlist-save-button--saved', className)} title="Товар уже в списке желаний">
+        <button className={cn(buttonClassName({ size, variant }), 'wishlist-save-button--saved-btn')} disabled type="button">
+          Сохранено
+        </button>
+      </span>
     );
   }
 
