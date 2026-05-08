@@ -47,6 +47,63 @@
 - `services/ml/dataset/dataset_example.csv` — 10 000 синтетических записей (RU + CN)
 - Инструкции: `docs/data.md`
 
+#### Перенос датасета на сервер и импорт в БД
+
+`scripts/data/upload_and_import.sh` — переносит датасеты на сервер и заполняет каталог товарами через API импорта.
+
+**Требования:** `ssh`, `rsync`, `curl`, `python3` (локально); `docker` (на сервере).
+
+```bash
+# Полный запуск: rsync датасетов + импорт всего каталога
+bash scripts/data/upload_and_import.sh --server ilyaytrewq@51.250.117.154
+
+# С явным SSH-ключом
+bash scripts/data/upload_and_import.sh --server ilyaytrewq@51.250.117.154 --key ~/.ssh/id_rsa
+
+# Тест: 2000 строк, без rsync (файлы уже на сервере)
+bash scripts/data/upload_and_import.sh --server ilyaytrewq@51.250.117.154 --skip-upload --max-rows 2000
+
+# Только rsync датасетов, без импорта в БД
+bash scripts/data/upload_and_import.sh --server ilyaytrewq@51.250.117.154 --max-rows 0
+
+# Повторный импорт (категории и admin уже созданы)
+bash scripts/data/upload_and_import.sh --server ilyaytrewq@51.250.117.154 --skip-db-init
+```
+
+Что делает скрипт:
+1. `rsync` CSV/parquet/моделей в `~/gift-datasets/` на сервере
+2. Создаёт категории в БД через `docker exec psql`
+3. Регистрирует admin-пользователя и устанавливает роль
+4. Конвертирует `catalog_real.csv` в формат импорта (локально)
+5. Загружает чанками через `POST /api/v1/admin/import-jobs`
+
+Основные параметры:
+
+| Флаг | По умолчанию | Описание |
+|---|---|---|
+| `--server ilyaytrewq@51.250.117.154` | — | SSH-цель (обязателен) |
+| `--api URL` | `http://HOST:8080` | URL бэкенда (автоопределяется) |
+| `--catalog PATH` | `services/ml/dataset/catalog_real.csv` | Локальный CSV |
+| `--chunk N` | `5000` | Строк на чанк |
+| `--compose-project NAME` | `gift-suggestion` | Имя Docker Compose проекта на сервере |
+| `--skip-upload` | — | Пропустить rsync |
+| `--skip-db-init` | — | Пропустить создание категорий/admin |
+
+#### Перевод пользователя в роль admin
+
+`scripts/data/make_admin.sh` — устанавливает роль `admin` для существующего пользователя по email.
+
+```bash
+# Локально
+bash scripts/data/make_admin.sh --email user@example.com
+
+# На сервере через SSH
+bash scripts/data/make_admin.sh --email user@example.com --server ilyaytrewq@51.250.117.154
+bash scripts/data/make_admin.sh --email user@example.com --server ilyaytrewq@51.250.117.154 --key ~/.ssh/id_rsa
+```
+
+Скрипт проверяет, что пользователь существует в БД, выводит его текущую запись и выполняет `UPDATE users SET role = 'admin'`. Для локального запуска использует `psql` напрямую, для сервера — `ssh` + `docker exec` в postgres-контейнер.
+
 ## Структура репозитория
 
 ```
