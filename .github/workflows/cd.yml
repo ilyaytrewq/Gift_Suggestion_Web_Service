@@ -213,7 +213,6 @@ jobs:
 
           printf '%s\n' "${GITHUB_TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
 
-          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml config -q
-          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml pull
-          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml up -d --remove-orphans
+          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml down
+          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml up --build -d
           EOF
