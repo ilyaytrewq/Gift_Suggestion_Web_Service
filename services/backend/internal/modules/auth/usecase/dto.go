@@ -11,9 +11,10 @@ type Actor struct {
 }
 
 type RegisterInput struct {
-	Email       string
-	Password    string
-	DisplayName string
+	Email           string
+	Password        string
+	DisplayName     string
+	FrontendBaseURL string
 }
 
 type LoginInput struct {
@@ -30,7 +31,8 @@ type LogoutInput struct {
 }
 
 type RequestPasswordResetInput struct {
-	Email string
+	Email           string
+	FrontendBaseURL string
 }
 
 type ConfirmEmailVerificationInput struct {

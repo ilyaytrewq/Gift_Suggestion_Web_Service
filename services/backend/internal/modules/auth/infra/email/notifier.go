@@ -39,14 +39,23 @@ func NewNotifier(
 	}, nil
 }
 
-func (n *Notifier) SendVerificationEmail(ctx context.Context, user *userdomain.User, rawToken string) error {
-	message := verificationMessage(n.from, n.frontendBaseURL, user, rawToken)
+func (n *Notifier) SendVerificationEmail(ctx context.Context, user *userdomain.User, rawToken, frontendBaseURL string) error {
+	baseURL := n.resolveBaseURL(frontendBaseURL)
+	message := verificationMessage(n.from, baseURL, user, rawToken)
 	return n.sender.Send(ctx, message)
 }
 
-func (n *Notifier) SendPasswordResetEmail(ctx context.Context, user *userdomain.User, rawToken string) error {
-	message := passwordResetMessage(n.from, n.frontendBaseURL, user, rawToken)
+func (n *Notifier) SendPasswordResetEmail(ctx context.Context, user *userdomain.User, rawToken, frontendBaseURL string) error {
+	baseURL := n.resolveBaseURL(frontendBaseURL)
+	message := passwordResetMessage(n.from, baseURL, user, rawToken)
 	return n.sender.Send(ctx, message)
+}
+
+func (n *Notifier) resolveBaseURL(perCallURL string) string {
+	if strings.TrimSpace(perCallURL) != "" {
+		return strings.TrimRight(perCallURL, "/")
+	}
+	return n.frontendBaseURL
 }
 
 func verificationMessage(

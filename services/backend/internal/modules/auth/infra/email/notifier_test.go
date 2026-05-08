@@ -24,7 +24,7 @@ func TestNotifierSendVerificationEmailBuildsFrontendLink(t *testing.T) {
 	}
 
 	user := mustNotifierUser(t)
-	if err := notifier.SendVerificationEmail(context.Background(), user, "verify-token"); err != nil {
+	if err := notifier.SendVerificationEmail(context.Background(), user, "verify-token", ""); err != nil {
 		t.Fatalf("SendVerificationEmail() error = %v", err)
 	}
 
@@ -54,7 +54,7 @@ func TestNotifierSendPasswordResetEmailWithoutFrontendLink(t *testing.T) {
 	}
 
 	user := mustNotifierUser(t)
-	if err := notifier.SendPasswordResetEmail(context.Background(), user, "reset-token"); err != nil {
+	if err := notifier.SendPasswordResetEmail(context.Background(), user, "reset-token", ""); err != nil {
 		t.Fatalf("SendPasswordResetEmail() error = %v", err)
 	}
 
@@ -81,7 +81,7 @@ func TestNotifierSendPasswordResetEmailContainsLink(t *testing.T) {
 	}
 
 	user := mustNotifierUser(t)
-	if err := notifier.SendPasswordResetEmail(context.Background(), user, "reset-token"); err != nil {
+	if err := notifier.SendPasswordResetEmail(context.Background(), user, "reset-token", ""); err != nil {
 		t.Fatalf("SendPasswordResetEmail() error = %v", err)
 	}
 

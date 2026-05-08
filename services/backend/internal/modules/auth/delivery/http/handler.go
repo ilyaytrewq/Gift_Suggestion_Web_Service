@@ -71,9 +71,10 @@ func (h *Handler) register(c *gin.Context) {
 	}
 
 	response, err := h.service.Register(c.Request.Context(), authusecase.RegisterInput{
-		Email:       request.Email,
-		Password:    request.Password,
-		DisplayName: request.DisplayName,
+		Email:           request.Email,
+		Password:        request.Password,
+		DisplayName:     request.DisplayName,
+		FrontendBaseURL: c.Request.Header.Get("Origin"),
 	})
 	if err != nil {
 		httpapi.Fail(c, err)
@@ -138,7 +139,8 @@ func (h *Handler) requestPasswordReset(c *gin.Context) {
 	}
 
 	response, err := h.service.RequestPasswordReset(c.Request.Context(), authusecase.RequestPasswordResetInput{
-		Email: request.Email,
+		Email:           request.Email,
+		FrontendBaseURL: c.Request.Header.Get("Origin"),
 	})
 	if err != nil {
 		httpapi.Fail(c, err)

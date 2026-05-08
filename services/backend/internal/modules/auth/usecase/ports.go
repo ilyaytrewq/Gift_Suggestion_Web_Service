@@ -65,8 +65,8 @@ type EmailVerificationTokenIDGenerator interface {
 }
 
 type AuthEmailNotifier interface {
-	SendVerificationEmail(ctx context.Context, user *userdomain.User, rawToken string) error
-	SendPasswordResetEmail(ctx context.Context, user *userdomain.User, rawToken string) error
+	SendVerificationEmail(ctx context.Context, user *userdomain.User, rawToken, frontendBaseURL string) error
+	SendPasswordResetEmail(ctx context.Context, user *userdomain.User, rawToken, frontendBaseURL string) error
 }
 
 type Logger interface {
