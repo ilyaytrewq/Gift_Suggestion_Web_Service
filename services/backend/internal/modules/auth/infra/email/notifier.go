@@ -52,10 +52,15 @@ func (n *Notifier) SendPasswordResetEmail(ctx context.Context, user *userdomain.
 }
 
 func (n *Notifier) resolveBaseURL(perCallURL string) string {
+	// Prefer the server-configured public frontend URL so email links stay correct
+	// when the API is called from a dev machine or any client sending Origin=http://localhost:...
+	if strings.TrimSpace(n.frontendBaseURL) != "" {
+		return n.frontendBaseURL
+	}
 	if strings.TrimSpace(perCallURL) != "" {
 		return strings.TrimRight(perCallURL, "/")
 	}
-	return n.frontendBaseURL
+	return ""
 }
 
 func verificationMessage(
@@ -109,21 +114,26 @@ func passwordResetMessage(
 	link := buildFrontendLink(frontendBaseURL, "/password-reset/confirm", rawToken)
 
 	textBody := fmt.Sprintf(
-		"Hello %s,\n\nWe received a password reset request for your Gift Suggestion Web Service account.\n",
+		"Hello %s,\n\nWe received a password reset request for your Gift Suggestion Web Service account.\n\n"+
+			"Password reset code (same as in the link): %s\n",
 		displayName,
+		rawToken,
 	)
 	if link != "" {
-		textBody += fmt.Sprintf("Reset your password here: %s\n", link)
+		textBody += fmt.Sprintf("\nOr open the reset link:\n%s\n", link)
 	}
 	textBody += "\nIf you did not request a password reset, you can ignore this email.\n"
 
 	htmlBody := fmt.Sprintf(
-		"<p>Hello %s,</p><p>We received a password reset request for your Gift Suggestion Web Service account.</p>",
+		"<p>Hello %s,</p><p>We received a password reset request for your Gift Suggestion Web Service account.</p>"+
+			`<p>Password reset code: <code style="word-break:break-all;">%s</code></p>`,
 		displayName,
+		rawToken,
 	)
 	if link != "" {
-		htmlBody += fmt.Sprintf(`<p><a href="%s">Reset password</a></p>`, link)
+		htmlBody += fmt.Sprintf(`<p><a href="%s">Reset password (open link)</a></p>`, link)
 	}
+	htmlBody += "<p>You can paste the code on the password reset page together with your new password if the link does not work.</p>"
 	htmlBody += "<p>If you did not request a password reset, you can ignore this email.</p>"
 
 	return platformemail.Message{

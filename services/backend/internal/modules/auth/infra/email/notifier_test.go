@@ -61,8 +61,61 @@ func TestNotifierSendPasswordResetEmailWithoutFrontendLink(t *testing.T) {
 	if strings.Contains(sender.message.TextBody, "/password-reset/confirm") {
 		t.Fatalf("unexpected frontend link in text body: %q", sender.message.TextBody)
 	}
-	if strings.Contains(sender.message.TextBody, "reset-token") {
-		t.Fatalf("raw token must not appear in email body: %q", sender.message.TextBody)
+	if !strings.Contains(sender.message.TextBody, "reset-token") {
+		t.Fatalf("text body should include reset code for manual entry: %q", sender.message.TextBody)
+	}
+}
+
+func TestNotifierUsesPerCallURLWhenConfiguredBaseURLEmpty(t *testing.T) {
+	t.Parallel()
+
+	sender := &captureSender{}
+	notifier, err := NewNotifier(
+		sender,
+		nil,
+		platformemail.Address{Email: "noreply@example.com"},
+		"",
+	)
+	if err != nil {
+		t.Fatalf("NewNotifier() error = %v", err)
+	}
+
+	user := mustNotifierUser(t)
+	if err := notifier.SendPasswordResetEmail(context.Background(), user, "reset-token", "http://localhost:5173"); err != nil {
+		t.Fatalf("SendPasswordResetEmail() error = %v", err)
+	}
+
+	want := "http://localhost:5173/password-reset/confirm?token=reset-token"
+	if !strings.Contains(sender.message.TextBody, want) {
+		t.Fatalf("text body = %q, want substring %q", sender.message.TextBody, want)
+	}
+}
+
+func TestNotifierPrefersConfiguredFrontendBaseURLOverPerCall(t *testing.T) {
+	t.Parallel()
+
+	sender := &captureSender{}
+	notifier, err := NewNotifier(
+		sender,
+		nil,
+		platformemail.Address{Email: "noreply@example.com"},
+		"https://app.example.com",
+	)
+	if err != nil {
+		t.Fatalf("NewNotifier() error = %v", err)
+	}
+
+	user := mustNotifierUser(t)
+	if err := notifier.SendPasswordResetEmail(context.Background(), user, "reset-token", "http://localhost:5173"); err != nil {
+		t.Fatalf("SendPasswordResetEmail() error = %v", err)
+	}
+
+	want := "https://app.example.com/password-reset/confirm?token=reset-token"
+	if !strings.Contains(sender.message.TextBody, want) {
+		t.Fatalf("text body = %q, want substring %q", sender.message.TextBody, want)
+	}
+	if strings.Contains(sender.message.TextBody, "localhost") {
+		t.Fatalf("text body must not use per-call Origin: %q", sender.message.TextBody)
 	}
 }
 
@@ -88,8 +141,8 @@ func TestNotifierSendPasswordResetEmailContainsLink(t *testing.T) {
 	if !strings.Contains(sender.message.TextBody, "http://localhost:5173/password-reset/confirm?token=reset-token") {
 		t.Fatalf("text body does not contain reset link: %q", sender.message.TextBody)
 	}
-	if strings.Contains(sender.message.TextBody, "Reset code") {
-		t.Fatalf("raw token code must not appear in text body: %q", sender.message.TextBody)
+	if !strings.Contains(sender.message.TextBody, "reset-token") {
+		t.Fatalf("text body should include reset code: %q", sender.message.TextBody)
 	}
 }
 
