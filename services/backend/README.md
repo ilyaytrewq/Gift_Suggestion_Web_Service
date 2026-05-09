@@ -11,6 +11,12 @@
 - `GET /api/v1/health/live`
 - `GET /api/v1/health/ready`
 
+Readiness и ML — **два разных режима**:
+
+1. **Старт процесса** — при `ML_GRPC_ENABLED=true` клиент `mlgrpc.NewClient` выполняет gRPC health check до поднятия HTTP; если ML недоступен, инициализация падает с ошибкой подключения к ML (процесс не слушает порт).
+2. **`GET /health/ready` во время работы** — обязателен только PostgreSQL: при его сбое HTTP `503` и суммарный `data.status` = `down`. Зонд `ml_service` в отчёте **необязательный** — при его `down` суммарный статус может остаться `up`.
+3. **Fallback recommendation** — при `ML_GRPC_ENABLED=false` или при ошибке/таймауте `Rank` в запросе используется эвристическое ранжирование в Go; это не переводит readiness в `down`, если Postgres доступен.
+
 ### Auth / User
 
 - `POST /api/v1/users`
@@ -160,7 +166,7 @@ ya tool go run ./cmd/api
 docker compose up --build backend postgres
 ```
 
-Поднимает `postgres:16-alpine` на `:5432` и `backend` на `:8080`. ML gRPC по умолчанию отключён в compose — recommendation fallback продолжает работать.
+Поднимает `postgres:16-alpine` на `:5432` и `backend` на `:8080`. В корневом `docker-compose.yml` по умолчанию `ML_GRPC_ENABLED=true` и ожидается `ml-service`; без него (например, только `backend` + `postgres`) задайте `ML_GRPC_ENABLED=false` или поднимите ML. Recommendation при ошибке ранжирования всё равно уходит в fallback в Go.
 
 ## Полезные команды
 

@@ -130,13 +130,19 @@ export function RecommendationPage(): JSX.Element {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterMaxPrice, setFilterMaxPrice] = useState('');
 
+  const track = useTrackEvent();
+
   const mutation = useMutation({
     mutationFn: createRecommendation,
-    onSuccess: () => {
+    onSuccess: (data) => {
       setResultsPage(1);
+      track({
+        type: 'recommendation_request',
+        recommendation_request_id: data.data.recommendation.request_id,
+        metadata: { surface: 'recommendation' },
+      });
     },
   });
-  const track = useTrackEvent();
 
   const requestId = mutation.data?.data.recommendation.request_id;
 

@@ -44,14 +44,24 @@ export function WishlistSaveButton({
   const mutation = useMutation({
     mutationFn: () => addCurrentWishlistItem({ gift_id: giftID }),
     onSuccess: (payload) => {
+      let wishlistIdForTrack: string | undefined;
+
       queryClient.setQueryData(queryKey, (current: typeof wishlistQuery.data) => {
         if (!current) {
           void queryClient.invalidateQueries({ queryKey });
           return current;
         }
+        wishlistIdForTrack = current.data.wishlist.id;
         return appendWishlistItem(current, payload.data.item) ?? current;
       });
-      track({ type: 'wishlist_add', gift_id: giftID });
+
+      const wishlistId =
+        wishlistIdForTrack ??
+        queryClient.getQueryData<typeof wishlistQuery.data>(queryKey)?.data.wishlist.id;
+
+      if (wishlistId) {
+        track({ type: 'wishlist_add', gift_id: giftID, wishlist_id: wishlistId });
+      }
       toast.show({
         variant: 'success',
         message: payload.data.already_in_wishlist

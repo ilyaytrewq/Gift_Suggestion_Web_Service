@@ -444,6 +444,11 @@ top_features = shap_values.argsort()[::-1][:3]
 
 ### 7.5. Fallback при недоступности ML
 
+Это поведение **во время запроса recommendation**, а не глобального readiness: при падении ML после
+успешного старта `/health/ready` может оставаться `up`, потому что зонд ML помечен как необязательный;
+при `ML_GRPC_ENABLED=true` недоступный ML на **bootstrap** по-прежнему мешает запустить процесс
+(`mlgrpc.NewClient` до поднятия HTTP).
+
 Если gRPC вызов завершился ошибкой (таймаут, сервис недоступен, `ErrRankingNotImplemented`),
 backend переключается на deterministic fallback в Go (`buildFallbackCandidates`):
 

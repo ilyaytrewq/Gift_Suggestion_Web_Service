@@ -39,16 +39,32 @@ paths:
     get:
       tags: [health]
       summary: Readiness probe
+      description: |
+        Returns HTTP 200 while `data.status` is **up**. HTTP **503** is returned only when
+        `data.status` is **down**, i.e. a **required** probe failed (PostgreSQL).
+
+        The `ml_service` component is **optional** (`required: false` in the JSON report): if the
+        ML gRPC health check fails at runtime, that component may be `down` while the overall
+        readiness `data.status` stays `up`.
+
+        **Process startup (bootstrap)** is separate: when `ML_GRPC_ENABLED=true`, `mlgrpc.NewClient`
+        runs a gRPC health check before the HTTP server starts. If ML is unreachable at boot, the
+        process fails to start — this is not the same as `/health/ready` switching to `down` because
+        ML dropped later.
+
+        **Recommendation ranking** uses heuristic fallback when ML is disabled (`ML_GRPC_ENABLED=false`,
+        client returns `ErrRankingNotImplemented`) or when a `Rank` call fails during a request; that
+        does not by itself fail global readiness.
       operationId: getReadiness
       responses:
         '200':
-          description: Service is ready
+          description: Service is ready (all required dependencies healthy)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthEnvelope'
         '503':
-          description: Required dependency is unavailable
+          description: Overall readiness is down because a required dependency (e.g. PostgreSQL) failed; optional probes such as ML gRPC do not trigger 503
           content:
             application/json:
               schema:

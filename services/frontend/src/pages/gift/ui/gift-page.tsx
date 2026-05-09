@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useParams } from 'react-router-dom';
 
 import { getCatalogGift, getSimilarGifts } from '../../../entities/gift/api/gifts';
+import { useTrackEvent } from '../../../features/tracking/model/use-track-event';
 import { WishlistSaveButton } from '../../../features/wishlist/ui/wishlist-save-button';
 import { formatPrice } from '../../../shared/lib/format';
 import { buttonClassName } from '../../../shared/ui/button/button-class-name';
@@ -16,6 +17,7 @@ const FALLBACK_IMAGE =
 export function GiftPage(): JSX.Element {
   const { giftId } = useParams();
   const location = useLocation();
+  const track = useTrackEvent();
 
   const giftQuery = useQuery({
     enabled: Boolean(giftId),
@@ -103,6 +105,13 @@ export function GiftPage(): JSX.Element {
                             href={offer.store_url}
                             rel="noreferrer"
                             target="_blank"
+                            onClick={() =>
+                              track({
+                                type: 'outbound_click',
+                                gift_id: gift.id,
+                                metadata: { surface: 'direct' },
+                              })
+                            }
                           >
                             Купить
                           </a>
@@ -123,6 +132,13 @@ export function GiftPage(): JSX.Element {
                   href={gift.store_link}
                   rel="noreferrer"
                   target="_blank"
+                  onClick={() =>
+                    track({
+                      type: 'outbound_click',
+                      gift_id: gift.id,
+                      metadata: { surface: 'direct' },
+                    })
+                  }
                 >
                   В магазин
                 </a>

@@ -28,7 +28,24 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Readiness probe */
+        /**
+         * Readiness probe
+         * @description Returns HTTP 200 while `data.status` is **up**. HTTP **503** is returned only when
+         *     `data.status` is **down**, i.e. a **required** probe failed (PostgreSQL).
+         *
+         *     The `ml_service` component is **optional** (`required: false` in the JSON report): if the
+         *     ML gRPC health check fails at runtime, that component may be `down` while the overall
+         *     readiness `data.status` stays `up`.
+         *
+         *     **Process startup (bootstrap)** is separate: when `ML_GRPC_ENABLED=true`, `mlgrpc.NewClient`
+         *     runs a gRPC health check before the HTTP server starts. If ML is unreachable at boot, the
+         *     process fails to start — this is not the same as `/health/ready` switching to `down` because
+         *     ML dropped later.
+         *
+         *     **Recommendation ranking** uses heuristic fallback when ML is disabled (`ML_GRPC_ENABLED=false`,
+         *     client returns `ErrRankingNotImplemented`) or when a `Rank` call fails during a request; that
+         *     does not by itself fail global readiness.
+         */
         get: operations["getReadiness"];
         put?: never;
         post?: never;
@@ -1180,7 +1197,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Service is ready */
+            /** @description Service is ready (all required dependencies healthy) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1189,7 +1206,7 @@ export interface operations {
                     "application/json": components["schemas"]["HealthEnvelope"];
                 };
             };
-            /** @description Required dependency is unavailable */
+            /** @description Overall readiness is down because a required dependency (e.g. PostgreSQL) failed; optional probes such as ML gRPC do not trigger 503 */
             503: {
                 headers: {
                     [name: string]: unknown;
