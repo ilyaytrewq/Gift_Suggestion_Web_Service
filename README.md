@@ -10,7 +10,7 @@
 
 ### Backend
 
-- Health: `GET /health/live`, `GET /health/ready`
+- Health: `GET /health/live`, `GET /health/ready` — `503` только если недоступен обязательный Postgres; ML gRPC в readiness необязателен, но при `ML_GRPC_ENABLED=true` доступный ML нужен **на старте** процесса backend
 - Auth: регистрация, логин, refresh, logout, `GET/PATCH /api/v1/users/me`
 - Password reset: `request` + `confirm`
 - Email verification: `confirm`

@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 
+import { useTrackEvent } from '../../../features/tracking/model/use-track-event';
 import { WishlistSaveButton } from '../../../features/wishlist/ui/wishlist-save-button';
 import type { CatalogGift } from '../../../shared/api/contracts';
 import { formatPrice } from '../../../shared/lib/format';
@@ -11,10 +12,14 @@ const FALLBACK_IMAGE =
 
 export function GiftPreviewCard({
   gift,
+  listPosition,
 }: {
   gift: CatalogGift;
+  /** 1-based позиция в списке (для метаданных события). */
+  listPosition?: number;
 }): JSX.Element {
   const location = useLocation();
+  const track = useTrackEvent();
 
   return (
     <Card className="gift-card">
@@ -55,6 +60,16 @@ export function GiftPreviewCard({
             href={gift.store_link}
             rel="noreferrer"
             target="_blank"
+            onClick={() =>
+              track({
+                type: 'outbound_click',
+                gift_id: gift.id,
+                metadata:
+                  listPosition !== undefined
+                    ? { surface: 'catalog', position: listPosition }
+                    : { surface: 'catalog' },
+              })
+            }
           >
             В магазин
           </a>

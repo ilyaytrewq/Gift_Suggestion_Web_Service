@@ -126,8 +126,14 @@ export function CatalogPage(): JSX.Element {
 
           {giftItems.length ? (
             <div className="gift-grid">
-              {giftItems.map((gift) => (
-                <GiftPreviewCard gift={gift} key={gift.id} />
+              {giftItems.map((gift, index) => (
+                <GiftPreviewCard
+                  gift={gift}
+                  key={gift.id}
+                  listPosition={
+                    pageInfo ? pageInfo.offset + index + 1 : undefined
+                  }
+                />
               ))}
             </div>
           ) : totalGifts > 0 ? (

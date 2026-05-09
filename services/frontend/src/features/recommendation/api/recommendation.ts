@@ -10,6 +10,7 @@ export function createRecommendation(
 ): Promise<RecommendationResponse> {
   return requestJson<RecommendationResponse>('/api/v1/recommendations', {
     method: 'POST',
+    auth: true,
     body: payload,
   }).then((response) => ({
     ...response,
