@@ -161,8 +161,14 @@ EMAIL_ENABLED=false
 
 ### Frontend runtime/build
 
-- `VITE_API_BASE_URL`
-- `FRONTEND_PUBLIC_URL`
+- `VITE_API_BASE_URL` (build-arg собранного образа frontend)
+- `FRONTEND_PUBLIC_URL` (подстановка compose на сервере)
+- Переменные GitHub / GitLab Environment для frontend-сборки (имена сохранены как ниже — **не используйте** `VK_APP_ID` во встроенном CD):
+  - `VK_ID` → в Dockerfile пробрасывается как `VITE_VK_APP_ID`
+  - `VK_REDIRECT_URI` → `VITE_VK_REDIRECT_URI`
+  - **`VK_SECRET`**: ключ приложения ВК относится к серверу; **не задаётся** шагами CD для образа frontend и не записывается в `VITE_*`. Храните в `DEPLOY_RUNTIME_ENV_FILE`/секретах backend-процесса, когда добавите поддержку на API.
+
+При деплое в конец `.deploy.env` дописываются `VITE_VK_APP_ID` и `VITE_VK_REDIRECT_URI` из переменных `VK_ID`/`VK_REDIRECT_URI` окружения GitHub, чтобы они совпадали с собранным образом и попадали в `frontend.environment` (см. `services/frontend/docker/99-print-frontend-url.sh`).
 
 ### CD / deployment
 
