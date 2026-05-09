@@ -117,7 +117,7 @@ jobs:
           file: services/frontend/Dockerfile
           build-args: |
             VITE_API_BASE_URL=http://${{ vars.DEPLOY_HOST }}
-            VITE_VK_APP_ID=${{ vars.VK_APP_ID }}
+            VITE_VK_APP_ID=${{ vars.VK_ID }}
             VITE_VK_REDIRECT_URI=${{ vars.VK_REDIRECT_URI }}
           push: true
           tags: ${{ steps.image-refs.outputs.frontend_image }}
@@ -165,6 +165,8 @@ jobs:
           ML_IMAGE: ${{ needs.build-and-push.outputs.ml_image }}
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_RUNTIME_ENV_FILE: ${{ secrets.DEPLOY_RUNTIME_ENV_FILE }}
+          VK_ID: ${{ vars.VK_ID }}
+          VK_REDIRECT_URI: ${{ vars.VK_REDIRECT_URI }}
         run: |
           set -euo pipefail
           {
@@ -178,6 +180,11 @@ jobs:
             printf 'FRONTEND_PUBLIC_URL=http://%s\n' "${DEPLOY_HOST}"
           } > "${RUNNER_TEMP}/deploy.env"
           printf '%s\n' "${DEPLOY_RUNTIME_ENV_FILE}" >> "${RUNNER_TEMP}/deploy.env"
+          {
+            printf '\n# Frontend container env + parity with Dockerfile build-args (GitHub Environment vars).\n'
+            printf 'VITE_VK_APP_ID=%s\n' "${VK_ID}"
+            printf 'VITE_VK_REDIRECT_URI=%s\n' "${VK_REDIRECT_URI}"
+          } >> "${RUNNER_TEMP}/deploy.env"
 
       - name: Upload deployment bundle
         env:
