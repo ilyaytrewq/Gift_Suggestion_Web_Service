@@ -1,11 +1,11 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 import { PasswordResetConfirmForm } from '../../../features/auth/ui/password-reset-confirm-form';
 import { Container } from '../../../shared/ui/layout/container';
 
 export function PasswordResetConfirmPage(): JSX.Element {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const urlToken = searchParams.get('token');
 
   return (
     <Container className="auth-page">
@@ -15,14 +15,7 @@ export function PasswordResetConfirmPage(): JSX.Element {
         <p>Придумайте надёжный пароль для вашего аккаунта.</p>
       </section>
 
-      {token ? (
-        <PasswordResetConfirmForm token={token} />
-      ) : (
-        <p>
-          Ссылка недействительна или устарела.{' '}
-          <Link to="/password-reset">Запросить новую</Link>.
-        </p>
-      )}
+      <PasswordResetConfirmForm urlToken={urlToken} />
     </Container>
   );
 }
