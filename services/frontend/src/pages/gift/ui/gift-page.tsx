@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useParams } from 'react-router-dom';
 
@@ -42,6 +43,16 @@ export function GiftPage(): JSX.Element {
   const gift = giftQuery.data?.data.gift;
   const offers = gift?.offers ?? [];
   const similarGifts = similarQuery.data?.data.items ?? [];
+
+  useEffect(() => {
+    if (!gift) return;
+    track({
+      type: 'card_view',
+      gift_id: gift.id,
+      metadata: { surface: 'direct' },
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [giftQuery.dataUpdatedAt]);
 
   return (
     <Container className="page-stack">

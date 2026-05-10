@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-public_url="${FRONTEND_PUBLIC_URL:-http://localhost:5173}"
+public_url="${FRONTEND_PUBLIC_URL:-http://localhost}"
 
 printf '\nFrontend is available at: %s\n' "$public_url"
 printf '\nVK (Vite, same values as compose / runtime env used at image build):\n'

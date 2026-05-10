@@ -21,7 +21,7 @@ RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
 
-ENV FRONTEND_PUBLIC_URL=http://localhost:5173
+ENV FRONTEND_PUBLIC_URL=http://localhost
 
 COPY services/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY services/frontend/docker/99-print-frontend-url.sh /docker-entrypoint.d/99-print-frontend-url.sh

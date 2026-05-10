@@ -152,7 +152,7 @@ docker compose up --build postgres backend ml-service frontend
 
 По умолчанию:
 - Миграции запускаются при старте backend (`DB_MIGRATIONS_ENABLED=true`)
-- ML gRPC **включён** (`ML_GRPC_ENABLED=true`); если `services/ml/models/lightgbm_v0_1_0.pkl` отсутствует — используется echo-заглушка
+- ML gRPC **включён** (`ML_GRPC_ENABLED=true`); если модель отсутствует — используется echo-заглушка
 - VK отключён (`VK_ENABLED=false`) — см. раздел ниже
 - Email delivery отключён (`EMAIL_ENABLED=false`) — использует noop-отправитель
 
@@ -213,13 +213,15 @@ cd services/frontend && npm run generate:api
 |---|---|---|
 | `DB_DSN` | `postgres://gift:gift@postgres:5432/gift_suggestion?sslmode=disable` | PostgreSQL DSN |
 | `DB_MIGRATIONS_ENABLED` | `true` | Автомиграция при старте |
-| `ML_GRPC_ENABLED` | `true` | Включить ML gRPC |
+| `ML_GRPC_ENABLED` | `true` (compose) / `false` (standalone) | Включить ML gRPC |
 | `ML_GRPC_ADDR` | `ml-service:50051` | Адрес ML сервиса |
-| `ML_MODEL_PATH` | `models/lightgbm_v0_1_0.pkl` | Путь к модели |
+| `ML_MODEL_PATH` | `models/lightgbm_v2_1_0.pkl` | Путь к модели |
 | `VK_ENABLED` | `false` | Включить VK интеграцию |
 | `VK_TOKEN_ENCRYPTION_KEY` | — | Base64-ключ AES-256 для хранения токенов (`openssl rand -base64 32`) |
 | `EMAIL_ENABLED` | `false` | Email delivery |
 | `AUTH_JWT_SECRET` | `change-me-please` | JWT секрет |
+| `FRONTEND_PUBLIC_URL` | `http://localhost:5173` (compose) / `http://localhost` (image) | Публичный URL фронта (отображается в логах nginx) |
+| `FRONTEND_BASE_URL` | `http://localhost:5173` | URL фронта для ссылок в email |
 | `VITE_API_BASE_URL` | — | Backend URL для фронта |
 | `VITE_VK_APP_ID` | — | ID VK-приложения (для OAuth кнопки в профиле) |
 | `VITE_VK_REDIRECT_URI` | — | Redirect URI OAuth (например, `http://localhost:5173/auth/vk-callback`) |
