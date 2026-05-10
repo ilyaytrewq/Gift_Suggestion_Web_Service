@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
@@ -9,6 +10,7 @@ import {
   useCatalogSearchParams,
 } from '../../../features/catalog-filters/model/use-catalog-search-params';
 import { CatalogFilters } from '../../../features/catalog-filters/ui/catalog-filters';
+import { useTrackEvent } from '../../../features/tracking/model/use-track-event';
 import { buttonClassName } from '../../../shared/ui/button/button-class-name';
 import { EmptyState } from '../../../shared/ui/feedback/empty-state';
 import { ErrorBanner } from '../../../shared/ui/feedback/error-banner';
@@ -51,8 +53,21 @@ function buildPagination(currentPage: number, totalPages: number): Array<number 
 }
 
 export function CatalogPage(): JSX.Element {
-  const { clearFilters, filters, page, setCategoryId, setPage, setQuery, setSort } =
-    useCatalogSearchParams();
+  const {
+    clearFilters,
+    filters,
+    page,
+    setAgeRestriction,
+    setCategoryId,
+    setHasImage,
+    setMaxPrice,
+    setMinPrice,
+    setPage,
+    setQuery,
+    setSort,
+  } = useCatalogSearchParams();
+
+  const track = useTrackEvent();
 
   const categoriesQuery = useQuery({
     queryFn: () =>
@@ -72,6 +87,18 @@ export function CatalogPage(): JSX.Element {
 
   const giftItems = giftsQuery.data?.data.items ?? [];
   const pageInfo = giftsQuery.data?.data.page;
+
+  useEffect(() => {
+    if (!giftItems.length || !pageInfo) return;
+    giftItems.forEach((gift, index) => {
+      track({
+        type: 'card_view',
+        gift_id: gift.id,
+        metadata: { surface: 'catalog', position: pageInfo.offset + index + 1 },
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [giftsQuery.dataUpdatedAt]);
   const totalGifts = pageInfo?.total ?? 0;
   const pageSize = pageInfo?.limit ?? filters.limit ?? CATALOG_PAGE_SIZE;
   const totalPages = totalGifts > 0 ? Math.ceil(totalGifts / pageSize) : 0;
@@ -96,8 +123,12 @@ export function CatalogPage(): JSX.Element {
         <CatalogFilters
           categories={categoriesQuery.data.data.items}
           filters={filters}
+          onAgeRestrictionChange={setAgeRestriction}
           onCategoryChange={setCategoryId}
           onClear={clearFilters}
+          onHasImageChange={setHasImage}
+          onMaxPriceChange={setMaxPrice}
+          onMinPriceChange={setMinPrice}
           onSearch={setQuery}
           onSortChange={setSort}
         />

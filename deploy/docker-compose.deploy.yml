@@ -83,7 +83,7 @@ services:
     image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}
     restart: unless-stopped
     environment:
-      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-}
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost}
       VITE_VK_APP_ID: ${VITE_VK_APP_ID:-}
       VITE_VK_REDIRECT_URI: ${VITE_VK_REDIRECT_URI:-}
     depends_on:

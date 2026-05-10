@@ -555,6 +555,34 @@ export function RecommendationPage(): JSX.Element {
                           </ul>
                         )}
 
+                        {/* Alternatives */}
+                        {item.alternatives.length > 0 && (
+                          <details className="recommendation-alternatives">
+                            <summary>
+                              Похожие варианты ({item.alternatives.length})
+                            </summary>
+                            <ul className="recommendation-alternatives__list">
+                              {item.alternatives.map((alt) => (
+                                <li
+                                  className="recommendation-alternatives__item"
+                                  key={alt.gift.id}
+                                >
+                                  <div className="recommendation-alternatives__info">
+                                    <span>{alt.gift.name}</span>
+                                    <strong>{formatPrice(alt.gift.price)}</strong>
+                                  </div>
+                                  <Link
+                                    className={buttonClassName()}
+                                    to={`/catalog/${alt.gift.id}`}
+                                  >
+                                    Подробнее
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+
                         <div className="gift-card__actions">
                           <Link className={buttonClassName()} to={`/catalog/${item.gift.id}`}>
                             Подробнее

@@ -35,6 +35,10 @@ export function useCatalogSearchParams(): {
   setPage: (value: number) => void;
   setQuery: (value: string) => void;
   setSort: (value: NonNullable<ListCatalogGiftsQuery['sort']>) => void;
+  setMinPrice: (value: string | null) => void;
+  setMaxPrice: (value: string | null) => void;
+  setAgeRestriction: (value: 0 | 12 | 16 | 18 | null) => void;
+  setHasImage: (value: boolean | null) => void;
   clearFilters: () => void;
 } {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,6 +53,12 @@ export function useCatalogSearchParams(): {
       sort:
         (searchParams.get('sort') as ListCatalogGiftsQuery['sort'] | null) ??
         DEFAULT_SORT,
+      min_price: searchParams.get('min_price') || undefined,
+      max_price: searchParams.get('max_price') || undefined,
+      age_restriction: searchParams.get('age_restriction')
+        ? (Number(searchParams.get('age_restriction')) as 0 | 12 | 16 | 18)
+        : undefined,
+      has_image: searchParams.get('has_image') === 'true' ? true : undefined,
     }),
     [page, searchParams],
   );
@@ -84,6 +94,46 @@ export function useCatalogSearchParams(): {
     setSort: (value) => {
       const next = new URLSearchParams(searchParams);
       next.set('sort', value);
+      setPageParam(next, 1);
+      setSearchParams(next);
+    },
+    setMinPrice: (value) => {
+      const next = new URLSearchParams(searchParams);
+      if (value?.trim()) {
+        next.set('min_price', value.trim());
+      } else {
+        next.delete('min_price');
+      }
+      setPageParam(next, 1);
+      setSearchParams(next);
+    },
+    setMaxPrice: (value) => {
+      const next = new URLSearchParams(searchParams);
+      if (value?.trim()) {
+        next.set('max_price', value.trim());
+      } else {
+        next.delete('max_price');
+      }
+      setPageParam(next, 1);
+      setSearchParams(next);
+    },
+    setAgeRestriction: (value) => {
+      const next = new URLSearchParams(searchParams);
+      if (value !== null) {
+        next.set('age_restriction', String(value));
+      } else {
+        next.delete('age_restriction');
+      }
+      setPageParam(next, 1);
+      setSearchParams(next);
+    },
+    setHasImage: (value) => {
+      const next = new URLSearchParams(searchParams);
+      if (value) {
+        next.set('has_image', 'true');
+      } else {
+        next.delete('has_image');
+      }
       setPageParam(next, 1);
       setSearchParams(next);
     },
