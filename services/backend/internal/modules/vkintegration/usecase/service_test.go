@@ -238,6 +238,33 @@ func TestServiceSyncInterestsMarksFailureOnImporterError(t *testing.T) {
 	}
 }
 
+func TestServiceGetCurrentConnectionWhenFeatureDisabled(t *testing.T) {
+	t.Parallel()
+
+	service := mustVKService(t, vkServiceDeps{
+		repo:            &fakeVKConnectionRepository{},
+		userReader:      fakeVKUserReader{user: mustVKUser(t)},
+		protector:       fakeVKTokenProtector{configured: true},
+		featureDisabled: true,
+	})
+
+	output, err := service.GetCurrentConnection(context.Background(), GetCurrentConnectionInput{
+		UserID: testVKUserID,
+	})
+	if err != nil {
+		t.Fatalf("GetCurrentConnection() error = %v", err)
+	}
+	if output.Connection.FeatureEnabled {
+		t.Fatal("GetCurrentConnection() feature_enabled = true, want false")
+	}
+	if !output.Connection.TokenStorageConfigured {
+		t.Fatal("GetCurrentConnection() token_storage_configured = false, want true")
+	}
+	if output.Connection.State != "disconnected" {
+		t.Fatalf("GetCurrentConnection() state = %q, want %q", output.Connection.State, "disconnected")
+	}
+}
+
 func TestServiceConnectRejectsWhenFeatureDisabled(t *testing.T) {
 	t.Parallel()
 

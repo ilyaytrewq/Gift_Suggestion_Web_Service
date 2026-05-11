@@ -544,7 +544,9 @@ export interface paths {
         /**
          * Get current VK connection
          * @description Returns the current user's VK integration state. If the user never linked VK,
-         *     the endpoint still returns `200` with `state=disconnected`.
+         *     the endpoint still returns `200` with `state=disconnected`. When VK integration
+         *     is disabled on the server (`VK_ENABLED=false`), the response is still `200` with
+         *     `feature_enabled=false` so clients can hide the integration UI.
          */
         get: operations["getCurrentVKConnection"];
         /** Connect or update current VK connection */
@@ -1066,6 +1068,8 @@ export interface components {
             /** @enum {string} */
             state: "connected" | "disconnected" | "sync_required" | "error";
             feature_enabled: boolean;
+            /** @description Whether the server can encrypt and store VK access tokens (`VK_TOKEN_ENCRYPTION_KEY`). */
+            token_storage_configured: boolean;
             consent: components["schemas"]["VKConnectionConsent"];
             profile: components["schemas"]["VKConnectionProfile"];
             credential: components["schemas"]["VKConnectionCredential"];
@@ -2577,15 +2581,6 @@ export interface operations {
             };
             /** @description Missing or invalid access token */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description VK integration is disabled */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };

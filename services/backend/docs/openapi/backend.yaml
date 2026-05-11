@@ -1061,7 +1061,9 @@ paths:
       summary: Get current VK connection
       description: |
         Returns the current user's VK integration state. If the user never linked VK,
-        the endpoint still returns `200` with `state=disconnected`.
+        the endpoint still returns `200` with `state=disconnected`. When VK integration
+        is disabled on the server (`VK_ENABLED=false`), the response is still `200` with
+        `feature_enabled=false` so clients can hide the integration UI.
       operationId: getCurrentVKConnection
       security:
         - bearerAuth: []
@@ -1074,12 +1076,6 @@ paths:
                 $ref: '#/components/schemas/VKConnectionEnvelope'
         '401':
           description: Missing or invalid access token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '503':
-          description: VK integration is disabled
           content:
             application/json:
               schema:
@@ -2313,7 +2309,7 @@ components:
       additionalProperties: false
     VKConnection:
       type: object
-      required: [provider, state, feature_enabled, consent, profile, credential, sync, imported_interests]
+      required: [provider, state, feature_enabled, token_storage_configured, consent, profile, credential, sync, imported_interests]
       properties:
         provider:
           type: string
@@ -2323,6 +2319,9 @@ components:
           enum: [connected, disconnected, sync_required, error]
         feature_enabled:
           type: boolean
+        token_storage_configured:
+          type: boolean
+          description: Whether the server can encrypt and store VK access tokens (`VK_TOKEN_ENCRYPTION_KEY`).
         consent:
           $ref: '#/components/schemas/VKConnectionConsent'
         profile:

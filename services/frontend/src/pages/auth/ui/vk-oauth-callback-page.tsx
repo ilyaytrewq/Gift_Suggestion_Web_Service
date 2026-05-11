@@ -11,6 +11,7 @@ import {
 } from '../../../features/vk-integration/lib/vk-oauth';
 import { VK_CONSENT_POLICY_VERSION } from '../../../features/vk-integration/model/constants';
 import { useAuth } from '../../../shared/auth/use-auth';
+import { isVkOAuthConfigured } from '../../../shared/config/env';
 import { getUserFacingApiErrorMessage } from '../../../shared/api/api-error';
 import { isApiError } from '../../../shared/api/http';
 import { buttonClassName } from '../../../shared/ui/button/button-class-name';
@@ -53,6 +54,11 @@ export function VkOAuthCallbackPage(): JSX.Element {
     let cancelled = false;
 
     async function run() {
+      if (!isVkOAuthConfigured()) {
+        navigate('/profile', { replace: true });
+        return;
+      }
+
       const pendingRaw = sessionStorage.getItem(VK_OAUTH_PENDING_KEY);
 
       if (auth.accessToken && pendingRaw) {

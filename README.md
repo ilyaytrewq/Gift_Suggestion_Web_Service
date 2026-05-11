@@ -141,9 +141,10 @@ bash scripts/data/make_admin.sh --email user@example.com --server ilyaytrewq@51.
 docker compose up --build postgres backend ml-service frontend
 ```
 
-Локальные URL:
-- Frontend: `http://localhost:5173`
-- Backend: `http://localhost:8080`
+Локальные URL (фронт на стандартном порту 80, API проксируется через nginx):
+- Frontend: `http://localhost` (или `http://giftsuggestion.ru`, если домен указывает на машину)
+- Backend API через фронт: `http://localhost/api/v1/...`
+- Backend напрямую (отладка): `http://localhost:8080`
 - ML healthz: `http://localhost:8081/healthz`
 - ML gRPC: `localhost:50051`
 - PostgreSQL: `localhost:5432`
@@ -218,11 +219,12 @@ cd services/frontend && npm run generate:api
 | `VK_TOKEN_ENCRYPTION_KEY` | — | Base64-ключ AES-256 для хранения токенов (`openssl rand -base64 32`) |
 | `EMAIL_ENABLED` | `false` | Email delivery |
 | `AUTH_JWT_SECRET` | `change-me-please` | JWT секрет |
-| `FRONTEND_PUBLIC_URL` | `http://localhost:5173` (compose) / `http://localhost` (image) | Публичный URL фронта (отображается в логах nginx) |
-| `FRONTEND_BASE_URL` | `http://localhost:5173` | URL фронта для ссылок в email |
+| `FRONTEND_PORT` | `80` | Порт хоста для фронта (80 — без `:порта` в URL) |
+| `FRONTEND_PUBLIC_URL` | `http://localhost` | Публичный URL фронта (отображается в логах nginx) |
+| `FRONTEND_BASE_URL` | `http://localhost` | URL фронта для ссылок в email (на проде: `http://giftsuggestion.ru`) |
 | `VITE_API_BASE_URL` | — | Backend URL для фронта |
 | `VITE_VK_APP_ID` | — | ID VK-приложения (для OAuth кнопки в профиле) |
-| `VITE_VK_REDIRECT_URI` | — | Redirect URI OAuth (например, `http://localhost:5173/auth/vk-callback`) |
+| `VITE_VK_REDIRECT_URI` | — | Redirect URI OAuth (например, `http://localhost/auth/vk-callback` или `https://giftsuggestion.ru/auth/vk-callback`) |
 | `ALIEXPRESS_APP_KEY` | — | Ключ AliExpress Affiliate API |
 | `ALIEXPRESS_APP_SECRET` | — | Секрет AliExpress Affiliate API |
 
@@ -239,7 +241,7 @@ cd services/frontend && npm run generate:api
 3. Задать переменные фронтенда:
    ```
    VITE_VK_APP_ID=<id приложения>
-   VITE_VK_REDIRECT_URI=http://localhost:5173/auth/vk-callback
+   VITE_VK_REDIRECT_URI=http://localhost/auth/vk-callback
    ```
 
 После этого в профиле появится кнопка «Войти через VK», а синхронизация интересов будет вызывать реальный `groups.get` VK API.
@@ -249,6 +251,8 @@ cd services/frontend && npm run generate:api
 GitHub Actions:
 - `CI` — backend tests/lint/build, frontend install/generate/lint/build, ML tests (`pytest`), docker compose smoke
 - `CD` — сборка и публикация образов backend / frontend / ml-service, deploy через SSH
+
+В GitHub Environment для production задайте `DEPLOY_HOST=giftsuggestion.ru` (домен **без порта**), `VK_REDIRECT_URI=https://giftsuggestion.ru/auth/vk-callback` — тогда сайт открывается по имени на порту 80.
 
 Подробнее: `docs/ci-cd.md`
 

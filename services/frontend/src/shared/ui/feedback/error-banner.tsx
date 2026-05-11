@@ -12,11 +12,13 @@ export function ErrorBanner({
     ? getUserFacingApiErrorMessage(error)
     : 'Что-то пошло не так. Попробуйте ещё раз.';
 
+  const hideMeta = isApiError(error) && error.code === 'email_not_verified';
+
   const metaParts: string[] = [];
-  if (isApiError(error) && error.code) {
+  if (!hideMeta && isApiError(error) && error.code) {
     metaParts.push(`код ${error.code}`);
   }
-  if (isApiError(error) && error.requestId) {
+  if (!hideMeta && isApiError(error) && error.requestId) {
     metaParts.push(`запрос ${error.requestId}`);
   }
 

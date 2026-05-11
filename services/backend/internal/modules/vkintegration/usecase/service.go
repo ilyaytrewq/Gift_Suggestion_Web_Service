@@ -130,7 +130,7 @@ func (s *Service) Connect(ctx context.Context, input ConnectInput) (ConnectOutpu
 		}
 
 		return ConnectOutput{
-			Connection: newConnectionOutput(s.featureEnabled, &connection, nil),
+			Connection: newConnectionOutput(s.featureEnabled, s.tokenProtector.Configured(), &connection, nil),
 		}, nil
 	}
 
@@ -157,18 +157,20 @@ func (s *Service) Connect(ctx context.Context, input ConnectInput) (ConnectOutpu
 	}
 
 	return ConnectOutput{
-		Connection: newConnectionOutput(s.featureEnabled, existing, nil),
+		Connection: newConnectionOutput(s.featureEnabled, s.tokenProtector.Configured(), existing, nil),
 	}, nil
 }
 
 func (s *Service) GetCurrentConnection(ctx context.Context, input GetCurrentConnectionInput) (GetCurrentConnectionOutput, error) {
-	if err := s.ensureFeatureEnabled(); err != nil {
-		return GetCurrentConnectionOutput{}, err
-	}
-
 	userID, err := s.ensureUserExists(ctx, input.UserID)
 	if err != nil {
 		return GetCurrentConnectionOutput{}, err
+	}
+
+	if !s.featureEnabled {
+		return GetCurrentConnectionOutput{
+			Connection: newConnectionOutput(false, s.tokenProtector.Configured(), nil, nil),
+		}, nil
 	}
 
 	connection, interests, err := s.loadConnection(ctx, userID)
@@ -177,7 +179,7 @@ func (s *Service) GetCurrentConnection(ctx context.Context, input GetCurrentConn
 	}
 
 	return GetCurrentConnectionOutput{
-		Connection: newConnectionOutput(s.featureEnabled, connection, interests),
+		Connection: newConnectionOutput(s.featureEnabled, s.tokenProtector.Configured(), connection, interests),
 	}, nil
 }
 
@@ -197,7 +199,7 @@ func (s *Service) Disconnect(ctx context.Context, input DisconnectInput) (Discon
 	}
 	if connection == nil {
 		return DisconnectOutput{
-			Connection: newConnectionOutput(s.featureEnabled, nil, nil),
+			Connection: newConnectionOutput(s.featureEnabled, s.tokenProtector.Configured(), nil, nil),
 		}, nil
 	}
 
@@ -207,7 +209,7 @@ func (s *Service) Disconnect(ctx context.Context, input DisconnectInput) (Discon
 	}
 
 	return DisconnectOutput{
-		Connection: newConnectionOutput(s.featureEnabled, connection, nil),
+		Connection: newConnectionOutput(s.featureEnabled, s.tokenProtector.Configured(), connection, nil),
 	}, nil
 }
 
@@ -292,7 +294,7 @@ func (s *Service) SyncInterests(ctx context.Context, input SyncInterestsInput) (
 	}
 
 	return SyncInterestsOutput{
-		Connection: newConnectionOutput(s.featureEnabled, connection, interests),
+		Connection: newConnectionOutput(s.featureEnabled, s.tokenProtector.Configured(), connection, interests),
 	}, nil
 }
 

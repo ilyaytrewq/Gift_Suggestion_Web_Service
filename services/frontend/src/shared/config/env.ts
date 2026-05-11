@@ -1,8 +1,10 @@
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
+/** Empty → same-origin `/api/...` (nginx proxy in Docker/production). */
 export const API_BASE_URL =
-  configuredApiBaseUrl === undefined
-    ? 'http://localhost:8080'
+  configuredApiBaseUrl === undefined ||
+  (typeof configuredApiBaseUrl === 'string' && configuredApiBaseUrl.trim() === '')
+    ? ''
     : configuredApiBaseUrl.trim().replace(/\/$/, '');
 
 /** Implicit OAuth; redirect URI must be listed in VK app settings. */

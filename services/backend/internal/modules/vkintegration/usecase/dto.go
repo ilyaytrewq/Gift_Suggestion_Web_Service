@@ -60,10 +60,11 @@ type SyncInterestsOutput struct {
 }
 
 type Connection struct {
-	Provider          string             `json:"provider"`
-	State             string             `json:"state"`
-	FeatureEnabled    bool               `json:"feature_enabled"`
-	Consent           Consent            `json:"consent"`
+	Provider                 string             `json:"provider"`
+	State                    string             `json:"state"`
+	FeatureEnabled           bool               `json:"feature_enabled"`
+	TokenStorageConfigured   bool               `json:"token_storage_configured"`
+	Consent                  Consent            `json:"consent"`
 	Profile           Profile            `json:"profile"`
 	Credential        Credential         `json:"credential"`
 	Sync              SyncStatus         `json:"sync"`
@@ -105,12 +106,13 @@ type ImportedInterest struct {
 	ImportedAt     time.Time `json:"imported_at"`
 }
 
-func newConnectionOutput(featureEnabled bool, connection *vkintegrationdomain.Connection, interests []vkintegrationdomain.ImportedInterest) Connection {
+func newConnectionOutput(featureEnabled, tokenStorageConfigured bool, connection *vkintegrationdomain.Connection, interests []vkintegrationdomain.ImportedInterest) Connection {
 	if connection == nil {
 		return Connection{
-			Provider:       "vk",
-			State:          "disconnected",
-			FeatureEnabled: featureEnabled,
+			Provider:               "vk",
+			State:                  "disconnected",
+			FeatureEnabled:         featureEnabled,
+			TokenStorageConfigured: tokenStorageConfigured,
 			Consent: Consent{
 				State:   string(vkintegrationdomain.ConsentStatePending),
 				Granted: false,
@@ -128,9 +130,10 @@ func newConnectionOutput(featureEnabled bool, connection *vkintegrationdomain.Co
 	}
 
 	view := Connection{
-		Provider:       "vk",
-		State:          resolveConnectionState(*connection),
-		FeatureEnabled: featureEnabled,
+		Provider:               "vk",
+		State:                  resolveConnectionState(*connection),
+		FeatureEnabled:         featureEnabled,
+		TokenStorageConfigured: tokenStorageConfigured,
 		Consent: Consent{
 			State:      string(connection.ConsentState()),
 			Granted:    connection.HasGrantedConsent(),
