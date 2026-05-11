@@ -73,7 +73,7 @@ export function buildVkIdAuthorizeUrl(state: string, codeChallenge: string): str
 export type VkOAuthCallbackSuccess = {
   code: string;
   device_id: string;
-  state?: string | null;
+  state: string;
 };
 
 export type VkOAuthCallbackResult =
@@ -95,11 +95,18 @@ export function parseVkOAuthCallback(search: string): VkOAuthCallbackResult {
 
   const code = params.get('code');
   const deviceId = params.get('device_id');
+  const state = params.get('state');
   if (!code || !deviceId) {
     return {
       ok: false,
       reason:
         'Не удалось получить код VK ID. Проверьте redirect URI в настройках приложения id.vk.com.',
+    };
+  }
+  if (!state) {
+    return {
+      ok: false,
+      reason: 'VK ID не вернул параметр state. Повторите вход через VK.',
     };
   }
 
@@ -108,7 +115,7 @@ export function parseVkOAuthCallback(search: string): VkOAuthCallbackResult {
     data: {
       code,
       device_id: deviceId,
-      state: params.get('state'),
+      state,
     },
   };
 }

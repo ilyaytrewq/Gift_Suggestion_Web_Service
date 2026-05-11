@@ -20,12 +20,13 @@ import { PageLoader } from '../../../shared/ui/feedback/page-loader';
 import { Container } from '../../../shared/ui/layout/container';
 
 function exchangePayloadFromCallback(data: VkOAuthCallbackSuccess, codeVerifier: string) {
+  const redirectUri = getVkOAuthRedirectUri();
   return {
     code: data.code,
     code_verifier: codeVerifier,
     device_id: data.device_id,
-    ...(data.state ? { state: data.state } : {}),
-    ...(getVkOAuthRedirectUri() ? { redirect_uri: getVkOAuthRedirectUri() } : {}),
+    state: data.state,
+    ...(redirectUri ? { redirect_uri: redirectUri } : {}),
     consent: {
       granted: true as const,
       version: VK_CONSENT_POLICY_VERSION,
@@ -110,7 +111,7 @@ export function VkOAuthCallbackPage(): JSX.Element {
 
       const savedState = sessionStorage.getItem(VK_OAUTH_STATE_KEY);
       sessionStorage.removeItem(VK_OAUTH_STATE_KEY);
-      if (parsed.data.state && savedState && parsed.data.state !== savedState) {
+      if (savedState && parsed.data.state !== savedState) {
         window.history.replaceState(null, '', window.location.pathname);
         if (!cancelled) {
           setError(
