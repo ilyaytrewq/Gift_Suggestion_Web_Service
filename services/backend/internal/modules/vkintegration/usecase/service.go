@@ -153,6 +153,16 @@ func (s *Service) ensureOAuthConfigured() error {
 	return nil
 }
 
+func connectionHasGroupsScope(scopes []string) bool {
+	for _, scope := range scopes {
+		if strings.EqualFold(strings.TrimSpace(scope), "groups") {
+			return true
+		}
+	}
+
+	return false
+}
+
 func splitOAuthScopes(scope string) []string {
 	parts := strings.Fields(strings.TrimSpace(scope))
 	if len(parts) == 0 {
@@ -354,6 +364,13 @@ func (s *Service) SyncInterests(ctx context.Context, input SyncInterestsInput) (
 			apperrors.KindUnavailable,
 			"vk_token_storage_unavailable",
 			"vk token storage is unavailable",
+		)
+	}
+	if !connectionHasGroupsScope(connection.Scopes()) {
+		return SyncInterestsOutput{}, apperrors.New(
+			apperrors.KindUnavailable,
+			"vk_groups_scope_required",
+			"vk groups scope is required to import interests; reconnect vk after groups access is enabled for the app",
 		)
 	}
 
@@ -612,6 +629,13 @@ func mapImportFailure(err error) error {
 			apperrors.KindUnavailable,
 			"vk_groups_access_denied",
 			"vk groups access is denied by privacy settings",
+			err,
+		)
+	case errors.Is(err, ErrVKGroupsScopeRequired):
+		return apperrors.Wrap(
+			apperrors.KindUnavailable,
+			"vk_groups_scope_required",
+			"vk groups scope is required to import interests; reconnect vk after groups access is enabled for the app",
 			err,
 		)
 	case errors.Is(err, ErrInterestImportNotImplemented), errors.Is(err, ErrInterestImportUnavailable):

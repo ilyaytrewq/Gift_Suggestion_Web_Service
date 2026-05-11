@@ -75,6 +75,8 @@ export function getUserFacingApiErrorMessage(error: ApiError): string {
       return 'VK API временно ограничил запросы. Повторите через несколько секунд.';
     case 'vk_groups_access_denied':
       return 'Список групп VK закрыт настройками приватности. Откройте доступ к группам в настройках VK и повторите.';
+    case 'vk_groups_scope_required':
+      return 'У приложения нет права groups для VK API. В id.vk.com включите доступ к группам (или запросите у VK через devsupport@corp.vk.com), затем отключите и снова подключите VK.';
     case 'vk_interest_import_timeout':
       return 'VK API не ответил вовремя. Повторите синхронизацию позже.';
     case 'vk_interest_import_unavailable':

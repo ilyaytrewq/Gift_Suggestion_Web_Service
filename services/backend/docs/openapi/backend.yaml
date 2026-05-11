@@ -1231,6 +1231,7 @@ paths:
             token invalid or expired (`vk_token_invalid`),
             VK API rate limit exceeded (`vk_rate_limited`),
             groups access denied by privacy settings (`vk_groups_access_denied`),
+            groups scope missing on token (`vk_groups_scope_required`),
             or import timed out (`vk_interest_import_timeout`).
           content:
             application/json:

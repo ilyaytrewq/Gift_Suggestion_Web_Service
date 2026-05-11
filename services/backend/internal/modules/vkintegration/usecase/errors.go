@@ -20,4 +20,5 @@ var (
 	ErrVKTokenInvalid       = errors.New("vk token is invalid or expired, reconnection required")
 	ErrVKRateLimited        = errors.New("vk api rate limit exceeded")
 	ErrVKGroupsAccessDenied = errors.New("vk groups list access denied by privacy settings")
+	ErrVKGroupsScopeRequired = errors.New("vk groups scope is not granted for this token")
 )

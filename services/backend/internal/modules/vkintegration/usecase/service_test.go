@@ -145,6 +145,7 @@ func TestServiceSyncInterestsRejectsWithoutConsent(t *testing.T) {
 		string(vkintegrationdomain.ConsentStateRevoked),
 		"sealed-token",
 		timePtr(time.Date(2026, 4, 20, 12, 0, 0, 0, time.UTC)),
+		nil,
 	)
 	service := mustVKService(t, vkServiceDeps{
 		repo:       &fakeVKConnectionRepository{connection: &connection},
@@ -181,6 +182,35 @@ func TestServiceSyncInterestsRejectsExpiredToken(t *testing.T) {
 	appErr := apperrors.From(err)
 	if appErr.Code() != "vk_token_expired" {
 		t.Fatalf("SyncInterests() code = %q, want %q", appErr.Code(), "vk_token_expired")
+	}
+}
+
+func TestServiceSyncInterestsRejectsWithoutGroupsScope(t *testing.T) {
+	t.Parallel()
+
+	connection := mustVKRestoredConnection(
+		t,
+		"vk_123",
+		string(vkintegrationdomain.ConnectionStateConnected),
+		string(vkintegrationdomain.ConsentStateGranted),
+		"sealed-token",
+		timePtr(time.Date(2026, 4, 20, 12, 0, 0, 0, time.UTC)),
+		[]string{"vkid.personal_info"},
+	)
+	service := mustVKService(t, vkServiceDeps{
+		repo:       &fakeVKConnectionRepository{connection: &connection},
+		userReader: fakeVKUserReader{user: mustVKUser(t)},
+		protector:  fakeVKTokenProtector{configured: true, opened: "raw-token"},
+	})
+
+	_, err := service.SyncInterests(context.Background(), SyncInterestsInput{UserID: testVKUserID})
+	if err == nil {
+		t.Fatal("SyncInterests() expected unavailable error")
+	}
+
+	appErr := apperrors.From(err)
+	if appErr.Code() != "vk_groups_scope_required" {
+		t.Fatalf("SyncInterests() code = %q, want %q", appErr.Code(), "vk_groups_scope_required")
 	}
 }
 
@@ -489,7 +519,7 @@ func mustVKConnection(
 		"v1",
 		stringPtr("sealed-token"),
 		tokenExpiresAt,
-		[]string{"friends"},
+		[]string{"groups"},
 		metadata,
 		now,
 		now,
@@ -508,8 +538,13 @@ func mustVKRestoredConnection(
 	consentState string,
 	tokenCiphertext string,
 	tokenExpiresAt *time.Time,
+	scopes []string,
 ) vkintegrationdomain.Connection {
 	t.Helper()
+
+	if scopes == nil {
+		scopes = []string{"groups"}
+	}
 
 	metadata, err := vkintegrationdomain.NewIntegrationMetadata(stringPtr("ilya"), nil)
 	if err != nil {
@@ -525,7 +560,7 @@ func mustVKRestoredConnection(
 		"v1",
 		&tokenCiphertext,
 		tokenExpiresAt,
-		[]string{"friends"},
+		scopes,
 		metadata,
 		string(vkintegrationdomain.SyncStateIdle),
 		nil,

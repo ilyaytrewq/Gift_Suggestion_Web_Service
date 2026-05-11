@@ -161,6 +161,22 @@ func TestImportInterestsAPIErrorGroupsAccessDenied(t *testing.T) {
 	}
 }
 
+func TestImportInterestsAPIErrorGroupsScopeRequired(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveAPIError(t, w, 1051, "Method is not available with this access token")
+	}))
+	defer server.Close()
+
+	_, err := newTestClient(server.URL).ImportInterests(
+		context.Background(), vkintegrationusecase.ImportInterestsRequest{},
+	)
+	if !errors.Is(err, vkintegrationusecase.ErrVKGroupsScopeRequired) {
+		t.Fatalf("expected ErrVKGroupsScopeRequired, got %v", err)
+	}
+}
+
 func TestImportInterestsAPIErrorInvalidToken(t *testing.T) {
 	t.Parallel()
 

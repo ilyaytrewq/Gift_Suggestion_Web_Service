@@ -65,7 +65,7 @@ func (c *Client) ImportInterests(ctx context.Context, input vkintegrationusecase
 	offset := 0
 
 	for {
-		page, total, err := c.fetchPage(ctx, input.AccessToken, offset)
+		page, total, err := c.fetchPage(ctx, input.AccessToken, input.ProviderUserID, offset)
 		if err != nil {
 			return vkintegrationusecase.ImportInterestsResult{}, err
 		}
@@ -93,7 +93,7 @@ func (c *Client) ImportInterests(ctx context.Context, input vkintegrationusecase
 	return vkintegrationusecase.ImportInterestsResult{Interests: records}, nil
 }
 
-func (c *Client) fetchPage(ctx context.Context, accessToken string, offset int) ([]vkGroup, int, error) {
+func (c *Client) fetchPage(ctx context.Context, accessToken, providerUserID string, offset int) ([]vkGroup, int, error) {
 	form := url.Values{}
 	form.Set("extended", "1")
 	form.Set("fields", "description,activity")
@@ -101,6 +101,9 @@ func (c *Client) fetchPage(ctx context.Context, accessToken string, offset int) 
 	form.Set("offset", strconv.Itoa(offset))
 	form.Set("v", vkAPIVersion)
 	form.Set("access_token", accessToken)
+	if userID := strings.TrimSpace(providerUserID); userID != "" {
+		form.Set("user_id", userID)
+	}
 
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -146,13 +149,25 @@ func (c *Client) fetchPage(ctx context.Context, accessToken string, offset int) 
 
 func mapAPIError(e *vkAPIError) error {
 	switch e.ErrorCode {
-	case 5, 1117:
+	case 5, 1116, 1117:
 		return vkintegrationusecase.ErrVKTokenInvalid
 	case 6, 29:
 		return vkintegrationusecase.ErrVKRateLimited
-	case 260:
+	case 15, 260:
 		return vkintegrationusecase.ErrVKGroupsAccessDenied
+	case 1051:
+		return vkintegrationusecase.ErrVKGroupsScopeRequired
 	default:
-		return fmt.Errorf("vk api error %d: %s", e.ErrorCode, e.ErrorMsg)
+		return &APIError{Code: e.ErrorCode, Message: e.ErrorMsg}
 	}
+}
+
+// APIError is returned for unmapped VK API error codes.
+type APIError struct {
+	Code    int
+	Message string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("vk api error %d: %s", e.Code, e.Message)
 }
