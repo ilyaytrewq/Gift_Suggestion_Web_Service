@@ -38,6 +38,7 @@ import (
 	vkintegrationhttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/delivery/http"
 	vkintegrationcrypto "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/infra/crypto"
 	vkintegrationpostgres "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/infra/postgres"
+	vkid "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/infra/vkid"
 	vkintegrationvk "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/infra/vk"
 	vkintegrationusecase "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/vkintegration/usecase"
 	wishlisthttp "github.com/ilyaytrewq/Gift_Suggestion_Web_Service/internal/modules/wishlist/delivery/http"
@@ -429,6 +430,11 @@ func newVKIntegrationHandler(
 ) (*vkintegrationhttp.Handler, error) {
 	connectionRepository := vkintegrationpostgres.NewRepository(database)
 	importer := vkintegrationvk.NewClient(cfg)
+	vkOAuthClient := vkid.NewClient(cfg)
+	var oauthExchanger vkintegrationusecase.OAuthTokenExchanger
+	if strings.TrimSpace(cfg.AppID) != "" && strings.TrimSpace(cfg.OAuthRedirectURI) != "" {
+		oauthExchanger = vkid.UsecaseAdapter{Client: vkOAuthClient}
+	}
 
 	var tokenProtector vkintegrationusecase.TokenProtector = vkintegrationcrypto.NewDisabledProtector()
 	if strings.TrimSpace(cfg.TokenEncryptionKey) != "" {
@@ -450,6 +456,9 @@ func newVKIntegrationHandler(
 		tokenProtector,
 		importer,
 		uuidGenerator,
+		oauthExchanger,
+		cfg.AppID,
+		cfg.OAuthRedirectURI,
 		cfg.Enabled,
 		cfg.RequestTimeout,
 		clock.Real{},

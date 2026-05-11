@@ -1,5 +1,6 @@
 import type {
   ConnectVKRequestBody,
+  ExchangeVKOAuthRequestBody,
   VKConnectionEnvelope,
 } from '../../../shared/api/contracts';
 import { requestJson } from '../../../shared/api/http';
@@ -7,6 +8,16 @@ import { requestJson } from '../../../shared/api/http';
 export function getVkConnection(): Promise<VKConnectionEnvelope> {
   return requestJson<VKConnectionEnvelope>('/api/v1/integrations/vk/connection', {
     auth: true,
+  });
+}
+
+export function exchangeVkOAuth(
+  body: ExchangeVKOAuthRequestBody,
+): Promise<VKConnectionEnvelope> {
+  return requestJson<VKConnectionEnvelope>('/api/v1/integrations/vk/oauth/exchange', {
+    method: 'POST',
+    auth: true,
+    body,
   });
 }
 

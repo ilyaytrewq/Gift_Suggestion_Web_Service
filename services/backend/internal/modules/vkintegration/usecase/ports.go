@@ -52,3 +52,23 @@ type ConnectionIDGenerator interface {
 type Clock interface {
 	Now() time.Time
 }
+
+type OAuthTokenExchanger interface {
+	ExchangeAuthorizationCode(ctx context.Context, input OAuthExchangeRequest) (OAuthTokenResult, error)
+}
+
+type OAuthExchangeRequest struct {
+	ClientID     string
+	Code         string
+	CodeVerifier string
+	RedirectURI  string
+	DeviceID     string
+	State        string
+}
+
+type OAuthTokenResult struct {
+	AccessToken string
+	ExpiresIn   int
+	UserID      string
+	Scope       string
+}

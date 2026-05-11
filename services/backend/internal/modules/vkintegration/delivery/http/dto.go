@@ -2,6 +2,15 @@ package http
 
 import "time"
 
+type exchangeOAuthRequest struct {
+	Code         string         `json:"code"`
+	CodeVerifier string         `json:"code_verifier"`
+	DeviceID     string         `json:"device_id"`
+	State        string         `json:"state"`
+	RedirectURI  string         `json:"redirect_uri,omitempty"`
+	Consent      consentRequest `json:"consent"`
+}
+
 type connectRequest struct {
 	Consent        consentRequest     `json:"consent"`
 	ProviderUserID string             `json:"provider_user_id"`

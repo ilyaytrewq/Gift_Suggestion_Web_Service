@@ -188,6 +188,8 @@ jobs:
             printf '\n# Frontend container env + parity with Dockerfile build-args (GitHub Environment vars).\n'
             printf 'VITE_VK_APP_ID=%s\n' "${VK_APP_ID}"
             printf 'VITE_VK_REDIRECT_URI=%s\n' "${VK_REDIRECT_URI}"
+            printf 'VK_APP_ID=%s\n' "${VK_APP_ID}"
+            printf 'VK_OAUTH_REDIRECT_URI=%s\n' "${VK_REDIRECT_URI}"
           } >> "${RUNNER_TEMP}/deploy.env"
 
       - name: Upload deployment bundle

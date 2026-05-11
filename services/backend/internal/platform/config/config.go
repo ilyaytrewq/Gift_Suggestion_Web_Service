@@ -97,6 +97,9 @@ type VKConfig struct {
 	Enabled            bool
 	RequestTimeout     time.Duration
 	TokenEncryptionKey string
+	AppID              string
+	OAuthRedirectURI   string
+	OAuthTokenURL      string
 }
 
 type EmailConfig struct {
@@ -481,6 +484,9 @@ func loadVKConfig(lookup func(string) (string, bool)) (VKConfig, error) {
 		Enabled:            enabled,
 		RequestTimeout:     requestTimeout,
 		TokenEncryptionKey: stringWithDefault(lookup, "VK_TOKEN_ENCRYPTION_KEY", ""),
+		AppID:              stringWithDefault(lookup, "VK_APP_ID", ""),
+		OAuthRedirectURI:   stringWithDefault(lookup, "VK_OAUTH_REDIRECT_URI", ""),
+		OAuthTokenURL:      stringWithDefault(lookup, "VK_OAUTH_TOKEN_URL", ""),
 	}, nil
 }
 

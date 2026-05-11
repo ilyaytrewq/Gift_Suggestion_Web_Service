@@ -2,39 +2,34 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { connectVk } from '../../../features/vk-integration/api/vk';
+import { exchangeVkOAuth } from '../../../features/vk-integration/api/vk';
 import {
-  parseVkOAuthFragment,
+  parseVkOAuthCallback,
+  VK_OAUTH_CODE_VERIFIER_KEY,
   VK_OAUTH_PENDING_KEY,
   VK_OAUTH_STATE_KEY,
-  type VkOAuthFragmentSuccess,
+  type VkOAuthCallbackSuccess,
 } from '../../../features/vk-integration/lib/vk-oauth';
 import { VK_CONSENT_POLICY_VERSION } from '../../../features/vk-integration/model/constants';
 import { useAuth } from '../../../shared/auth/use-auth';
-import { isVkOAuthConfigured } from '../../../shared/config/env';
+import { isVkOAuthConfigured, getVkOAuthRedirectUri } from '../../../shared/config/env';
 import { getUserFacingApiErrorMessage } from '../../../shared/api/api-error';
 import { isApiError } from '../../../shared/api/http';
 import { buttonClassName } from '../../../shared/ui/button/button-class-name';
 import { PageLoader } from '../../../shared/ui/feedback/page-loader';
 import { Container } from '../../../shared/ui/layout/container';
 
-function connectPayloadFromOAuth(data: VkOAuthFragmentSuccess) {
-  const expiresAtIso =
-    data.expires_in !== undefined
-      ? new Date(Date.now() + data.expires_in * 1000).toISOString()
-      : undefined;
-
+function exchangePayloadFromCallback(data: VkOAuthCallbackSuccess, codeVerifier: string) {
   return {
-    provider_user_id: data.user_id,
+    code: data.code,
+    code_verifier: codeVerifier,
+    device_id: data.device_id,
+    ...(data.state ? { state: data.state } : {}),
+    ...(getVkOAuthRedirectUri() ? { redirect_uri: getVkOAuthRedirectUri() } : {}),
     consent: {
       granted: true as const,
       version: VK_CONSENT_POLICY_VERSION,
       obtained_at: new Date().toISOString(),
-    },
-    credential: {
-      access_token: data.access_token,
-      ...(expiresAtIso ? { expires_at: expiresAtIso } : {}),
-      ...(data.scope.length ? { scopes: data.scope } : {}),
     },
   };
 }
@@ -43,9 +38,8 @@ export function VkOAuthCallbackPage(): JSX.Element {
   const auth = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  /** Captured once per mount so StrictMode / replaceState does not lose the fragment. */
-  const capturedHashRef = useRef(
-    typeof window !== 'undefined' ? window.location.hash : '',
+  const capturedSearchRef = useRef(
+    typeof window !== 'undefined' ? window.location.search : '',
   );
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -60,12 +54,14 @@ export function VkOAuthCallbackPage(): JSX.Element {
       }
 
       const pendingRaw = sessionStorage.getItem(VK_OAUTH_PENDING_KEY);
+      const codeVerifier = sessionStorage.getItem(VK_OAUTH_CODE_VERIFIER_KEY);
 
-      if (auth.accessToken && pendingRaw) {
+      if (auth.accessToken && pendingRaw && codeVerifier) {
         try {
-          const pending = JSON.parse(pendingRaw) as VkOAuthFragmentSuccess;
+          const pending = JSON.parse(pendingRaw) as VkOAuthCallbackSuccess;
           sessionStorage.removeItem(VK_OAUTH_PENDING_KEY);
-          await connectVk(connectPayloadFromOAuth(pending));
+          sessionStorage.removeItem(VK_OAUTH_CODE_VERIFIER_KEY);
+          await exchangeVkOAuth(exchangePayloadFromCallback(pending, codeVerifier));
           if (cancelled) {
             return;
           }
@@ -74,6 +70,7 @@ export function VkOAuthCallbackPage(): JSX.Element {
           return;
         } catch (unknownErr) {
           sessionStorage.removeItem(VK_OAUTH_PENDING_KEY);
+          sessionStorage.removeItem(VK_OAUTH_CODE_VERIFIER_KEY);
           if (!cancelled) {
             setError(
               isApiError(unknownErr)
@@ -88,8 +85,8 @@ export function VkOAuthCallbackPage(): JSX.Element {
         }
       }
 
-      const fragment = capturedHashRef.current;
-      if (!fragment || fragment === '#') {
+      const search = capturedSearchRef.current;
+      if (!search || search === '?') {
         if (auth.accessToken) {
           navigate('/profile', { replace: true });
           return;
@@ -100,14 +97,10 @@ export function VkOAuthCallbackPage(): JSX.Element {
         return;
       }
 
-      const parsed = parseVkOAuthFragment(fragment);
+      const parsed = parseVkOAuthCallback(search);
 
       if (!parsed.ok) {
-        window.history.replaceState(
-          null,
-          '',
-          `${window.location.pathname}${window.location.search}`,
-        );
+        window.history.replaceState(null, '', window.location.pathname);
         if (!cancelled) {
           setError(parsed.reason);
           setDone(true);
@@ -117,16 +110,8 @@ export function VkOAuthCallbackPage(): JSX.Element {
 
       const savedState = sessionStorage.getItem(VK_OAUTH_STATE_KEY);
       sessionStorage.removeItem(VK_OAUTH_STATE_KEY);
-      if (
-        parsed.data.state &&
-        savedState &&
-        parsed.data.state !== savedState
-      ) {
-        window.history.replaceState(
-          null,
-          '',
-          `${window.location.pathname}${window.location.search}`,
-        );
+      if (parsed.data.state && savedState && parsed.data.state !== savedState) {
+        window.history.replaceState(null, '', window.location.pathname);
         if (!cancelled) {
           setError(
             'Параметр безопасности state не совпадает. Повторите вход через VK.',
@@ -136,41 +121,37 @@ export function VkOAuthCallbackPage(): JSX.Element {
         return;
       }
 
+      const verifier = sessionStorage.getItem(VK_OAUTH_CODE_VERIFIER_KEY);
+      if (!verifier) {
+        window.history.replaceState(null, '', window.location.pathname);
+        if (!cancelled) {
+          setError('Сессия VK ID истекла. Начните подключение заново из профиля.');
+          setDone(true);
+        }
+        return;
+      }
+
       if (!auth.accessToken) {
-        sessionStorage.setItem(
-          VK_OAUTH_PENDING_KEY,
-          JSON.stringify(parsed.data),
-        );
-        window.history.replaceState(
-          null,
-          '',
-          `${window.location.pathname}${window.location.search}`,
-        );
-        navigate(
-          `/login?next=${encodeURIComponent('/auth/vk-callback')}`,
-          { replace: true },
-        );
+        sessionStorage.setItem(VK_OAUTH_PENDING_KEY, JSON.stringify(parsed.data));
+        window.history.replaceState(null, '', window.location.pathname);
+        navigate(`/login?next=${encodeURIComponent('/auth/vk-callback')}`, {
+          replace: true,
+        });
         return;
       }
 
       try {
-        await connectVk(connectPayloadFromOAuth(parsed.data));
+        await exchangeVkOAuth(exchangePayloadFromCallback(parsed.data, verifier));
+        sessionStorage.removeItem(VK_OAUTH_CODE_VERIFIER_KEY);
         if (cancelled) {
           return;
         }
-        window.history.replaceState(
-          null,
-          '',
-          `${window.location.pathname}${window.location.search}`,
-        );
+        window.history.replaceState(null, '', window.location.pathname);
         await queryClient.invalidateQueries({ queryKey: ['vk-connection'] });
         navigate('/profile', { replace: true });
       } catch (unknownErr) {
-        window.history.replaceState(
-          null,
-          '',
-          `${window.location.pathname}${window.location.search}`,
-        );
+        sessionStorage.removeItem(VK_OAUTH_CODE_VERIFIER_KEY);
+        window.history.replaceState(null, '', window.location.pathname);
         if (!cancelled) {
           setError(
             isApiError(unknownErr)
@@ -194,7 +175,7 @@ export function VkOAuthCallbackPage(): JSX.Element {
   if (!done && !error) {
     return (
       <PageLoader
-        description="Сохраняем токен на сервере…"
+        description="Обмениваем код VK ID на токен…"
         title="Подключаем VK"
       />
     );

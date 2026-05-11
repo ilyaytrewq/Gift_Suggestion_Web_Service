@@ -534,6 +534,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/vk/oauth/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete VK ID OAuth and connect
+         * @description Exchanges a VK ID authorization code (PKCE) for an access token on the server,
+         *     then stores the VK connection for the current user. Requires `VK_APP_ID` and
+         *     `VK_OAUTH_REDIRECT_URI` on the backend.
+         */
+        post: operations["exchangeVKOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/vk/connection": {
         parameters: {
             query?: never;
@@ -999,6 +1021,15 @@ export interface components {
                 event: components["schemas"]["TrackingEvent"];
             };
             meta: components["schemas"]["Meta"];
+        };
+        ExchangeVKOAuthRequest: {
+            code: string;
+            code_verifier: string;
+            device_id: string;
+            state: string;
+            /** Format: uri */
+            redirect_uri?: string;
+            consent: components["schemas"]["VKConnectionConsentRequest"];
         };
         ConnectVKRequest: {
             provider_user_id: string;
@@ -2552,6 +2583,66 @@ export interface operations {
             };
             /** @description client_event_id is reused for another payload */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    exchangeVKOAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExchangeVKOAuthRequest"];
+            };
+        };
+        responses: {
+            /** @description VK connection updated after OAuth */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VKConnectionEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description User denied VK access */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description VK integration or OAuth exchange is not configured */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

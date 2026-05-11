@@ -12,14 +12,17 @@ import (
 )
 
 type Service struct {
-	repo            ConnectionRepository
-	userReader      UserReader
-	tokenProtector  TokenProtector
-	importer        InterestImporter
-	connectionIDGen ConnectionIDGenerator
-	featureEnabled  bool
-	requestTimeout  time.Duration
-	clock           Clock
+	repo               ConnectionRepository
+	userReader         UserReader
+	tokenProtector     TokenProtector
+	importer           InterestImporter
+	connectionIDGen    ConnectionIDGenerator
+	oauthExchanger     OAuthTokenExchanger
+	oauthAppID         string
+	oauthRedirectURI   string
+	featureEnabled     bool
+	requestTimeout     time.Duration
+	clock              Clock
 }
 
 func NewService(
@@ -28,6 +31,9 @@ func NewService(
 	tokenProtector TokenProtector,
 	importer InterestImporter,
 	connectionIDGen ConnectionIDGenerator,
+	oauthExchanger OAuthTokenExchanger,
+	oauthAppID string,
+	oauthRedirectURI string,
 	featureEnabled bool,
 	requestTimeout time.Duration,
 	clock Clock,
@@ -50,15 +56,110 @@ func NewService(
 	}
 
 	return &Service{
-		repo:            repo,
-		userReader:      userReader,
-		tokenProtector:  tokenProtector,
-		importer:        importer,
-		connectionIDGen: connectionIDGen,
-		featureEnabled:  featureEnabled,
-		requestTimeout:  requestTimeout,
-		clock:           clock,
+		repo:             repo,
+		userReader:       userReader,
+		tokenProtector:   tokenProtector,
+		importer:         importer,
+		connectionIDGen:  connectionIDGen,
+		oauthExchanger:   oauthExchanger,
+		oauthAppID:       strings.TrimSpace(oauthAppID),
+		oauthRedirectURI: strings.TrimSpace(oauthRedirectURI),
+		featureEnabled:   featureEnabled,
+		requestTimeout:   requestTimeout,
+		clock:            clock,
 	}, nil
+}
+
+func (s *Service) ExchangeOAuth(ctx context.Context, input ExchangeOAuthInput) (ExchangeOAuthOutput, error) {
+	if err := s.ensureFeatureEnabled(); err != nil {
+		return ExchangeOAuthOutput{}, err
+	}
+	if err := s.ensureOAuthConfigured(); err != nil {
+		return ExchangeOAuthOutput{}, err
+	}
+	if s.oauthExchanger == nil {
+		return ExchangeOAuthOutput{}, apperrors.New(
+			apperrors.KindUnavailable,
+			"vk_oauth_not_configured",
+			"vk oauth exchange is not configured",
+		)
+	}
+
+	redirectURI := strings.TrimSpace(input.RedirectURI)
+	if redirectURI == "" {
+		redirectURI = s.oauthRedirectURI
+	}
+	if redirectURI != s.oauthRedirectURI {
+		return ExchangeOAuthOutput{}, apperrors.New(
+			apperrors.KindValidation,
+			"vk_oauth_redirect_mismatch",
+			"vk oauth redirect uri does not match server configuration",
+		)
+	}
+
+	token, err := s.oauthExchanger.ExchangeAuthorizationCode(ctx, OAuthExchangeRequest{
+		ClientID:     s.oauthAppID,
+		Code:         input.Code,
+		CodeVerifier: input.CodeVerifier,
+		DeviceID:     input.DeviceID,
+		State:        input.State,
+		RedirectURI:  redirectURI,
+	})
+	if err != nil {
+		return ExchangeOAuthOutput{}, err
+	}
+
+	accessToken := strings.TrimSpace(token.AccessToken)
+	if accessToken == "" || strings.TrimSpace(token.UserID) == "" {
+		return ExchangeOAuthOutput{}, apperrors.New(
+			apperrors.KindInternal,
+			"vk_oauth_token_missing",
+			"vk oauth response does not contain required token fields",
+		)
+	}
+
+	var expiresAt *time.Time
+	if token.ExpiresIn > 0 {
+		expires := s.clock.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
+		expiresAt = &expires
+	}
+
+	connectOutput, err := s.Connect(ctx, ConnectInput{
+		UserID:         input.UserID,
+		ProviderUserID: strings.TrimSpace(token.UserID),
+		Consent:        input.Consent,
+		Credential: CredentialInput{
+			AccessToken: &accessToken,
+			ExpiresAt:   expiresAt,
+			Scopes:      splitOAuthScopes(token.Scope),
+		},
+	})
+	if err != nil {
+		return ExchangeOAuthOutput{}, err
+	}
+
+	return ExchangeOAuthOutput{Connection: connectOutput.Connection}, nil
+}
+
+func (s *Service) ensureOAuthConfigured() error {
+	if s.oauthAppID == "" || s.oauthRedirectURI == "" {
+		return apperrors.New(
+			apperrors.KindUnavailable,
+			"vk_oauth_not_configured",
+			"vk oauth exchange is not configured",
+		)
+	}
+
+	return nil
+}
+
+func splitOAuthScopes(scope string) []string {
+	parts := strings.Fields(strings.TrimSpace(scope))
+	if len(parts) == 0 {
+		return nil
+	}
+
+	return append([]string(nil), parts...)
 }
 
 func (s *Service) Connect(ctx context.Context, input ConnectInput) (ConnectOutput, error) {

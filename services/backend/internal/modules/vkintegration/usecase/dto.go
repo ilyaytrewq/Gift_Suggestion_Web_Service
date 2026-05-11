@@ -26,6 +26,16 @@ type SyncInterestsInput struct {
 	UserID string
 }
 
+type ExchangeOAuthInput struct {
+	UserID       string
+	Code         string
+	CodeVerifier string
+	DeviceID     string
+	State        string
+	RedirectURI  string
+	Consent      ConsentInput
+}
+
 type ConsentInput struct {
 	Granted    bool
 	Version    string
@@ -56,6 +66,10 @@ type DisconnectOutput struct {
 }
 
 type SyncInterestsOutput struct {
+	Connection Connection `json:"connection"`
+}
+
+type ExchangeOAuthOutput struct {
 	Connection Connection `json:"connection"`
 }
 

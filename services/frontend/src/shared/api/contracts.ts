@@ -146,3 +146,6 @@ export type VKConnectionEnvelope = JsonResponse<
 export type ConnectVKRequestBody = JsonBody<
   paths['/api/v1/integrations/vk/connection']['put']
 >;
+export type ExchangeVKOAuthRequestBody = JsonBody<
+  paths['/api/v1/integrations/vk/oauth/exchange']['post']
+>;

@@ -1055,6 +1055,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/integrations/vk/oauth/exchange:
+    post:
+      tags: [vk-integration]
+      summary: Complete VK ID OAuth and connect
+      description: |
+        Exchanges a VK ID authorization code (PKCE) for an access token on the server,
+        then stores the VK connection for the current user. Requires `VK_APP_ID` and
+        `VK_OAUTH_REDIRECT_URI` on the backend.
+      operationId: exchangeVKOAuth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeVKOAuthRequest'
+      responses:
+        '200':
+          description: VK connection updated after OAuth
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VKConnectionEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: User denied VK access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: VK integration or OAuth exchange is not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /api/v1/integrations/vk/connection:
     get:
       tags: [vk-integration]
@@ -2176,6 +2224,29 @@ components:
           additionalProperties: false
         meta:
           $ref: '#/components/schemas/Meta'
+      additionalProperties: false
+    ExchangeVKOAuthRequest:
+      type: object
+      required: [code, code_verifier, device_id, state, consent]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 43
+          maxLength: 128
+        device_id:
+          type: string
+          minLength: 1
+        state:
+          type: string
+          minLength: 32
+        redirect_uri:
+          type: string
+          format: uri
+        consent:
+          $ref: '#/components/schemas/VKConnectionConsentRequest'
       additionalProperties: false
     ConnectVKRequest:
       type: object

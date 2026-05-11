@@ -162,9 +162,12 @@ func TestHandlerSyncInterestsPropagatesServiceError(t *testing.T) {
 }
 
 type stubVKIntegrationService struct {
-	connectInput     vkintegrationusecase.ConnectInput
-	connectOutput    vkintegrationusecase.ConnectOutput
-	connectErr       error
+	connectInput      vkintegrationusecase.ConnectInput
+	connectOutput     vkintegrationusecase.ConnectOutput
+	connectErr        error
+	exchangeInput     vkintegrationusecase.ExchangeOAuthInput
+	exchangeOutput    vkintegrationusecase.ExchangeOAuthOutput
+	exchangeErr       error
 	getInput         vkintegrationusecase.GetCurrentConnectionInput
 	getOutput        vkintegrationusecase.GetCurrentConnectionOutput
 	getErr           error
@@ -179,6 +182,11 @@ type stubVKIntegrationService struct {
 func (s *stubVKIntegrationService) Connect(_ context.Context, input vkintegrationusecase.ConnectInput) (vkintegrationusecase.ConnectOutput, error) {
 	s.connectInput = input
 	return s.connectOutput, s.connectErr
+}
+
+func (s *stubVKIntegrationService) ExchangeOAuth(_ context.Context, input vkintegrationusecase.ExchangeOAuthInput) (vkintegrationusecase.ExchangeOAuthOutput, error) {
+	s.exchangeInput = input
+	return s.exchangeOutput, s.exchangeErr
 }
 
 func (s *stubVKIntegrationService) GetCurrentConnection(_ context.Context, input vkintegrationusecase.GetCurrentConnectionInput) (vkintegrationusecase.GetCurrentConnectionOutput, error) {

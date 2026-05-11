@@ -16,6 +16,7 @@ var ErrNilVKIntegrationService = errors.New("vk integration service is nil")
 
 type service interface {
 	Connect(ctx context.Context, input vkintegrationusecase.ConnectInput) (vkintegrationusecase.ConnectOutput, error)
+	ExchangeOAuth(ctx context.Context, input vkintegrationusecase.ExchangeOAuthInput) (vkintegrationusecase.ExchangeOAuthOutput, error)
 	GetCurrentConnection(ctx context.Context, input vkintegrationusecase.GetCurrentConnectionInput) (vkintegrationusecase.GetCurrentConnectionOutput, error)
 	Disconnect(ctx context.Context, input vkintegrationusecase.DisconnectInput) (vkintegrationusecase.DisconnectOutput, error)
 	SyncInterests(ctx context.Context, input vkintegrationusecase.SyncInterestsInput) (vkintegrationusecase.SyncInterestsOutput, error)
@@ -38,12 +39,49 @@ func NewHandler(service service, authMiddleware gin.HandlerFunc) (*Handler, erro
 }
 
 func (h *Handler) Register(root gin.IRouter) {
-	connection := root.Group("/integrations/vk/connection")
-	connection.Use(h.authMiddleware)
+	vk := root.Group("/integrations/vk")
+	vk.Use(h.authMiddleware)
+	vk.POST("/oauth/exchange", h.exchangeOAuth)
+
+	connection := vk.Group("/connection")
 	connection.GET("", h.getCurrentConnection)
 	connection.PUT("", h.connect)
 	connection.DELETE("", h.disconnect)
 	connection.POST("/sync-interests", h.syncInterests)
+}
+
+func (h *Handler) exchangeOAuth(c *gin.Context) {
+	actor, ok := authhttp.ActorFromContext(c)
+	if !ok {
+		httpapi.Fail(c, authhttp.UnauthorizedError())
+		return
+	}
+
+	var request exchangeOAuthRequest
+	if err := httpapi.DecodeJSON(c, &request); err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	output, err := h.service.ExchangeOAuth(c.Request.Context(), vkintegrationusecase.ExchangeOAuthInput{
+		UserID:       actor.UserID,
+		Code:         request.Code,
+		CodeVerifier: request.CodeVerifier,
+		DeviceID:     request.DeviceID,
+		State:        request.State,
+		RedirectURI:  request.RedirectURI,
+		Consent: vkintegrationusecase.ConsentInput{
+			Granted:    request.Consent.Granted,
+			Version:    request.Consent.Version,
+			ObtainedAt: request.Consent.ObtainedAt,
+		},
+	})
+	if err != nil {
+		httpapi.Fail(c, err)
+		return
+	}
+
+	httpapi.Success(c, nethttp.StatusOK, output)
 }
 
 func (h *Handler) connect(c *gin.Context) {

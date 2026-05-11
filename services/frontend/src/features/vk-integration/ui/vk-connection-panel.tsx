@@ -6,8 +6,11 @@ import {
 
 import { disconnectVk, getVkConnection, syncVkInterests } from '../api/vk';
 import {
-  buildVkImplicitAuthorizeUrl,
+  buildVkIdAuthorizeUrl,
+  computeVkOAuthCodeChallenge,
+  generateVkOAuthCodeVerifier,
   generateVkOAuthState,
+  VK_OAUTH_CODE_VERIFIER_KEY,
   VK_OAUTH_STATE_KEY,
 } from '../lib/vk-oauth';
 import { isVkIntegrationConfigured } from '../lib/is-vk-integration-configured';
@@ -75,15 +78,18 @@ export function VkConnectionPanel(): JSX.Element | null {
     },
   });
 
-  const handleStartVkOAuth = () => {
+  const handleStartVkOAuth = async () => {
     const state = generateVkOAuthState();
+    const codeVerifier = generateVkOAuthCodeVerifier();
     sessionStorage.setItem(VK_OAUTH_STATE_KEY, state);
+    sessionStorage.setItem(VK_OAUTH_CODE_VERIFIER_KEY, codeVerifier);
 
     try {
-      window.location.assign(buildVkImplicitAuthorizeUrl(state));
+      const codeChallenge = await computeVkOAuthCodeChallenge(codeVerifier);
+      window.location.assign(buildVkIdAuthorizeUrl(state, codeChallenge));
     } catch {
       /**
-       * `buildVkImplicitAuthorizeUrl` throws when env vars are incomplete.
+       * `buildVkIdAuthorizeUrl` throws when env vars are incomplete.
        */
     }
   };

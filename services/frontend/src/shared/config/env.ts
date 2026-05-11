@@ -7,7 +7,7 @@ export const API_BASE_URL =
     ? ''
     : configuredApiBaseUrl.trim().replace(/\/$/, '');
 
-/** Implicit OAuth; redirect URI must be listed in VK app settings. */
+/** VK ID OAuth; redirect URI must be listed in id.vk.com app settings. */
 export function isVkOAuthConfigured(): boolean {
   const clientId = import.meta.env.VITE_VK_APP_ID;
   const redirectUri = import.meta.env.VITE_VK_REDIRECT_URI;
