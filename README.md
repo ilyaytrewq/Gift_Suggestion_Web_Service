@@ -224,7 +224,7 @@ cd services/frontend && npm run generate:api
 | `FRONTEND_BASE_URL` | `http://localhost` | URL фронта для ссылок в email (на проде: `http://giftsuggestion.ru`) |
 | `VITE_API_BASE_URL` | — | Backend URL для фронта |
 | `VITE_VK_APP_ID` | — | ID VK-приложения (для OAuth кнопки в профиле) |
-| `VITE_VK_REDIRECT_URI` | — | Redirect URI OAuth (например, `http://localhost/auth/vk-callback` или `https://giftsuggestion.ru/auth/vk-callback`) |
+| `VITE_VK_REDIRECT_URI` | — | Redirect URI OAuth (`https://giftsuggestion.ru/auth/vk-callback` на проде) |
 | `ALIEXPRESS_APP_KEY` | — | Ключ AliExpress Affiliate API |
 | `ALIEXPRESS_APP_SECRET` | — | Секрет AliExpress Affiliate API |
 
@@ -241,20 +241,53 @@ cd services/frontend && npm run generate:api
 3. Задать переменные фронтенда:
    ```
    VITE_VK_APP_ID=<id приложения>
-   VITE_VK_REDIRECT_URI=http://localhost/auth/vk-callback
+   VITE_VK_REDIRECT_URI=https://giftsuggestion.ru/auth/vk-callback
    ```
 
 После этого в профиле появится кнопка «Войти через VK», а синхронизация интересов будет вызывать реальный `groups.get` VK API.
+
+## HTTPS на проде (Caddy + Let's Encrypt)
+
+Продакшен-деплой поднимает **Caddy** перед `frontend` (TLS автоматически):
+
+- [`deploy/Caddyfile`](deploy/Caddyfile) — домен из `CADDY_DOMAIN`
+- [`deploy/docker-compose.https.yml`](deploy/docker-compose.https.yml) — порты 80/443, `frontend` только внутри сети Docker
+
+На сервере (после `git pull`):
+
+```bash
+docker compose -p gift-suggestion --env-file .deploy.env \
+  -f docker-compose.yml -f deploy/docker-compose.https.yml up -d
+```
+
+В [`deploy/runtime.env`](deploy/runtime.env) / секрете `DEPLOY_RUNTIME_ENV_FILE`:
+
+- `CADDY_DOMAIN=giftsuggestion.ru`
+- `ACME_EMAIL=` email для Let's Encrypt
+- `FRONTEND_BASE_URL=https://giftsuggestion.ru`
+- `AUTH_REFRESH_COOKIE_SECURE=true`
+- `VITE_VK_REDIRECT_URI=https://giftsuggestion.ru/auth/vk-callback`
+
+DNS: A-запись `giftsuggestion.ru` → IP сервера; в Yandex Cloud открыты порты **80** и **443**.
+
+Локально без TLS: `docker compose up` (без `docker-compose.https.yml`) — фронт на `:80`.
 
 ## CI/CD
 
 GitHub Actions:
 - `CI` — backend tests/lint/build, frontend install/generate/lint/build, ML tests (`pytest`), docker compose smoke
-- `CD` — сборка и публикация образов backend / frontend / ml-service, deploy через SSH
+- `CD` — сборка и публикация образов backend / frontend / ml-service, deploy через SSH + Caddy HTTPS
 
-В GitHub Environment для production задайте `DEPLOY_HOST=giftsuggestion.ru` (домен **без порта**), `VK_REDIRECT_URI=https://giftsuggestion.ru/auth/vk-callback` — тогда сайт открывается по имени на порту 80.
+В GitHub Environment **production**:
 
-Подробнее: `docs/ci-cd.md`
+| Тип | Имя | Пример |
+|-----|-----|--------|
+| Variable | `DEPLOY_HOST` | `giftsuggestion.ru` |
+| Variable | `VK_APP_ID` | ID приложения VK |
+| Variable | `VK_REDIRECT_URI` | `https://giftsuggestion.ru/auth/vk-callback` |
+| Variable | `ACME_EMAIL` | email для Let's Encrypt |
+| Secret | `DEPLOY_SSH_PRIVATE_KEY` | SSH-ключ |
+| Secret | `DEPLOY_RUNTIME_ENV_FILE` | содержимое `deploy/runtime.env` |
 
 ## Текущие ограничения
 

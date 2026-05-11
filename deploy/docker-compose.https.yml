@@ -1,0 +1,29 @@
+# Production HTTPS overlay: use with main docker-compose.yml
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.https.yml up -d
+#
+# Requires ports 80/443 on the host and DNS A-record for CADDY_DOMAIN.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CADDY_DOMAIN: ${CADDY_DOMAIN:?CADDY_DOMAIN is required}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+
+  frontend:
+    ports: !reset []
+
+volumes:
+  caddy_data:
+  caddy_config:

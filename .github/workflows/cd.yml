@@ -167,6 +167,7 @@ jobs:
           ML_IMAGE: ${{ needs.build-and-push.outputs.ml_image }}
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_RUNTIME_ENV_FILE: ${{ secrets.DEPLOY_RUNTIME_ENV_FILE }}
+          ACME_EMAIL: ${{ vars.ACME_EMAIL }}
           VK_APP_ID: ${{ vars.VK_APP_ID || vars.VK_ID }}
           VK_REDIRECT_URI: ${{ vars.VK_REDIRECT_URI }}
         run: |
@@ -178,8 +179,9 @@ jobs:
             printf 'FRONTEND_IMAGE=%s\n' "${FRONTEND_IMAGE}"
             printf 'ML_IMAGE=%s\n' "${ML_IMAGE}"
             printf 'BACKEND_PORT=8080\n'
-            printf 'FRONTEND_PORT=80\n'
-            printf 'FRONTEND_PUBLIC_URL=http://%s\n' "${DEPLOY_HOST}"
+            printf 'CADDY_DOMAIN=%s\n' "${DEPLOY_HOST}"
+            printf 'ACME_EMAIL=%s\n' "${ACME_EMAIL}"
+            printf 'FRONTEND_PUBLIC_URL=https://%s\n' "${DEPLOY_HOST}"
           } > "${RUNNER_TEMP}/deploy.env"
           printf '%s\n' "${DEPLOY_RUNTIME_ENV_FILE}" >> "${RUNNER_TEMP}/deploy.env"
           {
@@ -197,6 +199,8 @@ jobs:
           set -euo pipefail
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p '${DEPLOY_PATH}'"
           scp docker-compose.yml "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/docker-compose.yml"
+          scp deploy/docker-compose.https.yml "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/deploy/docker-compose.https.yml"
+          scp deploy/Caddyfile "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/deploy/Caddyfile"
           scp "${RUNNER_TEMP}/deploy.env" "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/.deploy.env"
 
       - name: Pull and restart services
@@ -224,7 +228,10 @@ jobs:
 
           printf '%s\n' "${GITHUB_TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
 
-          compose=(docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml)
+          compose=(
+            docker compose -p gift-suggestion --env-file .deploy.env
+            -f docker-compose.yml -f deploy/docker-compose.https.yml
+          )
           "${compose[@]}" down
           # Use images built in CI (GHCR). Do not --build here: server checkout may be stale
           # and would overwrite FRONTEND_IMAGE with an old local npm run build.
