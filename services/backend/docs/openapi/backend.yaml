@@ -1999,10 +1999,10 @@ components:
         top_n:
           type: integer
           minimum: 0
-          maximum: 200
+          maximum: 400
           description: |
             Limit of primary recommendations. `0` or omitted = return as many as available
-            after ranking (up to the server maximum, currently 200).
+            after ranking (up to the server maximum, currently 400).
         use_wishlist_context:
           type: boolean
           default: true

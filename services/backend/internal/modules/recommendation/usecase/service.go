@@ -15,7 +15,7 @@ import (
 
 const (
 	candidateFetchLimit = 400
-	maxRankCandidates   = 200
+	maxRankCandidates   = 400
 	maxTopN             = maxRankCandidates
 	alternativesPerItem = 2
 )

@@ -15,6 +15,9 @@ import { Field } from '../../../shared/ui/form/field';
 import { Input } from '../../../shared/ui/input/input';
 import { Container } from '../../../shared/ui/layout/container';
 
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1513475382585-d06e58bcb0ff?auto=format&fit=crop&w=900&q=80';
+
 const PRESET_OCCASIONS = [
   'День рождения',
   'Юбилей',
@@ -537,6 +540,13 @@ export function RecommendationPage(): JSX.Element {
                   <div className="gift-grid">
                     {paginatedItems.map((item) => (
                       <article className="card gift-card" key={item.gift.id}>
+                      <Link className="gift-card__image-link" to={`/catalog/${item.gift.id}`}>
+                        <img
+                          alt={item.gift.name}
+                          className="gift-card__image"
+                          src={item.gift.image ?? FALLBACK_IMAGE}
+                        />
+                      </Link>
                       <div className="gift-card__content">
                         <div className="gift-card__heading">
                           <h3>{item.rank}. {item.gift.name}</h3>

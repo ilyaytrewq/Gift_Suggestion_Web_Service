@@ -265,8 +265,8 @@ func TestServiceRecommendUsesPartialMLResponseAndFallbackFill(t *testing.T) {
 func TestServiceRecommendCapsOversizedCandidateSetBeforeML(t *testing.T) {
 	t.Parallel()
 
-	items := make([]catalogdomain.Gift, 0, 250)
-	for index := range 250 {
+	items := make([]catalogdomain.Gift, 0, 450)
+	for index := range 450 {
 		items = append(items, mustRecommendationGift(
 			t,
 			giftIDForIndex(index),

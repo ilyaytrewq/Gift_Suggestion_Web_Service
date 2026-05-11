@@ -1,7 +1,11 @@
+import { useEffect, useRef, useState } from 'react';
+
 import type { CatalogCategory, ListCatalogGiftsQuery } from '../../../shared/api/contracts';
 import { Button } from '../../../shared/ui/button/button';
 import { buttonClassName } from '../../../shared/ui/button/button-class-name';
 import { Input } from '../../../shared/ui/input/input';
+
+const SEARCH_DEBOUNCE_MS = 400;
 
 const sortOptions: Array<{
   label: string;
@@ -44,13 +48,40 @@ export function CatalogFilters({
   onSearch: (value: string) => void;
   onSortChange: (value: NonNullable<ListCatalogGiftsQuery['sort']>) => void;
 }): JSX.Element {
+  const [searchDraft, setSearchDraft] = useState(filters.q ?? '');
+  const onSearchRef = useRef(onSearch);
+
+  useEffect(() => {
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
+
+  useEffect(() => {
+    setSearchDraft(filters.q ?? '');
+  }, [filters.q]);
+
+  useEffect(() => {
+    const normalizedDraft = searchDraft.trim();
+    const normalizedQuery = (filters.q ?? '').trim();
+    if (normalizedDraft === normalizedQuery) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      onSearchRef.current(searchDraft);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [filters.q, searchDraft]);
+
   const hasActiveFilters = Boolean(
     filters.q ||
       filters.category_id ||
       filters.min_price ||
       filters.max_price ||
       filters.age_restriction !== undefined ||
-      filters.has_image,
+      filters.has_image === true,
   );
 
   return (
@@ -60,16 +91,19 @@ export function CatalogFilters({
         onSubmit={(event) => {
           event.preventDefault();
           const formData = new FormData(event.currentTarget);
-          onSearch(String(formData.get('q') ?? ''));
+          onSearch(String(formData.get('q') ?? searchDraft));
           onMinPriceChange(String(formData.get('min_price') ?? '').trim() || null);
           onMaxPriceChange(String(formData.get('max_price') ?? '').trim() || null);
         }}
       >
         <Input
           aria-label="Поиск подарков"
-          defaultValue={filters.q ?? ''}
           name="q"
-          placeholder="Поиск по каталогу"
+          onChange={(event) => {
+            setSearchDraft(event.target.value);
+          }}
+          placeholder="Поиск по названию или категории"
+          value={searchDraft}
         />
 
         <Input
@@ -140,7 +174,7 @@ export function CatalogFilters({
           }}
         >
           <input
-            checked={filters.has_image ?? false}
+            checked={filters.has_image === true}
             type="checkbox"
             onChange={(e) => onHasImageChange(e.target.checked || null)}
           />

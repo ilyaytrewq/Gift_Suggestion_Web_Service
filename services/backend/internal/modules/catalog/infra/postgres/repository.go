@@ -360,9 +360,14 @@ func buildGiftWhere(filter catalogusecase.GiftFilter) (string, []any) {
 	args := make([]any, 0, 6)
 
 	if filter.Search != "" {
-		args = append(args, "%"+filter.Search+"%")
+		args = append(args, "%"+escapeLikePattern(filter.Search)+"%")
 		position := len(args)
-		clauses = append(clauses, fmt.Sprintf("(g.name ILIKE $%d OR g.description ILIKE $%d)", position, position))
+		clauses = append(clauses, fmt.Sprintf(
+			"(g.name ILIKE $%d ESCAPE '\\' OR g.description ILIKE $%d ESCAPE '\\' OR c.name ILIKE $%d ESCAPE '\\')",
+			position,
+			position,
+			position,
+		))
 	}
 	if filter.CategoryID != nil {
 		args = append(args, filter.CategoryID.String())
@@ -438,4 +443,13 @@ func categoryOrderBy(sort catalogusecase.CategorySort) string {
 	default:
 		return "name ASC, id ASC"
 	}
+}
+
+func escapeLikePattern(raw string) string {
+	replacer := strings.NewReplacer(
+		`\`, `\\`,
+		`%`, `\%`,
+		`_`, `\_`,
+	)
+	return replacer.Replace(raw)
 }

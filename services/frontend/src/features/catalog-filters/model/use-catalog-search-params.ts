@@ -19,6 +19,22 @@ function parsePage(value: string | null): number {
   return page;
 }
 
+function resolveHasImageFilter(searchParams: URLSearchParams): boolean | undefined {
+  const raw = searchParams.get('has_image');
+  if (raw === 'true') {
+    return true;
+  }
+  if (raw === 'false') {
+    return undefined;
+  }
+  // При активном поиске не скрываем подарки без фото, если фильтр явно не включён.
+  if (searchParams.get('q')?.trim()) {
+    return undefined;
+  }
+
+  return true;
+}
+
 function setPageParam(searchParams: URLSearchParams, value: number): void {
   if (value <= 1) {
     searchParams.delete('page');
@@ -58,7 +74,7 @@ export function useCatalogSearchParams(): {
       age_restriction: searchParams.get('age_restriction')
         ? (Number(searchParams.get('age_restriction')) as 0 | 12 | 16 | 18)
         : undefined,
-      has_image: searchParams.get('has_image') === 'true' ? true : undefined,
+      has_image: resolveHasImageFilter(searchParams),
     }),
     [page, searchParams],
   );
@@ -132,7 +148,7 @@ export function useCatalogSearchParams(): {
       if (value) {
         next.set('has_image', 'true');
       } else {
-        next.delete('has_image');
+        next.set('has_image', 'false');
       }
       setPageParam(next, 1);
       setSearchParams(next);
