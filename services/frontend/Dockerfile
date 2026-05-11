@@ -17,7 +17,9 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ENV VITE_VK_APP_ID=${VITE_VK_APP_ID}
 ENV VITE_VK_REDIRECT_URI=${VITE_VK_REDIRECT_URI}
 
-RUN npm run build
+# Bust Docker layer cache when only CI/env changes (see CACHEBUST in cd.yml).
+ARG CACHEBUST=1
+RUN echo "frontend build cachebust=${CACHEBUST}" && npm run build
 
 FROM nginx:1.27-alpine AS runtime
 

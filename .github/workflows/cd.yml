@@ -115,10 +115,12 @@ jobs:
         with:
           context: .
           file: services/frontend/Dockerfile
+          no-cache: true
           build-args: |
             VITE_API_BASE_URL=
             VITE_VK_APP_ID=${{ vars.VK_APP_ID || vars.VK_ID }}
             VITE_VK_REDIRECT_URI=${{ vars.VK_REDIRECT_URI }}
+            CACHEBUST=${{ github.sha }}
           push: true
           tags: ${{ steps.image-refs.outputs.frontend_image }}
 
@@ -222,6 +224,10 @@ jobs:
 
           printf '%s\n' "${GITHUB_TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
 
-          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml down
-          docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml up --build -d
+          compose=(docker compose -p gift-suggestion --env-file .deploy.env -f docker-compose.yml)
+          "${compose[@]}" down
+          # Use images built in CI (GHCR). Do not --build here: server checkout may be stale
+          # and would overwrite FRONTEND_IMAGE with an old local npm run build.
+          "${compose[@]}" pull
+          "${compose[@]}" up -d
           EOF
