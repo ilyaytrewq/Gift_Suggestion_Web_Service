@@ -985,6 +985,10 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .site-header {
+    position: relative;
+  }
+
   .catalog-summary,
   .catalog-pagination,
   .site-header__inner,
