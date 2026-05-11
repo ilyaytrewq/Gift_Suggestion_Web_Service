@@ -1,10 +1,7 @@
 import { getVkOAuthClientId, getVkOAuthRedirectUri } from '../../../shared/config/env';
 
-/**
- * VK ID scopes (space-separated). `groups` must be enabled for the app in id.vk.com
- * (often requires approval via devsupport@corp.vk.com) — without it sync cannot call groups.get.
- */
-export const VK_OAUTH_SCOPE = 'vkid.personal_info groups';
+/** VK ID scopes (space-separated). Groups import uses fallback profile sync until `groups` is enabled in id.vk.com. */
+export const VK_OAUTH_SCOPE = 'vkid.personal_info';
 
 const VK_ID_AUTHORIZE_URL = 'https://id.vk.ru/authorize';
 

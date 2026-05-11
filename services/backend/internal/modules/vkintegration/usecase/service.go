@@ -153,14 +153,53 @@ func (s *Service) ensureOAuthConfigured() error {
 	return nil
 }
 
-func connectionHasGroupsScope(scopes []string) bool {
-	for _, scope := range scopes {
-		if strings.EqualFold(strings.TrimSpace(scope), "groups") {
-			return true
-		}
+func (s *Service) applyImportProfile(
+	ctx context.Context,
+	connection *vkintegrationdomain.Connection,
+	result ImportInterestsResult,
+) error {
+	if result.ProfileScreenName == nil && result.ProfileURL == nil {
+		return nil
 	}
 
-	return false
+	screenName := connection.Metadata().ScreenName()
+	if result.ProfileScreenName != nil {
+		screenName = result.ProfileScreenName
+	}
+
+	profileURL := connection.Metadata().ProfileURL()
+	if result.ProfileURL != nil {
+		profileURL = result.ProfileURL
+	}
+
+	metadata, err := vkintegrationdomain.NewIntegrationMetadata(screenName, profileURL)
+	if err != nil {
+		return mapConnectionValidationError(err)
+	}
+
+	grantedAt := connection.ConsentGrantedAt()
+	if grantedAt == nil {
+		return apperrors.New(
+			apperrors.KindConflict,
+			"vk_consent_required",
+			"vk consent is required before sync",
+		)
+	}
+
+	if err := connection.Reconnect(
+		connection.ProviderUserID(),
+		connection.ConsentVersion(),
+		connection.TokenCiphertext(),
+		connection.TokenExpiresAt(),
+		connection.Scopes(),
+		metadata,
+		s.clock.Now(),
+		*grantedAt,
+	); err != nil {
+		return mapConnectionValidationError(err)
+	}
+
+	return s.repo.Save(ctx, connection)
 }
 
 func splitOAuthScopes(scope string) []string {
@@ -366,14 +405,6 @@ func (s *Service) SyncInterests(ctx context.Context, input SyncInterestsInput) (
 			"vk token storage is unavailable",
 		)
 	}
-	if !connectionHasGroupsScope(connection.Scopes()) {
-		return SyncInterestsOutput{}, apperrors.New(
-			apperrors.KindUnavailable,
-			"vk_groups_scope_required",
-			"vk groups scope is required to import interests; reconnect vk after groups access is enabled for the app",
-		)
-	}
-
 	token, err := s.tokenProtector.Open(*connection.TokenCiphertext())
 	if err != nil {
 		return SyncInterestsOutput{}, mapTokenProtectionError(err)
@@ -393,6 +424,10 @@ func (s *Service) SyncInterests(ctx context.Context, input SyncInterestsInput) (
 	})
 	if err != nil {
 		return SyncInterestsOutput{}, s.failSync(ctx, connection, mapImportFailure(err))
+	}
+
+	if err := s.applyImportProfile(ctx, connection, result); err != nil {
+		return SyncInterestsOutput{}, mapRepositoryError(err)
 	}
 
 	importedAt := s.clock.Now()

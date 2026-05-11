@@ -152,7 +152,7 @@ export function VkConnectionPanel(): JSX.Element | null {
           <p className="eyebrow">VK</p>
           <h2>ВКонтакте</h2>
           <p className="page-copy">
-            Свяжите аккаунт, чтобы сохранять токен на сервере и импортировать ваши группы ВКонтакте как интересы.
+            Свяжите аккаунт VK ID. Синхронизация подтягивает профиль; список групп появится после выдачи права groups в id.vk.com.
           </p>
         </div>
       </div>

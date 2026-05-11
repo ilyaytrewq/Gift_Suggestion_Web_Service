@@ -36,7 +36,9 @@ type ImportInterestsRequest struct {
 }
 
 type ImportInterestsResult struct {
-	Interests []ImportedInterestRecord
+	Interests         []ImportedInterestRecord
+	ProfileScreenName *string
+	ProfileURL        *string
 }
 
 type ImportedInterestRecord struct {

@@ -185,7 +185,7 @@ func TestServiceSyncInterestsRejectsExpiredToken(t *testing.T) {
 	}
 }
 
-func TestServiceSyncInterestsRejectsWithoutGroupsScope(t *testing.T) {
+func TestServiceSyncInterestsSucceedsWithoutGroupsScope(t *testing.T) {
 	t.Parallel()
 
 	connection := mustVKRestoredConnection(
@@ -197,20 +197,29 @@ func TestServiceSyncInterestsRejectsWithoutGroupsScope(t *testing.T) {
 		timePtr(time.Date(2026, 4, 20, 12, 0, 0, 0, time.UTC)),
 		[]string{"vkid.personal_info"},
 	)
+	repo := &fakeVKConnectionRepository{connection: &connection}
+	screenName := "Иван Иванов"
 	service := mustVKService(t, vkServiceDeps{
-		repo:       &fakeVKConnectionRepository{connection: &connection},
+		repo:       repo,
 		userReader: fakeVKUserReader{user: mustVKUser(t)},
 		protector:  fakeVKTokenProtector{configured: true, opened: "raw-token"},
+		importer: fakeVKInterestImporter{
+			result: ImportInterestsResult{
+				Interests:         []ImportedInterestRecord{},
+				ProfileScreenName: &screenName,
+			},
+		},
 	})
 
-	_, err := service.SyncInterests(context.Background(), SyncInterestsInput{UserID: testVKUserID})
-	if err == nil {
-		t.Fatal("SyncInterests() expected unavailable error")
+	output, err := service.SyncInterests(context.Background(), SyncInterestsInput{UserID: testVKUserID})
+	if err != nil {
+		t.Fatalf("SyncInterests() error = %v", err)
 	}
-
-	appErr := apperrors.From(err)
-	if appErr.Code() != "vk_groups_scope_required" {
-		t.Fatalf("SyncInterests() code = %q, want %q", appErr.Code(), "vk_groups_scope_required")
+	if output.Connection.State != "connected" {
+		t.Fatalf("SyncInterests() state = %q, want connected", output.Connection.State)
+	}
+	if repo.connection.Metadata().ScreenName() == nil || *repo.connection.Metadata().ScreenName() != screenName {
+		t.Fatalf("SyncInterests() screen_name = %v, want %q", repo.connection.Metadata().ScreenName(), screenName)
 	}
 }
 

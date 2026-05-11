@@ -429,7 +429,7 @@ func newVKIntegrationHandler(
 	uuidGenerator idgen.UUIDGenerator,
 ) (*vkintegrationhttp.Handler, error) {
 	connectionRepository := vkintegrationpostgres.NewRepository(database)
-	importer := vkintegrationvk.NewClient(cfg)
+	importer := vkintegrationvk.NewRoutingImporter(cfg)
 	vkOAuthClient := vkid.NewClient(cfg)
 	var oauthExchanger vkintegrationusecase.OAuthTokenExchanger
 	if strings.TrimSpace(cfg.AppID) != "" && strings.TrimSpace(cfg.OAuthRedirectURI) != "" {

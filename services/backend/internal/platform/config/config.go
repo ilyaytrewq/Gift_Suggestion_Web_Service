@@ -100,6 +100,7 @@ type VKConfig struct {
 	AppID              string
 	OAuthRedirectURI   string
 	OAuthTokenURL      string
+	OAuthUserInfoURL   string
 }
 
 type EmailConfig struct {
@@ -487,6 +488,7 @@ func loadVKConfig(lookup func(string) (string, bool)) (VKConfig, error) {
 		AppID:              stringWithDefault(lookup, "VK_APP_ID", ""),
 		OAuthRedirectURI:   stringWithDefault(lookup, "VK_OAUTH_REDIRECT_URI", ""),
 		OAuthTokenURL:      stringWithDefault(lookup, "VK_OAUTH_TOKEN_URL", ""),
+		OAuthUserInfoURL:   stringWithDefault(lookup, "VK_OAUTH_USER_INFO_URL", ""),
 	}, nil
 }
 
