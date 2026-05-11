@@ -28,6 +28,7 @@ ISSUE.md
 coverage.out
 coverage*.out
 
+
 # Go workspace (Go 1.18+)
 go.work
 go.work.sum
@@ -42,7 +43,6 @@ vendor/
 .idea/
 .vscode/
 *.swp
-Solve_Guide.md
 .github/copilot-instructions.md
 *.swo
 .DS_Store
@@ -73,9 +73,6 @@ dist/
 .venv/
 venv/
 *.env*
-
-*TZ/
-*TODO.md
 
 # --- ML datasets / model artifacts ---
 services/ml/dataset/collected/
