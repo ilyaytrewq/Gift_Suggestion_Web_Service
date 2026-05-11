@@ -1,6 +1,4 @@
-const currencyFormatter = new Intl.NumberFormat('ru-RU', {
-  style: 'currency',
-  currency: 'RUB',
+const priceFormatter = new Intl.NumberFormat('ru-RU', {
   maximumFractionDigits: 2,
 });
 
@@ -15,7 +13,7 @@ export function formatPrice(value: string): string {
     return value;
   }
 
-  return currencyFormatter.format(amount);
+  return priceFormatter.format(amount);
 }
 
 export function formatDateTime(value?: string | null): string {

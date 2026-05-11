@@ -77,7 +77,7 @@ export function CatalogFilters({
           defaultValue={filters.min_price ?? ''}
           min="0"
           name="min_price"
-          placeholder="Цена от, ₽"
+          placeholder="Цена от"
           style={{ width: '110px' }}
           type="number"
         />
@@ -87,7 +87,7 @@ export function CatalogFilters({
           defaultValue={filters.max_price ?? ''}
           min="0"
           name="max_price"
-          placeholder="Цена до, ₽"
+          placeholder="Цена до"
           style={{ width: '110px' }}
           type="number"
         />

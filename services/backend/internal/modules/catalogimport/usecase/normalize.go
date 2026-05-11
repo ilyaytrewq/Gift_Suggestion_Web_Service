@@ -28,6 +28,7 @@ func (s *Service) normalizeRow(
 	ctx context.Context,
 	row ImportRowRaw,
 	defaultSourceLabel string,
+	categoryCache map[string]*catalogdomain.Category,
 ) (normalizedRecord, *string, *rowError, error) {
 	if strings.TrimSpace(row.Name) == "" {
 		return normalizedRecord{}, nil, &rowError{
@@ -66,9 +67,14 @@ func (s *Service) normalizeRow(
 		}, nil
 	}
 
-	category, err := s.repo.FindCategoryByName(ctx, categoryName)
-	if err != nil {
-		return normalizedRecord{}, nil, nil, err
+	category, ok := categoryCache[categoryName]
+	if !ok {
+		var err error
+		category, err = s.repo.FindCategoryByName(ctx, categoryName)
+		if err != nil {
+			return normalizedRecord{}, nil, nil, err
+		}
+		categoryCache[categoryName] = category
 	}
 	if category == nil {
 		return normalizedRecord{}, nil, &rowError{

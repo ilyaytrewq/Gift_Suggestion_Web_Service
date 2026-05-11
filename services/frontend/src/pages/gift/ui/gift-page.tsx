@@ -108,7 +108,7 @@ export function GiftPage(): JSX.Element {
                       >
                         <span className="gift-offer__name">{offer.store_name}</span>
                         <span className="gift-offer__price">
-                          {formatPrice(offer.price)} {offer.currency}
+                          {formatPrice(offer.price)}
                         </span>
                         {offer.available ? (
                           <a

@@ -15,6 +15,9 @@ import (
 const (
 	defaultLimit = 20
 	maxLimit     = 100
+
+	// Реже пишем прогресс job в БД (было: каждая строка).
+	importJobProgressInterval = 250
 )
 
 type Service struct {
@@ -199,13 +202,35 @@ func (s *Service) processRows(
 	summary *catalogimportdomain.Summary,
 ) error {
 	seenKeys := make(map[string]struct{}, len(rows))
+	categoryCache := make(map[string]*catalogdomain.Category)
 	for _, row := range rows {
-		if err := s.processRow(ctx, job, defaultSourceLabel, seenKeys, row, summary); err != nil {
+		if err := s.processRow(ctx, job, defaultSourceLabel, seenKeys, categoryCache, row, summary); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return s.flushJobProgress(ctx, job, summary)
+}
+
+func (s *Service) flushJobProgress(
+	ctx context.Context,
+	job *catalogimportdomain.ImportJob,
+	summary *catalogimportdomain.Summary,
+) error {
+	job.UpdateProgress(*summary, s.clock.Now())
+	return s.repo.UpdateJob(ctx, job)
+}
+
+func (s *Service) maybeFlushJobProgress(
+	ctx context.Context,
+	job *catalogimportdomain.ImportJob,
+	summary *catalogimportdomain.Summary,
+) error {
+	if summary.ProcessedRows%importJobProgressInterval != 0 {
+		return nil
+	}
+
+	return s.flushJobProgress(ctx, job, summary)
 }
 
 func (s *Service) processRow(
@@ -213,12 +238,13 @@ func (s *Service) processRow(
 	job *catalogimportdomain.ImportJob,
 	defaultSourceLabel string,
 	seenKeys map[string]struct{},
+	categoryCache map[string]*catalogdomain.Category,
 	row ImportRowRaw,
 	summary *catalogimportdomain.Summary,
 ) error {
 	summary.ProcessedRows++
 
-	record, recordKey, rowErr, err := s.normalizeRow(ctx, row, defaultSourceLabel)
+	record, recordKey, rowErr, err := s.normalizeRow(ctx, row, defaultSourceLabel, categoryCache)
 	if err != nil {
 		return err
 	}
@@ -258,8 +284,11 @@ func (s *Service) processRow(
 	}
 
 	summary.ImportedRows++
-	job.UpdateProgress(*summary, s.clock.Now())
-	return s.repo.UpdateJob(ctx, job)
+	return s.maybeFlushJobProgress(ctx, job, summary)
+}
+
+func (s *Service) isBenignDuplicateError(code string) bool {
+	return code == "duplicate_file_record" || code == "duplicate_catalog_entry"
 }
 
 func (s *Service) persistRowFailure(
@@ -279,12 +308,16 @@ func (s *Service) persistRowFailure(
 		summary.DuplicateInCatalogRows++
 	}
 
+	// Дубликаты не пишем в import_errors — на больших чанках это тысячи INSERT.
+	if s.isBenignDuplicateError(rowErr.Code) {
+		return s.maybeFlushJobProgress(ctx, job, summary)
+	}
+
 	if err := s.persistRowError(ctx, job.ID(), row, recordKey, rowErr); err != nil {
 		return err
 	}
 
-	job.UpdateProgress(*summary, s.clock.Now())
-	return s.repo.UpdateJob(ctx, job)
+	return s.maybeFlushJobProgress(ctx, job, summary)
 }
 
 func (s *Service) GetImportJob(ctx context.Context, input GetImportJobInput) (GetImportJobOutput, error) {

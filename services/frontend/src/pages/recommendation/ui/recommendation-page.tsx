@@ -401,7 +401,7 @@ export function RecommendationPage(): JSX.Element {
           {step === 3 && (
             <div className="wizard__body">
               <h2 className="wizard__title">Бюджет и параметры</h2>
-              <Field label="Бюджет до, ₽" error={errors.budget_max}>
+              <Field label="Бюджет до" error={errors.budget_max}>
                 <Input
                   placeholder="Например: 5000"
                   value={data.budget_max}
@@ -502,7 +502,7 @@ export function RecommendationPage(): JSX.Element {
                     ))}
                   </select>
                   <Input
-                    placeholder="Цена до, ₽"
+                    placeholder="Цена до"
                     style={{ width: '120px' }}
                     type="number"
                     value={filterMaxPrice}
