@@ -502,9 +502,9 @@ CI (`/.github/workflows/ci.yml`) обновить для запуска coverage
 - Билд и push образа `ml-service` рядом с `backend` и `frontend`
 - В deploy compose добавлен `ml-service`
 
-### 6.4. README и AGENTS
+### 6.4. README
 
-Обновить (`README.md`, `AGENTS.md`) под новые компоненты:
+Обновить `README.md` под новые компоненты:
 - Раздел "ML сервис" — как запустить, обучить модель, обновить
 - Раздел "Источники данных" — как выгрузить WB и AliExpress
 - Обновить "Что реализовано" / "Ограничения текущего состояния"

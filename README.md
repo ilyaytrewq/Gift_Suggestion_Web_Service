@@ -110,8 +110,6 @@ bash scripts/data/make_admin.sh --email user@example.com --server ilyaytrewq@51.
 .
 ├── docker-compose.yml
 ├── README.md
-├── AGENTS.md
-├── CLAUDE.md
 ├── docs/
 │   ├── ci-cd.md
 │   └── data.md
