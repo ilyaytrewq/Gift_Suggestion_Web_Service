@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import { createRecommendation } from '../../../features/recommendation/api/recommendation';
+import { getVkConnection } from '../../../features/vk-integration/api/vk';
+import { isVkIntegrationConfigured } from '../../../features/vk-integration/lib/is-vk-integration-configured';
 import { useTrackEvent } from '../../../features/tracking/model/use-track-event';
 import { WishlistSaveButton } from '../../../features/wishlist/ui/wishlist-save-button';
 import { formatPrice } from '../../../shared/lib/format';
@@ -14,6 +16,8 @@ import { Notice } from '../../../shared/ui/feedback/notice';
 import { Field } from '../../../shared/ui/form/field';
 import { Input } from '../../../shared/ui/input/input';
 import { Container } from '../../../shared/ui/layout/container';
+import { useAuth } from '../../../shared/auth/use-auth';
+import { isVkOAuthConfigured } from '../../../shared/config/env';
 
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1513475382585-d06e58bcb0ff?auto=format&fit=crop&w=900&q=80';
@@ -65,6 +69,8 @@ const PRESET_INTERESTS = [
 ] as const;
 
 const RESULTS_PAGE_SIZE = 12;
+/** Совпадает с лимитом interests на backend. */
+const MAX_RECOMMENDATION_INTERESTS = 10;
 
 // ─── Wizard state ────────────────────────────────────────────────────────────
 
@@ -77,6 +83,7 @@ interface WizardData {
   interests_extra: string;
   budget_max: string;
   use_wishlist_context: boolean;
+  use_vk_interests: boolean;
 }
 
 const EMPTY: WizardData = {
@@ -88,6 +95,7 @@ const EMPTY: WizardData = {
   interests_extra: '',
   budget_max: '',
   use_wishlist_context: true,
+  use_vk_interests: false,
 };
 
 const STEPS = ['Повод', 'Получатель', 'Интересы', 'Бюджет'];
@@ -98,6 +106,34 @@ function mergeInterests(presets: string[], extraCsv: string): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
   return [...new Set([...presets, ...fromExtra])];
+}
+
+function buildRecommendationInterests(
+  presets: string[],
+  extraCsv: string,
+  vkNames: string[],
+  useVk: boolean,
+): string[] {
+  const manual = mergeInterests(presets, extraCsv);
+  if (!useVk || vkNames.length === 0) {
+    return manual.slice(0, MAX_RECOMMENDATION_INTERESTS);
+  }
+
+  const combined: string[] = [];
+  const seen = new Set<string>();
+  for (const name of [...manual, ...vkNames]) {
+    const key = name.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    combined.push(name);
+    if (combined.length >= MAX_RECOMMENDATION_INTERESTS) {
+      break;
+    }
+  }
+
+  return combined;
 }
 
 /** Значение для `<select>` только из пресетов; иначе пусто. */
@@ -123,6 +159,10 @@ function validateBudget(v: string): string | null {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function RecommendationPage(): JSX.Element {
+  const auth = useAuth();
+  const vkOAuthConfigured = isVkOAuthConfigured();
+  const vkDefaultAppliedRef = useRef(false);
+
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof WizardData, string>>>({});
@@ -134,6 +174,60 @@ export function RecommendationPage(): JSX.Element {
   const [filterMaxPrice, setFilterMaxPrice] = useState('');
 
   const track = useTrackEvent();
+
+  const connectionQuery = useQuery({
+    queryKey: ['vk-connection'],
+    queryFn: getVkConnection,
+    enabled: Boolean(auth.accessToken) && vkOAuthConfigured,
+  });
+
+  const vkConnection = connectionQuery.data?.data.connection;
+  const vkIntegrationReady = Boolean(
+    vkConnection && isVkIntegrationConfigured(vkConnection),
+  );
+
+  const vkInterestNames = useMemo(() => {
+    if (!vkConnection?.imported_interests.length) {
+      return [];
+    }
+    return vkConnection.imported_interests.map((item) => item.name);
+  }, [vkConnection]);
+
+  const vkInterestsAvailable = vkInterestNames.length > 0;
+  const vkInterestsCheckboxDisabled =
+    !auth.accessToken || !vkIntegrationReady || !vkInterestsAvailable;
+
+  const recommendationInterestsCount = useMemo(
+    () =>
+      buildRecommendationInterests(
+        data.interest_presets,
+        data.interests_extra,
+        vkInterestNames,
+        data.use_vk_interests,
+      ).length,
+    [
+      data.interest_presets,
+      data.interests_extra,
+      data.use_vk_interests,
+      vkInterestNames,
+    ],
+  );
+
+  const vkInterestsTruncated =
+    data.use_vk_interests &&
+    vkInterestsAvailable &&
+    recommendationInterestsCount >= MAX_RECOMMENDATION_INTERESTS &&
+    mergeInterests(data.interest_presets, data.interests_extra).length +
+      vkInterestNames.length >
+      MAX_RECOMMENDATION_INTERESTS;
+
+  useEffect(() => {
+    if (vkDefaultAppliedRef.current || !vkInterestsAvailable) {
+      return;
+    }
+    vkDefaultAppliedRef.current = true;
+    setData((prev) => ({ ...prev, use_vk_interests: true }));
+  }, [vkInterestsAvailable]);
 
   const mutation = useMutation({
     mutationFn: createRecommendation,
@@ -234,12 +328,18 @@ export function RecommendationPage(): JSX.Element {
       recipient_age: data.recipient_age.trim() ? Number(data.recipient_age) : undefined,
       recipient_gender: (data.recipient_gender || undefined) as 'male' | 'female' | 'other' | undefined,
       budget_max: data.budget_max.trim(),
-      interests: mergeInterests(data.interest_presets, data.interests_extra),
+      interests: buildRecommendationInterests(
+        data.interest_presets,
+        data.interests_extra,
+        vkInterestNames,
+        data.use_vk_interests,
+      ),
       use_wishlist_context: data.use_wishlist_context,
     });
   }
 
   function restart() {
+    vkDefaultAppliedRef.current = false;
     setData(EMPTY);
     setErrors({});
     setStep(0);
@@ -426,6 +526,41 @@ export function RecommendationPage(): JSX.Element {
                   </span>
                 </span>
               </label>
+              <label className="checkbox-field">
+                <input
+                  className="checkbox-field__native"
+                  type="checkbox"
+                  checked={data.use_vk_interests}
+                  disabled={vkInterestsCheckboxDisabled}
+                  onChange={(e) => update('use_vk_interests', e.target.checked)}
+                />
+                <span className="checkbox-field__indicator" aria-hidden />
+                <span className="checkbox-field__body">
+                  <span className="checkbox-field__title">Учитывать интересы из VK</span>
+                  <span className="checkbox-field__hint">
+                    {!auth.accessToken
+                      ? 'Войдите в аккаунт, чтобы подтянуть интересы из ваших сообществ VK.'
+                      : !vkIntegrationReady
+                        ? 'Интеграция с VK сейчас недоступна.'
+                        : !vkInterestsAvailable
+                          ? (
+                            <>
+                              Сначала подключите VK и синхронизируйте интересы в{' '}
+                              <Link to="/profile">профиле</Link>.
+                            </>
+                          )
+                          : data.use_vk_interests
+                            ? `Будет учтено до ${MAX_RECOMMENDATION_INTERESTS} интересов: выбранные в мастере и ${vkInterestNames.length} из сообществ VK.`
+                            : `Доступно ${vkInterestNames.length} интересов из сообществ VK — включите, чтобы учесть их при подборе.`}
+                  </span>
+                </span>
+              </label>
+              {vkInterestsTruncated ? (
+                <Notice tone="info">
+                  Учтены только первые {MAX_RECOMMENDATION_INTERESTS} интересов: сначала из мастера,
+                  затем из VK.
+                </Notice>
+              ) : null}
             </div>
           )}
 

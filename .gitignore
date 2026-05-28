@@ -39,6 +39,9 @@ vendor/
 # Logs
 *.log
 
+# k6 load test artifacts
+loadtests/results/
+
 # --- IDE / OS ---
 .idea/
 .vscode/
