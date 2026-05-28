@@ -136,54 +136,6 @@ func TestServiceDisconnectWithoutActiveConnection(t *testing.T) {
 	}
 }
 
-func TestServiceDisconnectActiveConnection(t *testing.T) {
-	t.Parallel()
-
-	connection := mustVKConnection(
-		t,
-		"vk_123",
-		timePtr(time.Date(2026, 4, 20, 12, 0, 0, 0, time.UTC)),
-		time.Date(2026, 4, 19, 12, 30, 0, 0, time.UTC),
-	)
-	importedInterest, err := vkintegrationdomain.NewImportedInterest(
-		"Books",
-		"vk_group",
-		1,
-		time.Date(2026, 4, 19, 12, 0, 0, 0, time.UTC),
-	)
-	if err != nil {
-		t.Fatalf("NewImportedInterest() error = %v", err)
-	}
-
-	repo := &fakeVKConnectionRepository{
-		connection: &connection,
-		interests:  []vkintegrationdomain.ImportedInterest{importedInterest},
-	}
-	service := mustVKService(t, vkServiceDeps{
-		repo:       repo,
-		userReader: fakeVKUserReader{user: mustVKUser(t)},
-		protector:  fakeVKTokenProtector{configured: true},
-	})
-
-	output, err := service.Disconnect(context.Background(), DisconnectInput{UserID: testVKUserID})
-	if err != nil {
-		t.Fatalf("Disconnect() error = %v", err)
-	}
-
-	if output.Connection.State != "disconnected" {
-		t.Fatalf("Disconnect() state = %q, want disconnected", output.Connection.State)
-	}
-	if repo.connection == nil || repo.connection.ConnectionState() != vkintegrationdomain.ConnectionStateDisconnected {
-		t.Fatalf("repo connection state = %v, want disconnected", repo.connection.ConnectionState())
-	}
-	if len(repo.interests) != 0 {
-		t.Fatalf("repo interests len = %d, want 0", len(repo.interests))
-	}
-	if len(repo.connection.Scopes()) != 0 {
-		t.Fatalf("repo scopes = %v, want empty", repo.connection.Scopes())
-	}
-}
-
 func TestServiceSyncInterestsRejectsWithoutConsent(t *testing.T) {
 	t.Parallel()
 

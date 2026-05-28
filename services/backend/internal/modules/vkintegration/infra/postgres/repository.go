@@ -194,7 +194,7 @@ func upsertConnection(ctx context.Context, exec execer, connection *vkintegratio
 		return err
 	}
 
-	scopesJSON, err := marshalScopes(connection.Scopes())
+	scopesJSON, err := json.Marshal(connection.Scopes())
 	if err != nil {
 		return err
 	}
@@ -376,25 +376,14 @@ func unmarshalMetadata(payload []byte) (vkintegrationdomain.IntegrationMetadata,
 	return vkintegrationdomain.NewIntegrationMetadata(snapshot.ScreenName, snapshot.ProfileURL)
 }
 
-func marshalScopes(scopes []string) ([]byte, error) {
-	if scopes == nil {
-		scopes = []string{}
-	}
-
-	return json.Marshal(scopes)
-}
-
 func unmarshalScopes(payload []byte) ([]string, error) {
 	if len(payload) == 0 {
-		return []string{}, nil
+		return nil, nil
 	}
 
 	var scopes []string
 	if err := json.Unmarshal(payload, &scopes); err != nil {
 		return nil, err
-	}
-	if scopes == nil {
-		return []string{}, nil
 	}
 
 	return scopes, nil
