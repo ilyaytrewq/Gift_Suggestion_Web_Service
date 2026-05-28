@@ -334,7 +334,7 @@ func (c *Connection) Disconnect(now time.Time) {
 	c.consentState = ConsentStateRevoked
 	c.tokenCiphertext = nil
 	c.tokenExpiresAt = nil
-	c.scopes = nil
+	c.scopes = []string{}
 	c.lastSyncState = SyncStateIdle
 	c.lastSyncErrorCode = nil
 	c.disconnectedAt = &disconnectedAt

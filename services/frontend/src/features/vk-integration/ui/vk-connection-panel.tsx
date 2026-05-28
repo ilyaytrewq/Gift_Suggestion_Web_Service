@@ -252,10 +252,19 @@ export function VkConnectionPanel(): JSX.Element | null {
       </div>
 
       {syncMutation.isError ? (
-        <ErrorBanner
-          error={syncMutation.error}
-          title="Синхронизация не удалась"
-        />
+        <>
+          <ErrorBanner
+            error={syncMutation.error}
+            title="Синхронизация не удалась"
+          />
+          {isApiError(syncMutation.error) &&
+          (syncMutation.error.code === 'vk_token_expired' ||
+            syncMutation.error.code === 'vk_token_invalid') ? (
+            <Notice>
+              Нажмите «Отключить VK», затем «Войти через VK», чтобы выдать новый токен.
+            </Notice>
+          ) : null}
+        </>
       ) : null}
       {disconnectMutation.isError ? (
         <ErrorBanner
